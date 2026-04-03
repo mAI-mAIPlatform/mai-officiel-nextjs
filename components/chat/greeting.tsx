@@ -1,8 +1,15 @@
 import { motion } from "framer-motion";
-import { getRotatingText, greetingPrompts } from "@/lib/constants";
+import { useEffect, useState } from "react";
+import { greetingPrompts } from "@/lib/constants";
 
 export const Greeting = () => {
-  const greetingText = getRotatingText(greetingPrompts);
+  const [greetingText, setGreetingText] = useState<string>(greetingPrompts[0]);
+
+  useEffect(() => {
+    // Choix aléatoire uniquement après hydratation pour éviter les erreurs de prerender.
+    const randomIndex = Math.floor(Math.random() * greetingPrompts.length);
+    setGreetingText(greetingPrompts[randomIndex] ?? greetingPrompts[0]);
+  }, []);
 
   return (
     <div className="flex flex-col items-center px-4" key="overview">

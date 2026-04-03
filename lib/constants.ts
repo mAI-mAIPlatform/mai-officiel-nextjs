@@ -25,16 +25,3 @@ export const suggestions = [
   "Aide-moi à structurer une base de connaissances pour mon équipe.",
   "Propose 5 idées de contenu pour présenter mon produit en français.",
 ];
-
-export function getRotatingText(options: readonly string[]) {
-  if (!options.length) {
-    return "";
-  }
-
-  const dayOfYear = Math.floor(
-    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) /
-      86_400_000
-  );
-
-  return options[dayOfYear % options.length] ?? options[0];
-}

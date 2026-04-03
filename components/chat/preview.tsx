@@ -2,11 +2,18 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { getRotatingText, greetingPrompts, suggestions } from "@/lib/constants";
+import { useEffect, useState } from "react";
+import { greetingPrompts, suggestions } from "@/lib/constants";
 
 export function Preview() {
   const router = useRouter();
-  const greetingText = getRotatingText(greetingPrompts);
+  const [greetingText, setGreetingText] = useState<string>(greetingPrompts[0]);
+
+  useEffect(() => {
+    // Génération pseudo-aléatoire côté client uniquement (build-safe).
+    const randomIndex = Math.floor(Math.random() * greetingPrompts.length);
+    setGreetingText(greetingPrompts[randomIndex] ?? greetingPrompts[0]);
+  }, []);
 
   const handleAction = (query?: string) => {
     const url = query ? `/?query=${encodeURIComponent(query)}` : "/";
