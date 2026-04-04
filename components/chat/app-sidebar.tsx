@@ -6,6 +6,7 @@ import {
   FolderKanbanIcon,
   Languages,
   Newspaper,
+  Sparkles,
   PenSquareIcon,
   TrashIcon,
 } from "lucide-react";
@@ -128,6 +129,11 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     href: "/translation",
                     icon: Languages,
                     label: "Traduction",
+                  },
+                  {
+                    href: "/studio",
+                    icon: Sparkles,
+                    label: "Studio",
                   },
                 ].map((item) => (
                   <SidebarMenuItem key={item.href}>
