@@ -12,7 +12,7 @@ import {
   TerminalSquare,
   Trash2,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { chatModels } from "@/lib/ai/models";
 import { cn } from "@/lib/utils";
@@ -46,6 +46,15 @@ export default function CoderPage() {
   ]);
   const [selectedFilePath, setSelectedFilePath] = useState("src/app/page.tsx");
   const [newFilePath, setNewFilePath] = useState("");
+
+  const [accessCode, setAccessCode] = useState("");
+  const [isUnlocked, setIsUnlocked] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/restricted-access?area=coder")
+      .then((res) => res.json())
+      .then((payload) => setIsUnlocked(payload.unlocked === true));
+  }, []);
 
   const selectedModelLabel =
     chatModels.find((model) => model.id === selectedModel)?.name ?? "Modèle";
@@ -114,6 +123,20 @@ export default function CoderPage() {
     setNewFilePath("");
   };
 
+  const createFolder = () => {
+    if (!newFilePath.trim()) {
+      return;
+    }
+    const folderKeep = `${newFilePath.replace(/\/$/, "")}/.keep`;
+    if (files.some((file) => file.path === folderKeep)) {
+      return;
+    }
+    const nextFile = { path: folderKeep, content: "" };
+    setFiles((currentFiles) => [...currentFiles, nextFile]);
+    setSelectedFilePath(nextFile.path);
+    setNewFilePath("");
+  };
+
   const renameFile = (path: string) => {
     const renamed = `${path}.new`;
     if (files.some((file) => file.path === renamed)) {
@@ -144,6 +167,40 @@ export default function CoderPage() {
       )
     );
   };
+
+  if (!isUnlocked) {
+    return (
+      <div className="liquid-glass flex h-full w-full items-center justify-center p-6">
+        <div className="w-full max-w-md rounded-2xl border border-red-500/30 bg-card/70 p-5">
+          <p className="text-sm font-semibold text-red-500">Accès restreint</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Entrez le code d'accès pour ouvrir Coder.
+          </p>
+          <input
+            className="mt-3 h-10 w-full rounded-xl border border-border/50 bg-background/70 px-3"
+            onChange={(event) => setAccessCode(event.target.value)}
+            placeholder="Code d'accès"
+            value={accessCode}
+          />
+          <Button
+            className="mt-3 w-full"
+            onClick={async () => {
+              const response = await fetch("/api/restricted-access", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ area: "coder", code: accessCode }),
+              });
+              if (response.ok) {
+                setIsUnlocked(true);
+              }
+            }}
+          >
+            Déverrouiller
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="liquid-glass flex h-full w-full flex-col gap-4 overflow-y-auto p-4 md:p-8">
@@ -306,6 +363,29 @@ export default function CoderPage() {
                     />
                     <Button onClick={createFile} size="sm" variant="outline">
                       <FilePlus2 className="mr-1 size-3.5" /> Ajouter
+                    </Button>
+                    <Button onClick={createFolder} size="sm" variant="outline">
+                      Dossier
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        const blob = new Blob(
+                          [JSON.stringify(files, null, 2)],
+                          {
+                            type: "application/json",
+                          }
+                        );
+                        const url = URL.createObjectURL(blob);
+                        const anchor = document.createElement("a");
+                        anchor.href = url;
+                        anchor.download = "code-export.json";
+                        anchor.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                      size="sm"
+                      variant="outline"
+                    >
+                      Exporter
                     </Button>
                   </div>
                   <div className="space-y-1">

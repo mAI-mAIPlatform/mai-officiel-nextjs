@@ -112,8 +112,18 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     label: "Projets",
                   },
                   { href: "/mais", icon: BotIcon, label: "Mes mAIs" },
-                  { href: "/coder", icon: Code2, label: "Coder" },
-                  { href: "/news", icon: Newspaper, label: "Actualités" },
+                  {
+                    href: "/coder",
+                    icon: Code2,
+                    label: "Coder",
+                    restricted: true,
+                  },
+                  {
+                    href: "/news",
+                    icon: Newspaper,
+                    label: "Actualités",
+                    restricted: true,
+                  },
                   {
                     href: "/translation",
                     icon: Languages,
@@ -132,6 +142,11 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                       >
                         <item.icon className="size-4" />
                         <span className="font-medium">{item.label}</span>
+                        {item.restricted ? (
+                          <span className="rounded-full bg-red-500/90 px-1.5 py-0.5 text-[9px] text-white">
+                            Accès restreint
+                          </span>
+                        ) : null}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
