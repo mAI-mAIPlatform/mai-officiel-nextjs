@@ -18,7 +18,7 @@ import {
 
 const riskKeywords = [
   "douleur",
-  "fièvre",
+  "fievre",
   "urgence",
   "sang",
   "malaise",
@@ -26,6 +26,13 @@ const riskKeywords = [
   "abus",
   "suicide",
 ];
+
+function normalizeMedicalText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replaceAll(/[\u0300-\u036f]/g, "");
+}
 
 export default function HealthPage() {
   const { currentPlanDefinition, isHydrated } = useSubscriptionPlan();
@@ -38,14 +45,26 @@ export default function HealthPage() {
   const remainingRequests = Math.max(monthlyLimit - requestsThisMonth, 0);
 
   const analysis = useMemo(() => {
-    const normalized = documentText.toLowerCase();
+    // Normalisation proactive pour éviter les faux négatifs sur accents/casse.
+    const normalized = normalizeMedicalText(documentText);
     const matchedKeywords = riskKeywords.filter((keyword) =>
       normalized.includes(keyword)
     );
+    const sentenceCount = normalized
+      .split(/[.!?]/)
+      .map((item) => item.trim())
+      .filter(Boolean).length;
+    const hasUrgentSignal =
+      matchedKeywords.includes("urgence") ||
+      matchedKeywords.includes("suicide") ||
+      matchedKeywords.includes("abus") ||
+      matchedKeywords.includes("violence");
 
     return {
       wordCount: normalized.trim() ? normalized.trim().split(/\s+/).length : 0,
+      sentenceCount,
       matchedKeywords,
+      hasUrgentSignal,
       priority:
         matchedKeywords.length >= 3
           ? "Élevée"
@@ -150,6 +169,10 @@ export default function HealthPage() {
               {hasRequestedAnalysis ? analysis.wordCount : 0} mots
             </p>
             <p>
+              <span className="font-medium">Phrases détectées :</span>{" "}
+              {hasRequestedAnalysis ? analysis.sentenceCount : 0}
+            </p>
+            <p>
               <span className="font-medium">Priorité suggérée :</span>{" "}
               {hasRequestedAnalysis ? analysis.priority : "—"}
             </p>
@@ -170,6 +193,17 @@ export default function HealthPage() {
               )}
             </div>
           </div>
+
+          {hasRequestedAnalysis && analysis.hasUrgentSignal && (
+            <div className="mt-4 rounded-xl border border-red-500/35 bg-red-500/15 p-3 text-xs text-red-800 dark:text-red-100">
+              <p className="font-semibold">Alerte de vigilance élevée</p>
+              <p className="mt-1">
+                Des signaux potentiellement urgents ont été détectés. Orientez
+                immédiatement le patient vers un professionnel de santé ou les
+                services d&apos;urgence locaux.
+              </p>
+            </div>
+          )}
 
           <div className="mt-4 rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-xs text-red-800 dark:text-red-200">
             <p className="flex items-center gap-2 font-medium">

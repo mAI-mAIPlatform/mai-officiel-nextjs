@@ -2,7 +2,9 @@
 
 import {
   CalendarClock,
+  ChevronDown,
   CheckCircle2,
+  Cpu,
   Gauge,
   Info,
   KeyRound,
@@ -18,7 +20,13 @@ import { PlanUpgradeCTA } from "@/components/chat/plan-upgrade-cta";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
+import { chatModels } from "@/lib/ai/models";
 import { planDefinitions } from "@/lib/subscription";
 import { getNextResetDate, getUsageCount } from "@/lib/usage-limits";
 import { cn } from "@/lib/utils";
@@ -115,6 +123,12 @@ export default function SettingsPage() {
   const [chatBarSize, setChatBarSize] = useState<
     "compact" | "standard" | "large"
   >("compact");
+  const [modelsDisplayMode, setModelsDisplayMode] = useState<
+    "compact" | "detailed"
+  >("detailed");
+  const [openModelAccordion, setOpenModelAccordion] = useState<string | null>(
+    null
+  );
 
   const displayedPlans = useMemo(
     () => planOrder.map((planKey) => planDefinitions[planKey]),
@@ -154,6 +168,18 @@ export default function SettingsPage() {
       storedChatBarSize === "large"
     ) {
       setChatBarSize(storedChatBarSize);
+    }
+  }, []);
+
+  useEffect(() => {
+    const storedModelsDisplayMode = window.localStorage.getItem(
+      "mai.models.display.mode"
+    );
+    if (
+      storedModelsDisplayMode === "compact" ||
+      storedModelsDisplayMode === "detailed"
+    ) {
+      setModelsDisplayMode(storedModelsDisplayMode);
     }
   }, []);
 
@@ -228,6 +254,11 @@ export default function SettingsPage() {
   const handleChatBarSizeChange = (size: "compact" | "standard" | "large") => {
     setChatBarSize(size);
     window.localStorage.setItem("mai.chatbar.size", size);
+  };
+
+  const handleModelsDisplayMode = (mode: "compact" | "detailed") => {
+    setModelsDisplayMode(mode);
+    window.localStorage.setItem("mai.models.display.mode", mode);
   };
 
   const creditMetrics = useMemo<CreditMetric[]>(() => {
@@ -317,13 +348,26 @@ export default function SettingsPage() {
     );
   }, [creditMetrics]);
 
+  const curatedModelDescriptions = useMemo(
+    () =>
+      chatModels
+        .slice(0, 12)
+        .map((model) => ({
+          id: model.id,
+          title: model.name,
+          provider: model.provider,
+          description: model.description,
+        })),
+    []
+  );
+
   return (
     <div className="liquid-glass flex h-full w-full flex-col gap-6 overflow-y-auto p-6 md:p-10">
       <div className="flex items-center gap-3">
         <Settings2 className="size-8 text-primary" />
         <h1 className="text-3xl font-bold">Paramètres</h1>
         <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-xs text-muted-foreground">
-          v0.1.8
+          v0.1.9
         </span>
       </div>
 
@@ -397,6 +441,85 @@ export default function SettingsPage() {
               {option.label}
             </Button>
           ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <Cpu className="size-4 text-primary" />
+          Paramètres des modèles IA
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Choisissez le niveau d&apos;affichage et consultez la description des
+          modèles dans des menus accordéons.
+        </p>
+
+        <div className="mt-4 grid gap-2 md:grid-cols-2">
+          {[
+            { label: "Affichage compact", value: "compact" as const },
+            { label: "Affichage détaillé", value: "detailed" as const },
+          ].map((option) => (
+            <Button
+              className={cn(
+                "justify-start rounded-xl border border-border/50 bg-background/40",
+                modelsDisplayMode === option.value &&
+                  "border-primary/40 bg-primary/10 text-primary"
+              )}
+              key={option.value}
+              onClick={() => handleModelsDisplayMode(option.value)}
+              variant="ghost"
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
+
+        <div className="mt-4 space-y-2">
+          {curatedModelDescriptions.map((model) => {
+            const isOpen = openModelAccordion === model.id;
+            return (
+              <Collapsible
+                className="rounded-xl border border-border/40 bg-background/50"
+                key={model.id}
+                onOpenChange={(open) =>
+                  setOpenModelAccordion(open ? model.id : null)
+                }
+                open={isOpen}
+              >
+                <CollapsibleTrigger asChild>
+                  <button
+                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm"
+                    type="button"
+                  >
+                    <div>
+                      <p className="font-medium">{model.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Provider: {model.provider}
+                      </p>
+                    </div>
+                    <ChevronDown
+                      className={cn(
+                        "size-4 text-muted-foreground transition-transform",
+                        isOpen && "rotate-180"
+                      )}
+                    />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="border-t border-border/30 px-3 py-2 text-sm text-muted-foreground">
+                  {modelsDisplayMode === "compact" ? (
+                    <p>{model.description}</p>
+                  ) : (
+                    <div className="space-y-1">
+                      <p>{model.description}</p>
+                      <p className="text-xs">
+                        Identifiant technique: <code>{model.id}</code>
+                      </p>
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
         </div>
       </section>
 
