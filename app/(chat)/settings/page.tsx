@@ -1,22 +1,25 @@
 "use client";
 
 import {
+  Bell,
+  Brain,
+  Camera,
   CalendarClock,
-  CheckCircle2,
+  Database,
   FileText,
   Gauge,
-  Info,
   KeyRound,
-  Layers,
+  Mail,
   PlusCircle,
   Settings2,
+  ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   Trash2,
+  UserCircle2,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useEffect, useMemo, useState } from "react";
-import { PlanUpgradeCTA } from "@/components/chat/plan-upgrade-cta";
+import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,8 +28,9 @@ import { planDefinitions } from "@/lib/subscription";
 import { getNextResetDate, getUsageCount } from "@/lib/usage-limits";
 import { cn } from "@/lib/utils";
 
-const planOrder = ["free", "plus", "pro", "max"] as const;
 const TASKS_STORAGE_KEY = "mai.settings.automated-tasks.v017";
+const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
+const NOTIFICATIONS_SETTINGS_STORAGE_KEY = "mai.settings.notifications.v1";
 const schedulerModels = [
   "gpt-4.1",
   "gpt-4o-mini",
@@ -57,37 +61,37 @@ type CreditMetric = {
   used: number;
 };
 
-const aboutChangelog = [
-  {
-    version: "0.1.9",
-    date: "2026-04-05",
-    items: [
-      "Interface institutionnelle en français uniquement.",
-      "Barre de dialogue compacte par défaut et redimensionnement dans Paramètres.",
-      "Menu (+) compact avec affichage de l'option active sur la barre de saisie.",
-      "Renommage de Codestral en Mistral Codestral.",
-    ],
-  },
-  {
-    version: "0.1.8",
-    date: "2026-04-05",
-    items: [
-      "Quotas mAINews et mAIHealth par forfait.",
-      "Affichage des compteurs de consommation dans les modules.",
-    ],
-  },
-];
+type ProfileSettingsShape = {
+  aiMemory: string;
+  aiName: string;
+  aiPersonality: string;
+  avatarDataUrl?: string;
+  avatarId: string;
+  displayName: string;
+  personalContext: string;
+  profession: string;
+  responseStyle: "concis" | "normal" | "allonge";
+  projectDescription: string;
+  projectIconColor: string;
+  projectTitle: string;
+  stylisticDirectives: string;
+};
 
-const officialTechnologies = [
-  "Next.js App Router",
-  "React 19",
-  "TypeScript",
-  "Tailwind CSS",
-  "Vercel AI SDK",
-  "Drizzle ORM",
-  "PostgreSQL",
-  "NextAuth.js",
-];
+const defaultProfileSettings: ProfileSettingsShape = {
+  aiMemory: "",
+  aiName: "mAI",
+  aiPersonality: "",
+  avatarDataUrl: undefined,
+  avatarId: "aurora",
+  displayName: "",
+  personalContext: "",
+  profession: "",
+  responseStyle: "normal",
+  projectDescription: "",
+  projectIconColor: "#60a5fa",
+  projectTitle: "",
+  stylisticDirectives: "",
+};
 
 function formatDateTime(date: Date): string {
   return new Intl.DateTimeFormat("fr-FR", {
@@ -149,11 +153,24 @@ export default function SettingsPage() {
   const [chatBarSize, setChatBarSize] = useState<
     "compact" | "standard" | "large"
   >("compact");
+  const [profileName, setProfileName] = useState("");
+  const [profileLogoDataUrl, setProfileLogoDataUrl] = useState<
+    string | undefined
+  >();
+  const [profession, setProfession] = useState("");
+  const [responseStyle, setResponseStyle] = useState<
+    "concis" | "normal" | "allonge"
+  >("normal");
+  const [aiPersonality, setAiPersonality] = useState("");
+  const [personalContext, setPersonalContext] = useState("");
+  const [aiMemory, setAiMemory] = useState("");
+  const [aiName, setAiName] = useState("mAI");
+  const [notifications, setNotifications] = useState({
+    projectUpdates: true,
+    responseReady: true,
+    scheduledTasks: true,
+  });
 
-  const displayedPlans = useMemo(
-    () => planOrder.map((planKey) => planDefinitions[planKey]),
-    []
-  );
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
 
   useEffect(() => {
@@ -179,6 +196,145 @@ export default function SettingsPage() {
       setTasksHydrated(true);
     }
   }, []);
+
+  useEffect(() => {
+    const savedProfile = window.localStorage.getItem(PROFILE_SETTINGS_STORAGE_KEY);
+    if (!savedProfile) {
+      setProfileName(defaultProfileSettings.displayName);
+      setProfileLogoDataUrl(defaultProfileSettings.avatarDataUrl);
+      setProfession(defaultProfileSettings.profession);
+      setResponseStyle(defaultProfileSettings.responseStyle);
+      setAiPersonality(defaultProfileSettings.aiPersonality);
+      setPersonalContext(defaultProfileSettings.personalContext);
+      setAiMemory(defaultProfileSettings.aiMemory);
+      setAiName(defaultProfileSettings.aiName);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(savedProfile) as Partial<ProfileSettingsShape>;
+      setProfileName(parsed.displayName?.trim() ?? "");
+      setProfileLogoDataUrl(parsed.avatarDataUrl);
+      setProfession(parsed.profession ?? "");
+      setResponseStyle(parsed.responseStyle ?? "normal");
+      setAiPersonality(parsed.aiPersonality ?? "");
+      setPersonalContext(parsed.personalContext ?? "");
+      setAiMemory(parsed.aiMemory ?? "");
+      setAiName(parsed.aiName ?? "mAI");
+    } catch {
+      // Ignore un éventuel JSON invalide pour ne pas bloquer l'écran.
+      setProfileName(defaultProfileSettings.displayName);
+      setProfileLogoDataUrl(defaultProfileSettings.avatarDataUrl);
+      setProfession(defaultProfileSettings.profession);
+      setResponseStyle(defaultProfileSettings.responseStyle);
+      setAiPersonality(defaultProfileSettings.aiPersonality);
+      setPersonalContext(defaultProfileSettings.personalContext);
+      setAiMemory(defaultProfileSettings.aiMemory);
+      setAiName(defaultProfileSettings.aiName);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    const savedProfile = window.localStorage.getItem(PROFILE_SETTINGS_STORAGE_KEY);
+    try {
+      const parsed = savedProfile
+        ? (JSON.parse(savedProfile) as Record<string, unknown>)
+        : {};
+      const responseStyleDirective =
+        responseStyle === "concis"
+          ? "Répondre de façon concise."
+          : responseStyle === "allonge"
+            ? "Répondre de façon détaillée."
+            : "Répondre de façon équilibrée.";
+      const nextSettings: ProfileSettingsShape = {
+        ...(defaultProfileSettings as unknown as Record<string, unknown>),
+        ...(parsed as Record<string, unknown>),
+        aiMemory,
+        aiName: aiName.trim() || "mAI",
+        aiPersonality,
+        avatarDataUrl: profileLogoDataUrl,
+        avatarId:
+          typeof parsed.avatarId === "string" && parsed.avatarId.length > 0
+            ? parsed.avatarId
+            : defaultProfileSettings.avatarId,
+        displayName: profileName.trim(),
+        personalContext,
+        profession,
+        responseStyle,
+        stylisticDirectives: responseStyleDirective,
+        projectDescription:
+          typeof parsed.projectDescription === "string"
+            ? parsed.projectDescription
+            : "",
+        projectIconColor:
+          typeof parsed.projectIconColor === "string"
+            ? parsed.projectIconColor
+            : "#60a5fa",
+        projectTitle: typeof parsed.projectTitle === "string" ? parsed.projectTitle : "",
+      };
+      window.localStorage.setItem(
+        PROFILE_SETTINGS_STORAGE_KEY,
+        JSON.stringify(nextSettings)
+      );
+    } catch {
+      // Si le stockage est corrompu, on le régénère proprement.
+      window.localStorage.setItem(
+        PROFILE_SETTINGS_STORAGE_KEY,
+        JSON.stringify({
+          ...defaultProfileSettings,
+          aiMemory,
+          aiName: aiName.trim() || "mAI",
+          aiPersonality,
+          avatarDataUrl: profileLogoDataUrl,
+          displayName: profileName.trim(),
+          personalContext,
+          profession,
+          responseStyle,
+          stylisticDirectives:
+            responseStyle === "concis"
+              ? "Répondre de façon concise."
+              : responseStyle === "allonge"
+                ? "Répondre de façon détaillée."
+                : "Répondre de façon équilibrée.",
+        })
+      );
+    }
+  }, [
+    aiMemory,
+    aiName,
+    aiPersonality,
+    isHydrated,
+    personalContext,
+    profession,
+    profileLogoDataUrl,
+    profileName,
+    responseStyle,
+  ]);
+
+  useEffect(() => {
+    const rawNotificationSettings = window.localStorage.getItem(
+      NOTIFICATIONS_SETTINGS_STORAGE_KEY
+    );
+    if (!rawNotificationSettings) {
+      return;
+    }
+    try {
+      const parsed = JSON.parse(rawNotificationSettings) as Partial<
+        typeof notifications
+      >;
+      setNotifications((prev) => ({ ...prev, ...parsed }));
+    } catch {
+      // Silence: on conserve les valeurs par défaut.
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      NOTIFICATIONS_SETTINGS_STORAGE_KEY,
+      JSON.stringify(notifications)
+    );
+  }, [notifications]);
 
   useEffect(() => {
     const storedChatBarSize = window.localStorage.getItem("mai.chatbar.size");
@@ -262,6 +418,28 @@ export default function SettingsPage() {
   const handleChatBarSizeChange = (size: "compact" | "standard" | "large") => {
     setChatBarSize(size);
     window.localStorage.setItem("mai.chatbar.size", size);
+  };
+
+  const handleProfileLogoUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (!selectedFile) {
+      return;
+    }
+
+    const fileReader = new FileReader();
+    fileReader.onload = () => {
+      if (typeof fileReader.result === "string") {
+        setProfileLogoDataUrl(fileReader.result);
+      }
+    };
+    fileReader.readAsDataURL(selectedFile);
+  };
+
+  const handleNotificationToggle = (
+    key: keyof typeof notifications,
+    value: boolean
+  ) => {
+    setNotifications((prev) => ({ ...prev, [key]: value }));
   };
 
   const creditMetrics = useMemo<CreditMetric[]>(() => {
@@ -357,11 +535,65 @@ export default function SettingsPage() {
         <Settings2 className="size-8 text-primary" />
         <h1 className="text-3xl font-bold">Paramètres</h1>
         <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-xs text-muted-foreground">
-          v0.1.8
+          v0.2.0
         </span>
       </div>
 
-      <section className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
+      <section className="rounded-2xl border border-border/50 bg-card/70 p-4 backdrop-blur-xl">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">
+          Navigation rapide
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {[
+            { href: "#modeles", label: "Modèles" },
+            { href: "#compte", label: "Compte" },
+            { href: "#notifications", label: "Notifications" },
+            { href: "#personnalisation", label: "Personnalisation" },
+            { href: "#donnees", label: "Données" },
+          ].map((item) => (
+            <a
+              className="rounded-full border border-border/60 bg-background/60 px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+              href={item.href}
+              key={item.href}
+            >
+              {item.label}
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <section
+        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        id="modeles"
+      >
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <Brain className="size-4 text-primary" />
+          Modèles
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Les modèles sont optimisés selon vos usages : conversation, code,
+          recherche, génération de documents et workflows outils.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {[
+            "GPT / Claude : polyvalence, raisonnement et qualité rédactionnelle.",
+            "Modèles rapides : latence basse pour échanges courts.",
+            "Modèles spécialisés : code, agents et automatisation.",
+          ].map((modelHint) => (
+            <div
+              className="rounded-xl border border-border/50 bg-background/60 p-3 text-sm text-muted-foreground"
+              key={modelHint}
+            >
+              {modelHint}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section
+        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        id="compte"
+      >
         <h2 className="text-lg font-semibold">Compte</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           Connecté en tant que : {data?.user?.email ?? "Invité"}
@@ -387,19 +619,214 @@ export default function SettingsPage() {
               : "Chargement du forfait..."}
           </p>
 
-          {isHydrated && (
+          {isHydrated && plan !== "max" && (
             <div className="mt-4 flex justify-center">
-              <PlanUpgradeCTA compact currentPlan={plan} />
+              <Button asChild className="rounded-full" variant="outline">
+                <a href="/">
+                  Obtenir FORFAIT SUPÉRIEUR
+                </a>
+              </Button>
             </div>
           )}
         </div>
 
-        <div className="mt-4 flex gap-2">
-          <Button asChild variant="outline">
-            <a download href="/api/export">
-              Exporter mes données
-            </a>
-          </Button>
+      </section>
+
+      <section
+        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        id="notifications"
+      >
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <Bell className="size-4 text-primary" />
+          Notifications
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Choisissez les alertes que vous souhaitez recevoir dans l&apos;app.
+        </p>
+        <div className="mt-4 grid gap-2 md:grid-cols-3">
+          {[
+            {
+              description: "Être alerté quand une réponse IA est prête.",
+              key: "responseReady" as const,
+              label: "Réponses",
+            },
+            {
+              description: "Recevoir les rappels des tâches automatiques.",
+              key: "scheduledTasks" as const,
+              label: "Tâches",
+            },
+            {
+              description: "Être notifié des mises à jour projets.",
+              key: "projectUpdates" as const,
+              label: "Projets",
+            },
+          ].map((notificationItem) => (
+            <button
+              className={cn(
+                "rounded-xl border p-3 text-left text-sm transition-colors",
+                notifications[notificationItem.key]
+                  ? "border-primary/40 bg-primary/10"
+                  : "border-border/50 bg-background/50"
+              )}
+              key={notificationItem.key}
+              onClick={() =>
+                handleNotificationToggle(
+                  notificationItem.key,
+                  !notifications[notificationItem.key]
+                )
+              }
+              type="button"
+            >
+              <p className="font-medium">{notificationItem.label}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {notificationItem.description}
+              </p>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section
+        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        id="personnalisation"
+      >
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <UserCircle2 className="size-4 text-primary" />
+          Personnalisation
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Personnalisez l&apos;IA et vos informations pour adapter ses réponses.
+        </p>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-[auto_1fr]">
+          <div className="flex flex-col items-center gap-2">
+            <div
+              className="size-16 rounded-full border border-border/50 bg-cover bg-center shadow-sm"
+              style={{
+                backgroundImage: profileLogoDataUrl
+                  ? `url(${profileLogoDataUrl})`
+                  : "linear-gradient(135deg, oklch(0.72 0.19 248), oklch(0.66 0.15 168))",
+              }}
+            />
+            <label
+              className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-1 text-xs"
+              htmlFor="profile-logo-input"
+            >
+              <Camera className="size-3.5" />
+              Changer le logo
+            </label>
+            <input
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              id="profile-logo-input"
+              onChange={handleProfileLogoUpload}
+              type="file"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground" htmlFor="profile-name-input">
+              Nom de profil
+            </label>
+            <Input
+              id="profile-name-input"
+              maxLength={40}
+              onChange={(event) => setProfileName(event.target.value)}
+              placeholder="Ex: Dr. Lemaire"
+              value={profileName}
+            />
+            <p className="text-xs text-muted-foreground">
+              Ce nom est utilisé dans les en-têtes et interactions personnalisées.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground" htmlFor="ai-call-name">
+              Nom (comment l&apos;IA doit vous appeler)
+            </label>
+            <Input
+              id="ai-call-name"
+              onChange={(event) => setProfileName(event.target.value)}
+              placeholder="Ex: Alex"
+              value={profileName}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground" htmlFor="profession">
+              Profession
+            </label>
+            <Input
+              id="profession"
+              onChange={(event) => setProfession(event.target.value)}
+              placeholder="Ex: Product Designer"
+              value={profession}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground" htmlFor="response-style">
+              Style de réponse
+            </label>
+            <select
+              className="h-10 w-full rounded-md border border-border/50 bg-background/80 px-3 text-sm"
+              id="response-style"
+              onChange={(event) =>
+                setResponseStyle(event.target.value as typeof responseStyle)
+              }
+              value={responseStyle}
+            >
+              <option value="concis">Concis</option>
+              <option value="normal">Normal</option>
+              <option value="allonge">Allongé</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground" htmlFor="ai-name">
+              Nom de l&apos;assistant IA
+            </label>
+            <Input
+              id="ai-name"
+              onChange={(event) => setAiName(event.target.value)}
+              placeholder="Ex: mAI Copilot"
+              value={aiName}
+            />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-xs text-muted-foreground" htmlFor="personality">
+              Personnalité (champ libre)
+            </label>
+            <textarea
+              className="min-h-24 w-full rounded-md border border-border/50 bg-background/80 p-3 text-sm outline-none"
+              id="personality"
+              onChange={(event) => setAiPersonality(event.target.value)}
+              placeholder="Ex: Ton rassurant, structuré, orienté solution et pédagogie."
+              value={aiPersonality}
+            />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-xs text-muted-foreground" htmlFor="personal-context">
+              Informations personnelles (champ libre)
+            </label>
+            <textarea
+              className="min-h-24 w-full rounded-md border border-border/50 bg-background/80 p-3 text-sm outline-none"
+              id="personal-context"
+              onChange={(event) => setPersonalContext(event.target.value)}
+              placeholder="Ex: 34 ans, passionné de randonnée, préfère des plans d'action concrets."
+              value={personalContext}
+            />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-xs text-muted-foreground" htmlFor="ai-memory">
+              Mémoire (ce que l&apos;IA doit retenir)
+            </label>
+            <textarea
+              className="min-h-24 w-full rounded-md border border-border/50 bg-background/80 p-3 text-sm outline-none"
+              id="ai-memory"
+              onChange={(event) => setAiMemory(event.target.value)}
+              placeholder="Ex: Je préfère des réponses avec checklist, deadlines et priorités."
+              value={aiMemory}
+            />
+          </div>
         </div>
       </section>
 
@@ -434,8 +861,35 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
-        <h2 className="text-lg font-semibold">Activation Premium par code</h2>
+      <section
+        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        id="donnees"
+      >
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <Database className="size-4 text-primary" />
+          Données
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Gérez vos données, vos identifiants de compte et vos accès premium.
+        </p>
+        <div className="mt-4 grid gap-2 md:grid-cols-3">
+          <Button className="justify-start" type="button" variant="outline">
+            <Mail className="mr-2 size-4" />
+            Modifier l&apos;adresse mail
+          </Button>
+          <Button className="justify-start" type="button" variant="outline">
+            <ShieldCheck className="mr-2 size-4" />
+            Changer le mot de passe
+          </Button>
+          <Button asChild className="justify-start" variant="outline">
+            <a download href="/api/export">
+              <FileText className="mr-2 size-4" />
+              Exporter mes données
+            </a>
+          </Button>
+        </div>
+
+        <h3 className="mt-6 text-base font-semibold">Activation Premium par code</h3>
         <p className="mt-2 text-sm text-muted-foreground">
           Aucune transaction financière directe n&apos;est traitée. Les forfaits
           premium sont débloqués uniquement via un code officiel.
@@ -523,74 +977,6 @@ export default function SettingsPage() {
             );
           })}
         </div>
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-2">
-        {displayedPlans.map((planItem) => (
-          <article
-            className={cn(
-              "rounded-3xl border p-5 shadow-sm backdrop-blur-xl transition-all",
-              planItem.key === plan
-                ? "border-primary/45 bg-primary/10"
-                : "border-border/50 bg-card/70"
-            )}
-            key={planItem.key}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-xl font-bold tracking-tight">
-                {planItem.label}
-              </h3>
-              <div className="flex items-center gap-2">
-                {planItem.recommended && (
-                  <Badge className="rounded-full bg-violet-500/90 text-white hover:bg-violet-500/90">
-                    Populaire
-                  </Badge>
-                )}
-                {planItem.key === plan && (
-                  <Badge className="rounded-full bg-emerald-500/90 text-white hover:bg-emerald-500/90">
-                    <CheckCircle2 className="mr-1 size-3.5" /> Actuel
-                  </Badge>
-                )}
-              </div>
-            </div>
-
-            <p className="mt-4 text-sm text-muted-foreground">
-              {planItem.key === "free"
-                ? "Découvrez ce que l'IA peut faire"
-                : "Bénéficiez d'une expérience complète"}
-            </p>
-
-            <ul className="mt-4 space-y-2 text-sm">
-              <li>• {planItem.limits.filesPerDay} fichiers / jour</li>
-              <li>
-                • Taille max par fichier : {planItem.limits.maxFileSizeMb} Mo
-              </li>
-              <li>
-                • Quiz :{" "}
-                {planItem.limits.quizPerDay === "illimites"
-                  ? "illimités"
-                  : `${planItem.limits.quizPerDay} / jour`}
-              </li>
-              <li>• Mémoire : {planItem.limits.memoryUnits} unités</li>
-              <li>• Messages : {planItem.limits.messagesPerHour} / heure</li>
-              <li>• Crédits Coder : {planItem.limits.coderCredits}</li>
-              <li>• Images : {planItem.limits.imagesPerWeek} / semaine</li>
-              <li>• Tâches planifiées : {planItem.limits.taskSchedules}</li>
-              <li>
-                • mAINews : {planItem.limits.newsSearchesPerDay} recherches /
-                jour
-              </li>
-              <li>
-                • mAIHealth : {planItem.limits.healthRequestsPerMonth} requêtes
-                / mois
-              </li>
-            </ul>
-            <p className="mt-4 rounded-xl border border-dashed border-border/70 bg-background/65 p-3 text-xs text-muted-foreground">
-              Code officiel requis (stocké côté serveur via variables
-              d'environnement).
-            </p>
-          </article>
-        ))}
       </section>
 
       <section className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
@@ -702,62 +1088,9 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section
-        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
-        id="about"
-      >
-        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
-          <Info className="size-4" /> À propos
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Répertoire officiel des versions et des technologies intégrées à la
-          plateforme mAI.
-        </p>
-
-        <div className="mt-4 rounded-2xl border border-border/50 bg-background/60 p-4">
-          <p className="mb-2 flex items-center gap-2 font-semibold">
-            <Layers className="size-4" /> Technologies officielles intégrées
-          </p>
-          <ul className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
-            {officialTechnologies.map((technology) => (
-              <li
-                className="rounded-xl border border-border/40 bg-background/70 px-3 py-2"
-                key={technology}
-              >
-                {technology}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-border/50 bg-background/60 p-4">
-          <p className="mb-2 flex items-center gap-2 font-semibold">
-            <CalendarClock className="size-4" /> Changelog
-          </p>
-          <div className="space-y-3">
-            {aboutChangelog.map((entry) => (
-              <div
-                className="rounded-xl border border-border/40 bg-background/70 p-3"
-                key={entry.version}
-              >
-                <p className="font-medium">
-                  v{entry.version} • {entry.date}
-                </p>
-                <ul className="mt-1 list-disc pl-5 text-sm text-muted-foreground">
-                  {entry.items.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <p className="mt-4 flex items-center gap-2 rounded-xl border border-border/40 bg-background/60 p-3 text-xs text-muted-foreground">
-          <FileText className="size-3.5" />
-          Version active : 0.1.9 (interface Liquid Glass et modules unifiés).
-        </p>
-      </section>
+      <footer className="rounded-2xl border border-border/50 bg-card/70 p-4 text-center text-xs text-muted-foreground backdrop-blur-xl">
+        Version active : <strong>0.2.0</strong>
+      </footer>
     </div>
   );
 }

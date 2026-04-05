@@ -5,13 +5,11 @@ import {
   Code2,
   FolderKanbanIcon,
   HeartPulse,
-  Info,
   Languages,
   Newspaper,
   PenSquareIcon,
   Sparkles,
   TrashIcon,
-  WalletCards,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -36,7 +34,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
@@ -86,9 +83,6 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                   <BrandStarLogoIcon size={20} />
                 </Link>
               </SidebarMenuButton>
-              <div className="group-data-[collapsible=icon]:hidden">
-                <SidebarTrigger className="text-sidebar-foreground/60 transition-colors duration-150 hover:text-sidebar-foreground" />
-              </div>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarHeader>
@@ -139,16 +133,10 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     label: "mAIHealth",
                     beta: true,
                   },
-                  { href: "/settings#about", icon: Info, label: "À propos" },
                   {
                     href: "/studio",
                     icon: Sparkles,
                     label: "Studio",
-                  },
-                  {
-                    href: "/pricing",
-                    icon: WalletCards,
-                    label: "Forfaits",
                   },
                 ].map((item) => (
                   <SidebarMenuItem key={item.href}>
