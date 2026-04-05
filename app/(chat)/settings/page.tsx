@@ -8,9 +8,7 @@ import {
   Database,
   FileText,
   Gauge,
-  Info,
   KeyRound,
-  Layers,
   Mail,
   PlusCircle,
   Settings2,
@@ -94,48 +92,6 @@ const defaultProfileSettings: ProfileSettingsShape = {
   projectTitle: "",
   stylisticDirectives: "",
 };
-
-const aboutChangelog = [
-  {
-    version: "0.2.0",
-    date: "2026-04-05",
-    items: [
-      "Ajout de l'option Quiz dans le menu contextuel (+) avec thème + nombre de questions.",
-      "Canevas mis en avant pour l'édition de contenus complexes en parallèle du chat.",
-      "Paramètres enrichis: nom de profil, logo personnalisé, et résumé forfait simplifié.",
-      "Stabilisation générale des modules productivité, mAINews et mAIHealth.",
-    ],
-  },
-  {
-    version: "0.1.9",
-    date: "2026-04-05",
-    items: [
-      "Interface institutionnelle en français uniquement.",
-      "Barre de dialogue compacte par défaut et redimensionnement dans Paramètres.",
-      "Menu (+) compact avec affichage de l'option active sur la barre de saisie.",
-      "Renommage de Codestral en Mistral Codestral.",
-    ],
-  },
-  {
-    version: "0.1.8",
-    date: "2026-04-05",
-    items: [
-      "Quotas mAINews et mAIHealth par forfait.",
-      "Affichage des compteurs de consommation dans les modules.",
-    ],
-  },
-];
-
-const officialTechnologies = [
-  "Next.js App Router",
-  "React 19",
-  "TypeScript",
-  "Tailwind CSS",
-  "Vercel AI SDK",
-  "Drizzle ORM",
-  "PostgreSQL",
-  "NextAuth.js",
-];
 
 function formatDateTime(date: Date): string {
   return new Intl.DateTimeFormat("fr-FR", {
@@ -594,7 +550,6 @@ export default function SettingsPage() {
             { href: "#notifications", label: "Notifications" },
             { href: "#personnalisation", label: "Personnalisation" },
             { href: "#donnees", label: "Données" },
-            { href: "#about", label: "À propos" },
           ].map((item) => (
             <a
               className="rounded-full border border-border/60 bg-background/60 px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
@@ -1133,62 +1088,9 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section
-        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
-        id="about"
-      >
-        <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
-          <Info className="size-4" /> À propos
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Répertoire officiel des versions et des technologies intégrées à la
-          plateforme mAI.
-        </p>
-
-        <div className="mt-4 rounded-2xl border border-border/50 bg-background/60 p-4">
-          <p className="mb-2 flex items-center gap-2 font-semibold">
-            <Layers className="size-4" /> Technologies officielles intégrées
-          </p>
-          <ul className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
-            {officialTechnologies.map((technology) => (
-              <li
-                className="rounded-xl border border-border/40 bg-background/70 px-3 py-2"
-                key={technology}
-              >
-                {technology}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-border/50 bg-background/60 p-4">
-          <p className="mb-2 flex items-center gap-2 font-semibold">
-            <CalendarClock className="size-4" /> Changelog
-          </p>
-          <div className="space-y-3">
-            {aboutChangelog.map((entry) => (
-              <div
-                className="rounded-xl border border-border/40 bg-background/70 p-3"
-                key={entry.version}
-              >
-                <p className="font-medium">
-                  v{entry.version} • {entry.date}
-                </p>
-                <ul className="mt-1 list-disc pl-5 text-sm text-muted-foreground">
-                  {entry.items.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <p className="mt-4 flex items-center gap-2 rounded-xl border border-border/40 bg-background/60 p-3 text-xs text-muted-foreground">
-          <FileText className="size-3.5" />
-          Version active : 0.1.9 (interface Liquid Glass et modules unifiés).
-        </p>
-      </section>
+      <footer className="rounded-2xl border border-border/50 bg-card/70 p-4 text-center text-xs text-muted-foreground backdrop-blur-xl">
+        Version active : <strong>0.2.0</strong>
+      </footer>
     </div>
   );
 }
