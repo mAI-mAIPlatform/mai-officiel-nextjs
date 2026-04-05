@@ -21,8 +21,13 @@ const planOrder = ["free", "plus", "pro", "max"] as const;
 
 export default function SettingsPage() {
   const { data } = useSession();
-  const { activateByCode, currentPlanDefinition, isHydrated, plan } =
-    useSubscriptionPlan();
+  const {
+    activateByCode,
+    currentPlanDefinition,
+    isActivating,
+    isHydrated,
+    plan,
+  } = useSubscriptionPlan();
 
   const [activationCode, setActivationCode] = useState("");
   const [activationMessage, setActivationMessage] = useState<{
@@ -35,8 +40,8 @@ export default function SettingsPage() {
     []
   );
 
-  const handleActivation = () => {
-    const nextPlan = activateByCode(activationCode);
+  const handleActivation = async () => {
+    const nextPlan = await activateByCode(activationCode);
 
     if (!nextPlan) {
       setActivationMessage({
@@ -122,8 +127,13 @@ export default function SettingsPage() {
               value={activationCode}
             />
           </div>
-          <Button className="sm:w-fit" onClick={handleActivation} type="button">
-            Activer le forfait
+          <Button
+            className="sm:w-fit"
+            disabled={isActivating || activationCode.trim().length === 0}
+            onClick={handleActivation}
+            type="button"
+          >
+            {isActivating ? "Activation..." : "Activer le forfait"}
           </Button>
         </div>
 
@@ -192,15 +202,10 @@ export default function SettingsPage() {
               <li>• Crédits Coder : {planItem.limits.coderCredits}</li>
               <li>• Images : {planItem.limits.imagesPerWeek} / semaine</li>
             </ul>
-
-            {planItem.activationCode && (
-              <p className="mt-4 rounded-xl border border-dashed border-border/70 bg-background/65 p-3 text-xs text-muted-foreground">
-                Code d&apos;activation :
-                <span className="ml-1 font-semibold text-foreground">
-                  {planItem.activationCode}
-                </span>
-              </p>
-            )}
+            <p className="mt-4 rounded-xl border border-dashed border-border/70 bg-background/65 p-3 text-xs text-muted-foreground">
+              Code officiel requis (stocké côté serveur via variables
+              d'environnement).
+            </p>
           </article>
         ))}
       </section>

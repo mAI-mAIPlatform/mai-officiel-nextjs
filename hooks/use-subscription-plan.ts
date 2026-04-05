@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  getPlanByActivationCode,
   PLAN_STORAGE_KEY,
   type PlanDefinition,
   type PlanKey,
@@ -14,6 +13,7 @@ import {
 export function useSubscriptionPlan() {
   const [plan, setPlan] = useState<PlanKey>("free");
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
 
   useEffect(() => {
     const savedPlan = window.localStorage.getItem(PLAN_STORAGE_KEY);
@@ -27,15 +27,32 @@ export function useSubscriptionPlan() {
   }, []);
 
   const activateByCode = useCallback(
-    (code: string): PlanKey | null => {
-      const nextPlan = getPlanByActivationCode(code);
+    async (code: string): Promise<PlanKey | null> => {
+      setIsActivating(true);
 
-      if (!nextPlan) {
+      try {
+        const response = await fetch("/api/subscription/activate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ code }),
+        });
+
+        if (!response.ok) {
+          return null;
+        }
+
+        const data = (await response.json()) as { plan?: PlanKey };
+        const nextPlan = parsePlanKey(data.plan);
+
+        updatePlan(nextPlan);
+        return nextPlan;
+      } catch {
         return null;
+      } finally {
+        setIsActivating(false);
       }
-
-      updatePlan(nextPlan);
-      return nextPlan;
     },
     [updatePlan]
   );
@@ -53,6 +70,7 @@ export function useSubscriptionPlan() {
   return {
     activateByCode,
     currentPlanDefinition,
+    isActivating,
     isHydrated,
     nextUpgradePlan,
     plan,

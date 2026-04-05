@@ -14,7 +14,6 @@ export type PlanDefinition = {
   key: PlanKey;
   label: string;
   recommended?: boolean;
-  activationCode?: string;
   limits: PlanLimits;
 };
 
@@ -37,7 +36,6 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
   plus: {
     key: "plus",
     label: "mAI +",
-    activationCode: "MAIPLUS26",
     limits: {
       filesPerDay: 10,
       maxFileSizeMb: 50,
@@ -52,7 +50,6 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
     key: "pro",
     label: "mAI Pro",
     recommended: true,
-    activationCode: "MAIPRO26",
     limits: {
       filesPerDay: 20,
       maxFileSizeMb: 100,
@@ -66,7 +63,6 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
   max: {
     key: "max",
     label: "mAI Max",
-    activationCode: "MAIMAX26",
     limits: {
       filesPerDay: 50,
       maxFileSizeMb: 200,
@@ -101,22 +97,4 @@ export function parsePlanKey(value: string | null | undefined): PlanKey {
   }
 
   return "free";
-}
-
-export function getPlanByActivationCode(code: string): PlanKey | null {
-  const normalizedCode = code.trim().toUpperCase();
-
-  if (normalizedCode === "MAIPLUS26") {
-    return "plus";
-  }
-
-  if (normalizedCode === "MAIPRO26") {
-    return "pro";
-  }
-
-  if (normalizedCode === "MAIMAX26") {
-    return "max";
-  }
-
-  return null;
 }
