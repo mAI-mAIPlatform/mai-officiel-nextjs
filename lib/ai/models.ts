@@ -105,16 +105,16 @@ export const chatModels: ChatModel[] = [
     description: "Google AI Studio économique",
   },
   {
+    id: "gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
+    provider: "google",
+    description: "Rapide, plus qualitatif et toujours low-cost",
+  },
+  {
     id: "gemini-2.0-flash-lite",
     name: "Gemini 2.0 Flash Lite",
     provider: "google",
     description: "Flash Lite ultra cheap",
-  },
-  {
-    id: "gemini-2.0-flash",
-    name: "Gemini 2.0 Flash",
-    provider: "google",
-    description: "Flash polyvalent",
   },
 
   // --- OPENROUTER GRATUITS & LOW-COST ---
