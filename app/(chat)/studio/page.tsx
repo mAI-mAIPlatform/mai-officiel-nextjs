@@ -59,8 +59,9 @@ export default function StudioPage() {
   const [resultImage, setResultImage] = useState("");
   const [resultProvider, setResultProvider] = useState("");
   const [error, setError] = useState("");
-  const [selectedStyle, setSelectedStyle] = useState<string>("none");
-  const [importSource, setImportSource] = useState<ImportSource>("device");
+  const [importSource, setImportSource] = useState<"device" | "mai-library">(
+    "device"
+  );
 
   const currentModel = imageModel;
 
@@ -264,7 +265,19 @@ export default function StudioPage() {
 
               <p className="mb-2 block text-xs font-medium text-muted-foreground">
                 Image source (import conseillé)
-              </p>
+              </label>
+              <select
+                className="mb-2 h-9 w-full rounded-xl border border-border/40 bg-background/70 px-3 text-xs"
+                onChange={(event) =>
+                  setImportSource(
+                    event.target.value as "device" | "mai-library"
+                  )
+                }
+                value={importSource}
+              >
+                <option value="device">Source : appareil local</option>
+                <option value="mai-library">Source : Bibliothèque mAI</option>
+              </select>
               <label className="mb-2 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border/50 bg-background/50 px-3 py-2 text-xs text-muted-foreground transition hover:bg-background/70">
                 <Upload className="size-3.5" />
                 {importSource === "device"
