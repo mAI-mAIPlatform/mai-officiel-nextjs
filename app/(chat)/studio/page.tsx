@@ -244,7 +244,9 @@ export default function StudioPage() {
               </p>
               <label className="mb-2 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border/50 bg-background/50 px-3 py-2 text-xs text-muted-foreground transition hover:bg-background/70">
                 <Upload className="size-3.5" />
-                Importer une image pour l'édition
+                {importSource === "device"
+                  ? "Importer une image locale"
+                  : "Sélection via Bibliothèque mAI"}
                 <input
                   accept="image/*"
                   className="hidden"
