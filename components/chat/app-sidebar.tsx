@@ -11,7 +11,6 @@ import {
   PenSquareIcon,
   Sparkles,
   TrashIcon,
-  WalletCards,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -144,11 +143,6 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     href: "/studio",
                     icon: Sparkles,
                     label: "Studio",
-                  },
-                  {
-                    href: "/pricing",
-                    icon: WalletCards,
-                    label: "Forfaits",
                   },
                 ].map((item) => (
                   <SidebarMenuItem key={item.href}>

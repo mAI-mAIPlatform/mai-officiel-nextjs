@@ -1,8 +1,8 @@
 "use client";
 
 import {
+  Camera,
   CalendarClock,
-  CheckCircle2,
   FileText,
   Gauge,
   Info,
@@ -13,10 +13,10 @@ import {
   SlidersHorizontal,
   Sparkles,
   Trash2,
+  UserCircle2,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useEffect, useMemo, useState } from "react";
-import { PlanUpgradeCTA } from "@/components/chat/plan-upgrade-cta";
+import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,8 +25,8 @@ import { planDefinitions } from "@/lib/subscription";
 import { getNextResetDate, getUsageCount } from "@/lib/usage-limits";
 import { cn } from "@/lib/utils";
 
-const planOrder = ["free", "plus", "pro", "max"] as const;
 const TASKS_STORAGE_KEY = "mai.settings.automated-tasks.v017";
+const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
 const schedulerModels = [
   "gpt-4.1",
   "gpt-4o-mini",
@@ -58,6 +58,16 @@ type CreditMetric = {
 };
 
 const aboutChangelog = [
+  {
+    version: "0.2.0",
+    date: "2026-04-05",
+    items: [
+      "Ajout de l'option Quiz dans le menu contextuel (+) avec thème + nombre de questions.",
+      "Canevas mis en avant pour l'édition de contenus complexes en parallèle du chat.",
+      "Paramètres enrichis: nom de profil, logo personnalisé, et résumé forfait simplifié.",
+      "Stabilisation générale des modules productivité, mAINews et mAIHealth.",
+    ],
+  },
   {
     version: "0.1.9",
     date: "2026-04-05",
@@ -149,11 +159,11 @@ export default function SettingsPage() {
   const [chatBarSize, setChatBarSize] = useState<
     "compact" | "standard" | "large"
   >("compact");
+  const [profileName, setProfileName] = useState("");
+  const [profileLogoDataUrl, setProfileLogoDataUrl] = useState<
+    string | undefined
+  >();
 
-  const displayedPlans = useMemo(
-    () => planOrder.map((planKey) => planDefinitions[planKey]),
-    []
-  );
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
 
   useEffect(() => {
@@ -179,6 +189,66 @@ export default function SettingsPage() {
       setTasksHydrated(true);
     }
   }, []);
+
+  useEffect(() => {
+    const savedProfile = window.localStorage.getItem(PROFILE_SETTINGS_STORAGE_KEY);
+    if (!savedProfile) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(savedProfile) as {
+        displayName?: string;
+        avatarDataUrl?: string;
+      };
+      setProfileName(parsed.displayName?.trim() ?? "");
+      setProfileLogoDataUrl(parsed.avatarDataUrl);
+    } catch {
+      // Ignore un éventuel JSON invalide pour ne pas bloquer l'écran.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    const savedProfile = window.localStorage.getItem(PROFILE_SETTINGS_STORAGE_KEY);
+    if (!savedProfile) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(savedProfile) as Record<string, unknown>;
+      const nextSettings = {
+        ...parsed,
+        avatarDataUrl: profileLogoDataUrl,
+        displayName: profileName.trim(),
+      };
+      window.localStorage.setItem(
+        PROFILE_SETTINGS_STORAGE_KEY,
+        JSON.stringify(nextSettings)
+      );
+    } catch {
+      // Si le stockage est corrompu, on le régénère proprement.
+      window.localStorage.setItem(
+        PROFILE_SETTINGS_STORAGE_KEY,
+        JSON.stringify({
+          aiMemory: "",
+          aiName: "mAI",
+          avatarDataUrl: profileLogoDataUrl,
+          avatarId: "aurora",
+          displayName: profileName.trim(),
+          personalContext: "",
+          profession: "",
+          projectDescription: "",
+          projectIconColor: "#60a5fa",
+          projectTitle: "",
+          stylisticDirectives: "",
+        })
+      );
+    }
+  }, [isHydrated, profileLogoDataUrl, profileName]);
 
   useEffect(() => {
     const storedChatBarSize = window.localStorage.getItem("mai.chatbar.size");
@@ -262,6 +332,21 @@ export default function SettingsPage() {
   const handleChatBarSizeChange = (size: "compact" | "standard" | "large") => {
     setChatBarSize(size);
     window.localStorage.setItem("mai.chatbar.size", size);
+  };
+
+  const handleProfileLogoUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (!selectedFile) {
+      return;
+    }
+
+    const fileReader = new FileReader();
+    fileReader.onload = () => {
+      if (typeof fileReader.result === "string") {
+        setProfileLogoDataUrl(fileReader.result);
+      }
+    };
+    fileReader.readAsDataURL(selectedFile);
   };
 
   const creditMetrics = useMemo<CreditMetric[]>(() => {
@@ -357,7 +442,7 @@ export default function SettingsPage() {
         <Settings2 className="size-8 text-primary" />
         <h1 className="text-3xl font-bold">Paramètres</h1>
         <span className="rounded-full border border-border/60 bg-background/70 px-2 py-0.5 text-xs text-muted-foreground">
-          v0.1.8
+          v0.2.0
         </span>
       </div>
 
@@ -387,9 +472,13 @@ export default function SettingsPage() {
               : "Chargement du forfait..."}
           </p>
 
-          {isHydrated && (
+          {isHydrated && plan !== "max" && (
             <div className="mt-4 flex justify-center">
-              <PlanUpgradeCTA compact currentPlan={plan} />
+              <Button asChild className="rounded-full" variant="outline">
+                <a href="/">
+                  Obtenir FORFAIT SUPÉRIEUR
+                </a>
+              </Button>
             </div>
           )}
         </div>
@@ -400,6 +489,59 @@ export default function SettingsPage() {
               Exporter mes données
             </a>
           </Button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <UserCircle2 className="size-4 text-primary" />
+          Profil visuel
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Personnalisez le nom de profil et le logo affichés dans votre
+          interface.
+        </p>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-[auto_1fr]">
+          <div className="flex flex-col items-center gap-2">
+            <div
+              className="size-16 rounded-full border border-border/50 bg-cover bg-center shadow-sm"
+              style={{
+                backgroundImage: profileLogoDataUrl
+                  ? `url(${profileLogoDataUrl})`
+                  : "linear-gradient(135deg, oklch(0.72 0.19 248), oklch(0.66 0.15 168))",
+              }}
+            />
+            <label
+              className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-1 text-xs"
+              htmlFor="profile-logo-input"
+            >
+              <Camera className="size-3.5" />
+              Changer le logo
+            </label>
+            <input
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              id="profile-logo-input"
+              onChange={handleProfileLogoUpload}
+              type="file"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground" htmlFor="profile-name-input">
+              Nom de profil
+            </label>
+            <Input
+              id="profile-name-input"
+              maxLength={40}
+              onChange={(event) => setProfileName(event.target.value)}
+              placeholder="Ex: Dr. Lemaire"
+              value={profileName}
+            />
+            <p className="text-xs text-muted-foreground">
+              Ce nom est utilisé dans les en-têtes et interactions personnalisées.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -523,74 +665,6 @@ export default function SettingsPage() {
             );
           })}
         </div>
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-2">
-        {displayedPlans.map((planItem) => (
-          <article
-            className={cn(
-              "rounded-3xl border p-5 shadow-sm backdrop-blur-xl transition-all",
-              planItem.key === plan
-                ? "border-primary/45 bg-primary/10"
-                : "border-border/50 bg-card/70"
-            )}
-            key={planItem.key}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-xl font-bold tracking-tight">
-                {planItem.label}
-              </h3>
-              <div className="flex items-center gap-2">
-                {planItem.recommended && (
-                  <Badge className="rounded-full bg-violet-500/90 text-white hover:bg-violet-500/90">
-                    Populaire
-                  </Badge>
-                )}
-                {planItem.key === plan && (
-                  <Badge className="rounded-full bg-emerald-500/90 text-white hover:bg-emerald-500/90">
-                    <CheckCircle2 className="mr-1 size-3.5" /> Actuel
-                  </Badge>
-                )}
-              </div>
-            </div>
-
-            <p className="mt-4 text-sm text-muted-foreground">
-              {planItem.key === "free"
-                ? "Découvrez ce que l'IA peut faire"
-                : "Bénéficiez d'une expérience complète"}
-            </p>
-
-            <ul className="mt-4 space-y-2 text-sm">
-              <li>• {planItem.limits.filesPerDay} fichiers / jour</li>
-              <li>
-                • Taille max par fichier : {planItem.limits.maxFileSizeMb} Mo
-              </li>
-              <li>
-                • Quiz :{" "}
-                {planItem.limits.quizPerDay === "illimites"
-                  ? "illimités"
-                  : `${planItem.limits.quizPerDay} / jour`}
-              </li>
-              <li>• Mémoire : {planItem.limits.memoryUnits} unités</li>
-              <li>• Messages : {planItem.limits.messagesPerHour} / heure</li>
-              <li>• Crédits Coder : {planItem.limits.coderCredits}</li>
-              <li>• Images : {planItem.limits.imagesPerWeek} / semaine</li>
-              <li>• Tâches planifiées : {planItem.limits.taskSchedules}</li>
-              <li>
-                • mAINews : {planItem.limits.newsSearchesPerDay} recherches /
-                jour
-              </li>
-              <li>
-                • mAIHealth : {planItem.limits.healthRequestsPerMonth} requêtes
-                / mois
-              </li>
-            </ul>
-            <p className="mt-4 rounded-xl border border-dashed border-border/70 bg-background/65 p-3 text-xs text-muted-foreground">
-              Code officiel requis (stocké côté serveur via variables
-              d'environnement).
-            </p>
-          </article>
-        ))}
       </section>
 
       <section className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">

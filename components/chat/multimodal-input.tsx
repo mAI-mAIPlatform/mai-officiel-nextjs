@@ -7,6 +7,7 @@ import {
   ArrowUpIcon,
   BotIcon,
   BrainIcon,
+  FilePenLineIcon,
   EyeIcon,
   GraduationCapIcon,
   LockIcon,
@@ -275,6 +276,28 @@ function PureMultimodalInput({
   const [chatBarSize] = useLocalStorage<"compact" | "standard" | "large">(
     "mai.chatbar.size",
     "compact"
+  );
+
+  const handleInsertTemplate = useCallback(
+    (templateText: string) => {
+      const normalizedTemplate = templateText.trim();
+      if (!normalizedTemplate) {
+        return;
+      }
+
+      setInput((previousInput) =>
+        previousInput.trim()
+          ? `${previousInput.trim()}\n\n${normalizedTemplate}`
+          : normalizedTemplate
+      );
+      setLocalStorageInput((previousInput) =>
+        previousInput.trim()
+          ? `${previousInput.trim()}\n\n${normalizedTemplate}`
+          : normalizedTemplate
+      );
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    },
+    [setInput, setLocalStorageInput]
   );
 
   const submitForm = useCallback(() => {
@@ -611,6 +634,7 @@ function PureMultimodalInput({
             <ContextualActionsMenu
               fileInputRef={fileInputRef}
               hasVision={true}
+              onInsertTemplate={handleInsertTemplate}
               status={status}
             />
             <ModelSelectorCompact
@@ -677,10 +701,12 @@ export const MultimodalInput = memo(
 
 function PureContextualActionsMenu({
   fileInputRef,
+  onInsertTemplate,
   status,
   hasVision,
 }: {
   fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
+  onInsertTemplate: (templateText: string) => void;
   status: UseChatHelpers<ChatMessage>["status"];
   hasVision: boolean;
 }) {
@@ -700,6 +726,8 @@ function PureContextualActionsMenu({
     "mai-learning-enabled",
     false
   );
+  const [quizTopic, setQuizTopic] = useState("culture générale");
+  const [quizQuestionCount, setQuizQuestionCount] = useState(5);
   const selectedActions: string[] = [];
 
   if (isReasoningEnabled) {
@@ -733,7 +761,7 @@ function PureContextualActionsMenu({
       </div>
       <PopoverContent
         align="start"
-        className="flex w-64 flex-col gap-1 rounded-xl p-2 shadow-lg"
+        className="flex w-72 flex-col gap-1 rounded-xl p-2 shadow-lg"
         sideOffset={8}
       >
         <Button
@@ -790,6 +818,43 @@ function PureContextualActionsMenu({
           Recherche approfondie
         </Button>
 
+        <div className="my-1 rounded-lg border border-border/50 bg-background/60 p-2">
+          <p className="text-[11px] font-medium text-muted-foreground">Quiz IA</p>
+          <input
+            className="mt-2 h-8 w-full rounded-md border border-border/50 bg-background px-2 text-xs outline-none"
+            onChange={(event) => setQuizTopic(event.target.value)}
+            placeholder="Thème du quiz"
+            value={quizTopic}
+          />
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              className="h-8 w-16 rounded-md border border-border/50 bg-background px-2 text-xs outline-none"
+              max={20}
+              min={1}
+              onChange={(event) => {
+                const parsedValue = Number.parseInt(event.target.value, 10);
+                setQuizQuestionCount(
+                  Number.isNaN(parsedValue) ? 5 : Math.min(20, Math.max(1, parsedValue))
+                );
+              }}
+              type="number"
+              value={quizQuestionCount}
+            />
+            <Button
+              className="h-8 flex-1 text-xs"
+              onClick={() => {
+                onInsertTemplate(
+                  `Crée un quiz interactif sur le thème « ${quizTopic.trim() || "culture générale"} » avec ${quizQuestionCount} questions. Pour chaque question, propose 4 choix, indique la bonne réponse, puis ajoute une explication courte.`
+                );
+                setOpen(false);
+              }}
+              variant="secondary"
+            >
+              Générer Quiz
+            </Button>
+          </div>
+        </div>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -810,6 +875,19 @@ function PureContextualActionsMenu({
             className="w-56 p-2 shadow-lg rounded-xl"
             side="right"
           >
+            <Button
+              className="flex h-8 w-full items-center justify-start gap-2 text-xs font-normal"
+              onClick={() => {
+                onInsertTemplate(
+                  "Ouvre un Canevas structuré pour ce travail, avec sections, objectifs et plan d'édition ciblé. Ensuite, commence par la section d'introduction."
+                );
+                setOpen(false);
+              }}
+              variant="ghost"
+            >
+              <FilePenLineIcon className="text-muted-foreground" size={16} />
+              Ouvrir un Canevas
+            </Button>
             <Button
               className={cn(
                 "flex h-8 w-full items-center justify-start gap-2 text-xs font-normal",

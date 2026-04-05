@@ -2,8 +2,10 @@
 
 import {
   AlertTriangle,
+  CircleAlert,
   FileText,
   HeartPulse,
+  Pill,
   ShieldAlert,
   Stethoscope,
 } from "lucide-react";
@@ -36,6 +38,9 @@ export default function HealthPage() {
 
   const monthlyLimit = currentPlanDefinition.limits.healthRequestsPerMonth;
   const remainingRequests = Math.max(monthlyLimit - requestsThisMonth, 0);
+  const usagePercent = monthlyLimit
+    ? Math.min((requestsThisMonth / monthlyLimit) * 100, 100)
+    : 0;
 
   const analysis = useMemo(() => {
     const normalized = documentText.toLowerCase();
@@ -139,6 +144,12 @@ export default function HealthPage() {
             mois ({remainingRequests} restante{remainingRequests > 1 ? "s" : ""}
             ).
           </p>
+          <div className="mb-3 h-2 w-full overflow-hidden rounded-full bg-muted/60">
+            <div
+              className="h-full rounded-full bg-primary/80 transition-all"
+              style={{ width: `${usagePercent}%` }}
+            />
+          </div>
           <div className="space-y-3 rounded-xl border border-border/40 bg-background/60 p-4 text-sm">
             {!hasRequestedAnalysis && (
               <p className="rounded-lg border border-dashed border-border/60 p-3 text-xs text-muted-foreground">
@@ -169,6 +180,17 @@ export default function HealthPage() {
                 </p>
               )}
             </div>
+            <div className="rounded-lg border border-border/50 bg-background/65 p-3 text-xs text-muted-foreground">
+              <p className="mb-1 flex items-center gap-1.5 font-medium text-foreground">
+                <Pill className="size-3.5" />
+                Conseils rapides avant validation médicale
+              </p>
+              <ul className="list-disc space-y-1 pl-4">
+                <li>Vérifiez les allergies et antécédents mentionnés.</li>
+                <li>Contrôlez les doses, fréquences et unités.</li>
+                <li>Confirmez les résultats avec un professionnel de santé.</li>
+              </ul>
+            </div>
           </div>
 
           <div className="mt-4 rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-xs text-red-800 dark:text-red-200">
@@ -184,7 +206,10 @@ export default function HealthPage() {
 
           {quotaMessage && (
             <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">
-              {quotaMessage}
+              <span className="inline-flex items-center gap-1">
+                <CircleAlert className="size-4" />
+                {quotaMessage}
+              </span>
             </p>
           )}
 

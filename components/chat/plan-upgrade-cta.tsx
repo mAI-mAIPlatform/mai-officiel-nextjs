@@ -10,16 +10,20 @@ export function PlanUpgradeCTA({
   className,
   currentPlan,
   compact = false,
+  href = "/pricing",
+  label,
 }: {
   className?: string;
   currentPlan: PlanKey;
   compact?: boolean;
+  href?: string;
+  label?: string;
 }) {
   if (currentPlan === "max") {
     return null;
   }
 
-  const label = currentPlan === "pro" ? "Obtenir Max" : "Obtenir Plus";
+  const defaultLabel = currentPlan === "pro" ? "Obtenir Max" : "Obtenir Plus";
 
   return (
     <Button
@@ -31,11 +35,11 @@ export function PlanUpgradeCTA({
       )}
       variant="ghost"
     >
-      <Link href="/pricing">
+      <Link href={href}>
         <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-primary/5 via-white/30 to-primary/15 opacity-90" />
         <span className="relative flex items-center gap-2 font-semibold tracking-tight">
           <Sparkles className={cn(compact ? "size-4" : "size-5")} />
-          {label}
+          {label ?? defaultLabel}
         </span>
       </Link>
     </Button>
