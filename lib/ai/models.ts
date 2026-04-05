@@ -54,12 +54,34 @@ export const chatModels: ChatModel[] = [
     gatewayOrder: ["baseten", "fireworks"],
   },
   {
+    id: "moonshotai/kimi-k2.5",
+    name: "Kimi K2.5",
+    provider: "moonshotai",
+    description: "Flagship Moonshot AI",
+    gatewayOrder: ["fireworks", "bedrock"],
+  },
+  {
     id: "openai/gpt-oss-20b",
     name: "GPT OSS 20B",
     provider: "openai",
     description: "Petit raisonnement",
     reasoningEffort: "low",
     gatewayOrder: ["groq", "bedrock"],
+  },
+  {
+    id: "openai/gpt-oss-120b",
+    name: "GPT OSS 120B",
+    provider: "openai",
+    description: "Modèle Open-Source massif",
+    reasoningEffort: "low",
+    gatewayOrder: ["fireworks", "bedrock"],
+  },
+  {
+    id: "xai/grok-4.1-fast-non-reasoning",
+    name: "Grok 4.1 Fast",
+    provider: "xai",
+    description: "Rapidité X",
+    gatewayOrder: ["xai"],
   },
 
   // --- COMETAPI + GEMINI (TEXTE GLOBAL) ---
@@ -161,6 +183,18 @@ export const chatModels: ChatModel[] = [
   },
 
   // --- OPENROUTER CHEAP PREMIUM ---
+  {
+    id: "openrouter/anthropic/claude-3.5-haiku",
+    name: "Claude 3.5 Haiku",
+    provider: "openrouter",
+    description: "L'intelligence à prix mini",
+  },
+  {
+    id: "openrouter/openai/gpt-4o-mini",
+    name: "GPT-4o Mini",
+    provider: "openrouter",
+    description: "Compact et surprenant",
+  },
   {
     id: "openrouter/deepseek/deepseek-chat",
     name: "DeepSeek V3 (OR)",
