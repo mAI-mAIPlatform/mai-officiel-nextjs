@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { type ChangeEvent, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +34,7 @@ import { cn } from "@/lib/utils";
 const TASKS_STORAGE_KEY = "mai.settings.automated-tasks.v017";
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
 const NOTIFICATIONS_SETTINGS_STORAGE_KEY = "mai.settings.notifications.v1";
-const APP_VERSION = "0.6.0";
+const APP_VERSION = "0.6.3";
 const MAX_MEMORY_ENTRY_LENGTH = 500;
 const ABSOLUTE_MAX_MEMORY_ENTRIES = 50;
 const schedulerModels = [
@@ -72,6 +72,11 @@ type CreditMetric = {
 type ProfileSettingsShape = {
   aiMemory: string;
   aiMemoryEntries?: string[];
+  aiBehavior?: {
+    concision: number;
+    register: number;
+    tone: number;
+  };
   aiName: string;
   aiPersonality: string;
   avatarDataUrl?: string;
@@ -79,7 +84,6 @@ type ProfileSettingsShape = {
   displayName: string;
   personalContext: string;
   profession: string;
-  responseStyle: "concis" | "normal" | "allonge";
   projectDescription: string;
   projectIconColor: string;
   projectTitle: string;
@@ -97,12 +101,19 @@ const defaultProfileSettings: ProfileSettingsShape = {
   displayName: "",
   personalContext: "",
   profession: "",
-  responseStyle: "normal",
   projectDescription: "",
   projectIconColor: "#60a5fa",
   projectTitle: "",
   stylisticDirectives: "",
 };
+
+function clampPercentage(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 50;
+  }
+
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
 
 function formatDateTime(date: Date): string {
   return new Intl.DateTimeFormat("fr-FR", {
@@ -195,22 +206,24 @@ export default function SettingsPage() {
     string | undefined
   >();
   const [profession, setProfession] = useState("");
-  const [responseStyle, setResponseStyle] = useState<
-    "concis" | "normal" | "allonge"
-  >("normal");
+  const [aiBehavior, setAiBehavior] = useState({
+    concision: 50,
+    register: 50,
+    tone: 50,
+  });
   const [aiPersonality, setAiPersonality] = useState("");
   const [personalContext, setPersonalContext] = useState("");
-  const [aiMemory, setAiMemory] = useState("");
   const [aiMemoryEntries, setAiMemoryEntries] = useState<string[]>([]);
   const [memoryDraft, setMemoryDraft] = useState("");
   const [memoryEditingIndex, setMemoryEditingIndex] = useState<number | null>(
     null
   );
   const [isMemoryModalOpen, setIsMemoryModalOpen] = useState(false);
-  const [memorySortMode, setMemorySortMode] = useState<MemorySortMode>(
-    "manual"
-  );
+  const [memorySortMode, setMemorySortMode] =
+    useState<MemorySortMode>("manual");
+  const manualMemoryOrderRef = useRef<string[]>([]);
   const [aiName, setAiName] = useState("mAI");
+  const [activeSettingsSection, setActiveSettingsSection] = useState("modeles");
   const [notifications, setNotifications] = useState({
     projectUpdates: true,
     responseReady: true,
@@ -245,10 +258,6 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    setAiMemory(aiMemoryEntries.join("\n"));
-  }, [aiMemoryEntries]);
-
-  useEffect(() => {
     const savedProfile = window.localStorage.getItem(
       PROFILE_SETTINGS_STORAGE_KEY
     );
@@ -256,10 +265,9 @@ export default function SettingsPage() {
       setProfileName(defaultProfileSettings.displayName);
       setProfileLogoDataUrl(defaultProfileSettings.avatarDataUrl);
       setProfession(defaultProfileSettings.profession);
-      setResponseStyle(defaultProfileSettings.responseStyle);
+      setAiBehavior({ concision: 50, register: 50, tone: 50 });
       setAiPersonality(defaultProfileSettings.aiPersonality);
       setPersonalContext(defaultProfileSettings.personalContext);
-      setAiMemory(defaultProfileSettings.aiMemory);
       setAiMemoryEntries([]);
       setAiName(defaultProfileSettings.aiName);
       return;
@@ -267,6 +275,8 @@ export default function SettingsPage() {
 
     try {
       const parsed = JSON.parse(savedProfile) as Partial<ProfileSettingsShape>;
+      const legacyResponseStyle = (parsed as Record<string, unknown>)
+        .responseStyle;
       const parsedMemoryEntries = sanitizeMemoryEntries(parsed.aiMemoryEntries);
       const fallbackEntries = parsed.aiMemory
         ? sanitizeMemoryEntries(
@@ -280,10 +290,29 @@ export default function SettingsPage() {
       setProfileName(parsed.displayName?.trim() ?? "");
       setProfileLogoDataUrl(parsed.avatarDataUrl);
       setProfession(parsed.profession ?? "");
-      setResponseStyle(parsed.responseStyle ?? "normal");
+      setAiBehavior({
+        concision: clampPercentage(
+          typeof parsed.aiBehavior?.concision === "number"
+            ? parsed.aiBehavior.concision
+            : 50
+        ),
+        register: clampPercentage(
+          typeof parsed.aiBehavior?.register === "number"
+            ? parsed.aiBehavior.register
+            : 50
+        ),
+        tone: clampPercentage(
+          typeof parsed.aiBehavior?.tone === "number"
+            ? parsed.aiBehavior.tone
+            : legacyResponseStyle === "allonge"
+              ? 80
+              : legacyResponseStyle === "concis"
+                ? 20
+                : 50
+        ),
+      });
       setAiPersonality(parsed.aiPersonality ?? "");
       setPersonalContext(parsed.personalContext ?? "");
-      setAiMemory(nextMemoryEntries.join("\n"));
       setAiMemoryEntries(nextMemoryEntries);
       setAiName(parsed.aiName ?? "mAI");
     } catch {
@@ -291,10 +320,9 @@ export default function SettingsPage() {
       setProfileName(defaultProfileSettings.displayName);
       setProfileLogoDataUrl(defaultProfileSettings.avatarDataUrl);
       setProfession(defaultProfileSettings.profession);
-      setResponseStyle(defaultProfileSettings.responseStyle);
+      setAiBehavior({ concision: 50, register: 50, tone: 50 });
       setAiPersonality(defaultProfileSettings.aiPersonality);
       setPersonalContext(defaultProfileSettings.personalContext);
-      setAiMemory(defaultProfileSettings.aiMemory);
       setAiMemoryEntries([]);
       setAiName(defaultProfileSettings.aiName);
     }
@@ -311,17 +339,35 @@ export default function SettingsPage() {
       const parsed = savedProfile
         ? (JSON.parse(savedProfile) as Record<string, unknown>)
         : {};
-      const responseStyleDirective =
-        responseStyle === "concis"
-          ? "Répondre de façon concise."
-          : responseStyle === "allonge"
-            ? "Répondre de façon détaillée."
-            : "Répondre de façon équilibrée.";
+      const toneDirective =
+        aiBehavior.tone < 35
+          ? "Ton créatif et libre."
+          : aiBehavior.tone > 65
+            ? "Ton strict et professionnel."
+            : "Ton équilibré.";
+      const concisionDirective =
+        aiBehavior.concision < 35
+          ? "Réponses très détaillées."
+          : aiBehavior.concision > 65
+            ? "Réponses ultra concises."
+            : "Réponses de longueur équilibrée.";
+      const registerDirective =
+        aiBehavior.register < 35
+          ? "Registre familier."
+          : aiBehavior.register > 65
+            ? "Registre soutenu."
+            : "Registre linguistique neutre.";
+      const behaviorDirective = [
+        toneDirective,
+        concisionDirective,
+        registerDirective,
+      ].join(" ");
       const nextSettings: ProfileSettingsShape = {
         ...(defaultProfileSettings as unknown as Record<string, unknown>),
         ...(parsed as Record<string, unknown>),
         aiMemory: aiMemoryEntries.join("\n"),
         aiMemoryEntries,
+        aiBehavior,
         aiName: aiName.trim() || "mAI",
         aiPersonality,
         avatarDataUrl: profileLogoDataUrl,
@@ -332,8 +378,9 @@ export default function SettingsPage() {
         displayName: profileName.trim(),
         personalContext,
         profession,
-        responseStyle,
-        stylisticDirectives: responseStyleDirective,
+        stylisticDirectives: [aiPersonality.trim(), behaviorDirective]
+          .filter(Boolean)
+          .join(" "),
         projectDescription:
           typeof parsed.projectDescription === "string"
             ? parsed.projectDescription
@@ -357,25 +404,20 @@ export default function SettingsPage() {
           ...defaultProfileSettings,
           aiMemory: aiMemoryEntries.join("\n"),
           aiMemoryEntries,
+          aiBehavior,
           aiName: aiName.trim() || "mAI",
           aiPersonality,
           avatarDataUrl: profileLogoDataUrl,
           displayName: profileName.trim(),
           personalContext,
           profession,
-          responseStyle,
-          stylisticDirectives:
-            responseStyle === "concis"
-              ? "Répondre de façon concise."
-              : responseStyle === "allonge"
-                ? "Répondre de façon détaillée."
-                : "Répondre de façon équilibrée.",
+          stylisticDirectives: aiPersonality.trim(),
         })
       );
     }
   }, [
-    aiMemory,
     aiMemoryEntries,
+    aiBehavior,
     aiName,
     aiPersonality,
     isHydrated,
@@ -383,7 +425,6 @@ export default function SettingsPage() {
     profession,
     profileLogoDataUrl,
     profileName,
-    responseStyle,
   ]);
 
   useEffect(() => {
@@ -551,7 +592,9 @@ export default function SettingsPage() {
   };
 
   const handleDeleteMemoryEntry = (index: number) => {
-    setAiMemoryEntries((prev) => prev.filter((_, current) => current !== index));
+    setAiMemoryEntries((prev) =>
+      prev.filter((_, current) => current !== index)
+    );
     if (memoryEditingIndex === index) {
       resetMemoryEditor();
     }
@@ -560,11 +603,20 @@ export default function SettingsPage() {
   const handleSortSettings = () => {
     setMemorySortMode((prevMode) => {
       if (prevMode === "manual") {
+        manualMemoryOrderRef.current = [...aiMemoryEntries];
         setAiMemoryEntries((prevEntries) =>
-          [...prevEntries].sort((left, right) => left.localeCompare(right, "fr"))
+          [...prevEntries].sort((left, right) =>
+            left.localeCompare(right, "fr")
+          )
         );
         return "alpha";
       }
+
+      setAiMemoryEntries(
+        manualMemoryOrderRef.current.length > 0
+          ? manualMemoryOrderRef.current
+          : aiMemoryEntries
+      );
 
       return "manual";
     });
@@ -638,7 +690,7 @@ export default function SettingsPage() {
         used: getUsageCount("health", "month"),
       },
     ];
-  }, [currentPlanDefinition, getUsageCount, isHydrated, tasks.length]);
+  }, [currentPlanDefinition, isHydrated, tasks.length]);
 
   const totalCreditsOverview = useMemo(() => {
     if (creditMetrics.length === 0) {
@@ -657,6 +709,19 @@ export default function SettingsPage() {
     );
   }, [creditMetrics]);
 
+  const settingsSections = [
+    { href: "#modeles", key: "modeles", label: "Modèles" },
+    { href: "#compte", key: "compte", label: "Compte" },
+    { href: "#notifications", key: "notifications", label: "Notifications" },
+    {
+      href: "#personnalisation",
+      key: "personnalisation",
+      label: "Personnalisation IA",
+    },
+    { href: "#donnees", key: "donnees", label: "Données" },
+  ] as const;
+  const isDataAccessRestricted = activeSettingsSection === "notifications";
+
   return (
     <div className="liquid-glass flex h-full w-full flex-col gap-6 overflow-y-auto p-6 md:p-10">
       <div className="flex items-center gap-3">
@@ -669,49 +734,57 @@ export default function SettingsPage() {
 
       <section className="rounded-2xl border border-border/50 bg-card/70 p-4 backdrop-blur-xl">
         <p className="text-xs uppercase tracking-wider text-muted-foreground">
-          Navigation rapide
+          Navigation des paramètres
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          {[
-            { href: "#modeles", label: "Modèles" },
-            { href: "#compte", label: "Compte" },
-            { href: "#notifications", label: "Notifications" },
-            { href: "#personnalisation", label: "Personnalisation" },
-            { href: "#donnees", label: "Données" },
-          ].map((item) => (
+          {settingsSections.map((item) => (
             <a
-              className="rounded-full border border-border/60 bg-background/60 px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs transition-colors",
+                activeSettingsSection === item.key
+                  ? "border-primary/40 bg-primary/10 text-foreground"
+                  : "border-border/60 bg-background/60 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+              )}
               href={item.href}
               key={item.href}
+              onClick={() => setActiveSettingsSection(item.key)}
             >
               {item.label}
             </a>
           ))}
         </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Mode contextuel : la section active adapte les droits d&apos;accès.
+          Pendant la consultation des notifications, les actions sensibles sur
+          les données sont limitées.
+        </p>
       </section>
 
       <section className="liquid-glass rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background/60 to-card/70 p-5">
         <h2 className="text-lg font-semibold">
-          v{APP_VERSION} · CookAI, mémoire IA &amp; modules
+          v{APP_VERSION} · Ergonomie &amp; Paramétrage IA
         </h2>
         <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground">
           <li>
-            <strong>CookAI :</strong> amélioration de mAtRepas, renommé
-            officiellement en CookAI, et retrait des modules Coder et Dormir.
+            <strong>Interface mAI :</strong> réorganisation globale orientée
+            ergonomie mobile pour une cohérence multiplateforme.
           </li>
           <li>
-            <strong>Mémoire IA :</strong> ajout d&apos;un gestionnaire d&apos;entrées
-            (popup) avec ajout, édition, suppression, jusqu&apos;à 50 entrées
-            de 500 caractères (selon forfait).
+            <strong>Navigation :</strong> paramètres en barre latérale avec
+            gestion contextuelle des droits d&apos;accès.
           </li>
           <li>
-            <strong>Personnalisation :</strong> nouveau libellé &quot;Longueur des réponses&quot;
-            avec modes Concis, Normal et Allongé.
+            <strong>Personnalisation IA :</strong> extension des options de
+            comportement via des réglages de ton, concision et registre.
           </li>
           <li>
-            <strong>Système :</strong> bouton de forfait dynamique (Plus/Pro/Max),
-            tri des paramètres, version injectée dans l&apos;UI et correctifs de
-            maintenance.
+            <strong>Optimisation :</strong> suppression du réglage manuel de la
+            longueur de réponse au profit d&apos;un pilotage comportemental
+            global.
+          </li>
+          <li>
+            <strong>Maintenance :</strong> correctifs mineurs et amélioration de
+            la stabilité générale de la page paramètres.
           </li>
         </ul>
       </section>
@@ -943,26 +1016,6 @@ export default function SettingsPage() {
             />
           </div>
           <div className="space-y-2">
-            <label
-              className="text-xs text-muted-foreground"
-              htmlFor="response-style"
-            >
-              Longueur des réponses
-            </label>
-            <select
-              className="h-10 w-full rounded-md border border-border/50 bg-background/80 px-3 text-sm"
-              id="response-style"
-              onChange={(event) =>
-                setResponseStyle(event.target.value as typeof responseStyle)
-              }
-              value={responseStyle}
-            >
-              <option value="concis">Concis</option>
-              <option value="normal">Normal</option>
-              <option value="allonge">Allongé</option>
-            </select>
-          </div>
-          <div className="space-y-2">
             <label className="text-xs text-muted-foreground" htmlFor="ai-name">
               Nom de l&apos;assistant IA
             </label>
@@ -988,6 +1041,60 @@ export default function SettingsPage() {
               value={aiPersonality}
             />
           </div>
+          <div className="liquid-glass space-y-4 rounded-2xl border border-border/60 bg-background/70 p-4 md:col-span-2">
+            <h3 className="text-base font-semibold">
+              Personnalisation du comportement
+            </h3>
+            {[
+              {
+                id: "tone",
+                label: "Ton",
+                left: "Créatif / Libre",
+                right: "Strict / Pro",
+                value: aiBehavior.tone,
+              },
+              {
+                id: "concision",
+                label: "Concision",
+                left: "Très détaillé",
+                right: "Ultra concis",
+                value: aiBehavior.concision,
+              },
+              {
+                id: "register",
+                label: "Registre Linguistique",
+                left: "Familier",
+                right: "Soutenu",
+                value: aiBehavior.register,
+              },
+            ].map((behaviorItem) => (
+              <div className="space-y-2" key={behaviorItem.id}>
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-sm text-muted-foreground">
+                  <span>{behaviorItem.left}</span>
+                  <span className="text-center">
+                    {behaviorItem.label} ({behaviorItem.value}%)
+                  </span>
+                  <span className="text-right">{behaviorItem.right}</span>
+                </div>
+                <input
+                  className="w-full accent-foreground"
+                  max={100}
+                  min={0}
+                  onChange={(event) =>
+                    setAiBehavior((prev) => ({
+                      ...prev,
+                      [behaviorItem.id]: clampPercentage(
+                        Number(event.target.value)
+                      ),
+                    }))
+                  }
+                  step={1}
+                  type="range"
+                  value={behaviorItem.value}
+                />
+              </div>
+            ))}
+          </div>
           <div className="space-y-2 md:col-span-2">
             <label
               className="text-xs text-muted-foreground"
@@ -1004,7 +1111,7 @@ export default function SettingsPage() {
             />
           </div>
           <div className="space-y-2 md:col-span-2">
-            <label className="text-xs text-muted-foreground">Mémoire IA</label>
+            <p className="text-xs text-muted-foreground">Mémoire IA</p>
             <div className="rounded-xl border border-border/60 bg-background/50 p-3">
               <p className="text-xs text-muted-foreground">
                 {aiMemoryEntries.length}/{maxMemoryEntries} entrée
@@ -1073,21 +1180,50 @@ export default function SettingsPage() {
         <p className="mt-2 text-sm text-muted-foreground">
           Gérez vos données, vos identifiants de compte et vos accès premium.
         </p>
+        {isDataAccessRestricted && (
+          <p className="mt-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+            Accès restreint : certaines actions sur les données sont
+            temporairement désactivées pendant la consultation des
+            notifications.
+          </p>
+        )}
         <div className="mt-4 grid gap-2 md:grid-cols-3">
-          <Button className="justify-start" type="button" variant="outline">
+          <Button
+            className="justify-start"
+            disabled={isDataAccessRestricted}
+            type="button"
+            variant="outline"
+          >
             <Mail className="mr-2 size-4" />
             Modifier l&apos;adresse mail
           </Button>
-          <Button className="justify-start" type="button" variant="outline">
+          <Button
+            className="justify-start"
+            disabled={isDataAccessRestricted}
+            type="button"
+            variant="outline"
+          >
             <ShieldCheck className="mr-2 size-4" />
             Changer le mot de passe
           </Button>
-          <Button asChild className="justify-start" variant="outline">
-            <a download href="/api/export">
+          {isDataAccessRestricted ? (
+            <Button
+              className="justify-start"
+              disabled
+              type="button"
+              variant="outline"
+            >
               <FileText className="mr-2 size-4" />
               Exporter mes données
-            </a>
-          </Button>
+            </Button>
+          ) : (
+            <Button asChild className="justify-start" variant="outline">
+              <a download href="/api/export">
+                <FileText className="mr-2 size-4" />
+                Exporter mes données
+              </a>
+            </Button>
+          )}
         </div>
 
         <h3 className="mt-6 text-base font-semibold">
@@ -1335,8 +1471,13 @@ export default function SettingsPage() {
             </div>
 
             <div className="mt-4 space-y-2">
-              <label className="text-xs text-muted-foreground" htmlFor="memory-draft">
-                {memoryEditingIndex === null ? "Nouvelle entrée" : "Modifier l'entrée"}
+              <label
+                className="text-xs text-muted-foreground"
+                htmlFor="memory-draft"
+              >
+                {memoryEditingIndex === null
+                  ? "Nouvelle entrée"
+                  : "Modifier l'entrée"}
               </label>
               <textarea
                 className="min-h-28 w-full rounded-md border border-border/60 bg-background/70 p-3 text-sm outline-none"
@@ -1386,7 +1527,9 @@ export default function SettingsPage() {
                     className="rounded-xl border border-border/50 bg-background/60 p-3"
                     key={`${index}-${entry.slice(0, 24)}`}
                   >
-                    <p className="line-clamp-3 whitespace-pre-wrap text-sm">{entry}</p>
+                    <p className="line-clamp-3 whitespace-pre-wrap text-sm">
+                      {entry}
+                    </p>
                     <div className="mt-2 flex gap-2">
                       <Button
                         onClick={() => handleEditMemoryEntry(index)}
