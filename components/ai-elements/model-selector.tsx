@@ -1,3 +1,4 @@
+import { StarIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 
 import {
@@ -173,6 +174,14 @@ export const ModelSelectorLogo = ({
   className,
   ...props
 }: ModelSelectorLogoProps) => {
+  if (provider === "mai-star") {
+    return (
+      <span className={className} style={props.style} title={props.title} role="img" aria-label="mai-star logo">
+        <StarIcon className="size-4 fill-foreground text-foreground" />
+      </span>
+    );
+  }
+
   let logoProvider = provider;
   if (provider === "ollama") logoProvider = "llama";
   if (provider === "openrouter") logoProvider = "fastrouter";
