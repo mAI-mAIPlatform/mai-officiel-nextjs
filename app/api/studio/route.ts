@@ -36,10 +36,7 @@ export async function POST(request: Request) {
   try {
     if (body.action === "text") {
       if (!isExternalTextModel(body.model)) {
-        return Response.json(
-          { error: "Modèle texte non supporté" },
-          { status: 400 }
-        );
+        return Response.json({ error: "Modèle texte non supporté" }, { status: 400 });
       }
 
       const result = await runExternalTextModel(body.model, prompt);
@@ -48,10 +45,7 @@ export async function POST(request: Request) {
 
     if (body.action === "generate-image" || body.action === "edit-image") {
       if (!cometImageModels.has(body.model)) {
-        return Response.json(
-          { error: "Modèle image non supporté" },
-          { status: 400 }
-        );
+        return Response.json({ error: "Modèle image non supporté" }, { status: 400 });
       }
 
       if (body.action === "edit-image" && !body.image?.trim()) {

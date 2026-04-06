@@ -210,7 +210,8 @@ export const chatModels: ChatModel[] = [
     id: "openrouter/anthropic/claude-3.5-haiku",
     name: "Claude 3.5 Haiku",
     provider: "openrouter",
-    description: "Modèle Claude compact avec bonne cohérence et coût réduit.",
+    description:
+      "Modèle Claude compact avec bonne cohérence et coût réduit.",
   },
   {
     id: "openrouter/openai/gpt-4o-mini",

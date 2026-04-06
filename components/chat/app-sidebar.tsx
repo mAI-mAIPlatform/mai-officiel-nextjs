@@ -13,7 +13,6 @@ import {
   SearchIcon,
   Sparkles,
   TrashIcon,
-  Utensils,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -140,19 +139,12 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     icon: Code2,
                     label: "Coder",
                     restricted: true,
-                    beta: true,
                   },
                   {
                     href: "/news",
                     icon: Newspaper,
                     label: "Actualités",
                     restricted: true,
-                    beta: true,
-                  },
-                  {
-                    href: "/meals",
-                    icon: Utensils,
-                    label: "mAIRepas",
                   },
                   {
                     href: "/translation",
@@ -188,16 +180,15 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                       >
                         <item.icon className="size-4" />
                         <span className="font-medium">{item.label}</span>
-                        {item.beta && (
-                          <span className="rounded-full bg-amber-500/90 px-1.5 py-0.5 text-[9px] text-white mr-1">
-                            Bêta
-                          </span>
-                        )}
-                        {item.restricted && (
+                        {item.restricted ? (
                           <span className="rounded-full bg-red-500/90 px-1.5 py-0.5 text-[9px] text-white">
                             Accès restreint
                           </span>
-                        )}
+                        ) : item.beta ? (
+                          <span className="rounded-full bg-amber-500/90 px-1.5 py-0.5 text-[9px] text-white">
+                            Bêta
+                          </span>
+                        ) : null}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

@@ -33,9 +33,7 @@ export function getLanguageModel(modelId: string) {
     return myProvider.languageModel(modelId);
   }
 
-  if (isTestEnvironment) {
-    return gateway.languageModel(modelId);
-  }
+  if (isTestEnvironment) return gateway.languageModel(modelId);
 
   // --- OPENROUTER FALLBACK ---
   if (modelId.startsWith("openrouter/")) {
@@ -45,7 +43,7 @@ export function getLanguageModel(modelId: string) {
       try {
         const ai = require("ai");
         return ai.fallback || ai.experimental_fallback;
-      } catch (_e) {
+      } catch (e) {
         return undefined;
       }
     })();

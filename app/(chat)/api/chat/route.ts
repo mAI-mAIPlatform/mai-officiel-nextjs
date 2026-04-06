@@ -180,18 +180,7 @@ export async function POST(request: Request) {
       ];
     }
 
-    let { longitude, latitude, city, country } = geolocation(request);
-
-    // Check if body has client geolocation
-    try {
-      const clonedBody = await request.clone().json();
-      if (clonedBody.clientGeolocation) {
-        longitude = String(clonedBody.clientGeolocation.longitude);
-        latitude = String(clonedBody.clientGeolocation.latitude);
-      }
-    } catch (_e) {
-      // json parse failed, ignoring
-    }
+    const { longitude, latitude, city, country } = geolocation(request);
 
     const requestHints: RequestHints = {
       longitude,

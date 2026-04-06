@@ -2,8 +2,8 @@
 
 import { ImagePlus, Upload, WandSparkles } from "lucide-react";
 import { type ChangeEvent, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { affordableImageModels } from "@/lib/ai/affordable-models";
+import { Button } from "@/components/ui/button";
 
 const imageModels = affordableImageModels;
 
@@ -26,9 +26,7 @@ export default function StudioPage() {
 
   const onImageFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -207,11 +205,11 @@ export default function StudioPage() {
             />
           ) : null}
 
-          {resultImage ? null : (
+          {!resultImage ? (
             <p className="mt-6 text-sm text-muted-foreground">
               Le résultat s'affichera ici après exécution.
             </p>
-          )}
+          ) : null}
         </div>
       </section>
     </div>
