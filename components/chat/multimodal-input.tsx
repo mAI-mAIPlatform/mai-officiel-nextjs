@@ -5,18 +5,18 @@ import type { UIMessage } from "ai";
 import equal from "fast-deep-equal";
 import {
   ArrowUpIcon,
-  MapPin,
-  MicIcon,
-  Square,
   BotIcon,
   BrainIcon,
   EyeIcon,
   FilePenLineIcon,
   GraduationCapIcon,
   LockIcon,
+  MapPin,
+  MicIcon,
   Paperclip,
   PlusIcon,
   SearchIcon,
+  Square,
   WrenchIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -291,13 +291,19 @@ function PureMultimodalInput({
     "mai.geolocation-enabled",
     false
   );
-  const [geolocationPos, setGeolocationPos] = useState<{latitude: number; longitude: number} | null>(null);
+  const [geolocationPos, setGeolocationPos] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
   useEffect(() => {
     if (isGeolocationEnabled && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setGeolocationPos({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+          setGeolocationPos({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          });
         },
         (err) => {
           console.error("Erreur géolocalisation:", err);
@@ -333,7 +339,9 @@ function PureMultimodalInput({
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: "audio/webm",
+        });
         const formData = new FormData();
         formData.append("audio", audioBlob);
 
@@ -344,7 +352,9 @@ function PureMultimodalInput({
           });
           const data = await response.json();
           if (data.transcript) {
-            setInput((prev) => prev ? `${prev} ${data.transcript}` : data.transcript);
+            setInput((prev) =>
+              prev ? `${prev} ${data.transcript}` : data.transcript
+            );
           }
         } catch (error) {
           console.error("Transcription failed", error);
@@ -453,6 +463,7 @@ function PureMultimodalInput({
     width,
     chatId,
     uploadSource,
+    geolocationPos,
   ]);
 
   const uploadFile = useCallback(async (file: File) => {
@@ -726,7 +737,9 @@ function PureMultimodalInput({
             <ContextualActionsMenu
               fileInputRef={fileInputRef}
               hasVision={true}
+              isGeolocationEnabled={isGeolocationEnabled}
               onInsertTemplate={handleInsertTemplate}
+              setIsGeolocationEnabled={setIsGeolocationEnabled}
               status={status}
             />
             <span className="h-7 rounded-full border border-border/40 bg-secondary/40 px-2 text-[10px] leading-7 text-muted-foreground">
@@ -751,22 +764,26 @@ function PureMultimodalInput({
                 title="Dictée vocale"
                 variant={isRecording ? "destructive" : "ghost"}
               >
-                {isRecording ? <Square className="size-4" /> : <MicIcon className="size-4 text-muted-foreground hover:text-foreground" />}
+                {isRecording ? (
+                  <Square className="size-4" />
+                ) : (
+                  <MicIcon className="size-4 text-muted-foreground hover:text-foreground" />
+                )}
               </Button>
               <PromptInputSubmit
-              className={cn(
-                "h-7 w-7 rounded-xl transition-all duration-200",
-                input.trim()
-                  ? "bg-foreground text-background hover:opacity-85 active:scale-95"
-                  : "bg-muted text-muted-foreground/25 cursor-not-allowed"
-              )}
-              data-testid="send-button"
-              disabled={!input.trim() || uploadQueue.length > 0}
-              status={status}
-              variant="secondary"
-            >
-              <ArrowUpIcon className="size-4" />
-            </PromptInputSubmit>
+                className={cn(
+                  "h-7 w-7 rounded-xl transition-all duration-200",
+                  input.trim()
+                    ? "bg-foreground text-background hover:opacity-85 active:scale-95"
+                    : "bg-muted text-muted-foreground/25 cursor-not-allowed"
+                )}
+                data-testid="send-button"
+                disabled={!input.trim() || uploadQueue.length > 0}
+                status={status}
+                variant="secondary"
+              >
+                <ArrowUpIcon className="size-4" />
+              </PromptInputSubmit>
             </div>
           )}
         </PromptInputFooter>
@@ -812,11 +829,15 @@ function PureContextualActionsMenu({
   onInsertTemplate,
   status,
   hasVision,
+  isGeolocationEnabled,
+  setIsGeolocationEnabled,
 }: {
   fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
   onInsertTemplate: (templateText: string) => void;
   status: UseChatHelpers<ChatMessage>["status"];
   hasVision: boolean;
+  isGeolocationEnabled?: boolean;
+  setIsGeolocationEnabled?: (v: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -1010,21 +1031,25 @@ function PureContextualActionsMenu({
               variant="ghost"
             >
               <Button
-              className={cn(
-                "flex h-8 w-full items-center justify-start gap-2 text-xs font-normal",
-                isGeolocationEnabled &&
-                  "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
-              )}
-              onClick={() => setIsGeolocationEnabled?.(!isGeolocationEnabled)}
-              variant="ghost"
-            >
-              <MapPin
-                className={isGeolocationEnabled ? "text-primary" : "text-muted-foreground"}
-                size={16}
-              />
-              Géolocalisation
-            </Button>
-            <GraduationCapIcon
+                className={cn(
+                  "flex h-8 w-full items-center justify-start gap-2 text-xs font-normal",
+                  isGeolocationEnabled &&
+                    "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+                )}
+                onClick={() => setIsGeolocationEnabled?.(!isGeolocationEnabled)}
+                variant="ghost"
+              >
+                <MapPin
+                  className={
+                    isGeolocationEnabled
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }
+                  size={16}
+                />
+                Géolocalisation
+              </Button>
+              <GraduationCapIcon
                 className={
                   isLearningEnabled ? "text-primary" : "text-muted-foreground"
                 }
