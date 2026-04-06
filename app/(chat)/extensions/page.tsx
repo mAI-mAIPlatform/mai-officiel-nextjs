@@ -5,6 +5,30 @@ import { useRouter } from "next/navigation";
 
 const extensionCatalog = [
   {
+    id: "manalyse",
+    title: "mAnalyse",
+    description: "Analyse d'URLs, de PDF ou d'images avec un rapport structuré par l'IA.",
+    icon: "🔍",
+    route: "/manalyse",
+    premium: true,
+  },
+  {
+    id: "ecri20",
+    title: "Ecri20",
+    description: "IA de rédaction augmentée. Sélectionnez le ton, le format, et exportez facilement.",
+    icon: "✍️",
+    route: "/ecri20",
+    premium: true,
+  },
+  {
+    id: "brainstorming",
+    title: "Brainstorming",
+    description: "Partenaire de réflexion en mode Socrate. Structure vos idées avec des listes et des plans.",
+    icon: "💡",
+    route: "/brainstorming",
+    premium: false,
+  },
+  {
     id: "news",
     title: "Actualités",
     description:
