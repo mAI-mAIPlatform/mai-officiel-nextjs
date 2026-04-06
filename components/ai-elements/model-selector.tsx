@@ -175,7 +175,11 @@ export const ModelSelectorLogo = ({
   ...props
 }: ModelSelectorLogoProps) => {
   if (provider === "mai-star") {
-    return <StarIcon className={cn("size-4 fill-foreground text-foreground", className)} {...props} />;
+    return (
+      <span className={className} style={props.style} title={props.title} role="img" aria-label="mai-star logo">
+        <StarIcon className="size-4 fill-foreground text-foreground" />
+      </span>
+    );
   }
 
   let logoProvider = provider;
