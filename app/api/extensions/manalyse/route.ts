@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import {
   createStructuredReport,
   extractReadableTextFromHtml,
 } from "@/lib/extensions/manalyse";
+
+export const runtime = "nodejs";
 
 const decoder = new TextDecoder("utf-8", { fatal: false });
 
@@ -12,6 +16,107 @@ function fallbackBinaryToText(buffer: ArrayBuffer) {
     .replace(/\r?\n/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function isPrivateOrLocalIpAddress(ipAddress: string) {
+  const normalizedIp = ipAddress.toLowerCase();
+  const ipVersion = isIP(normalizedIp);
+
+  if (ipVersion === 4) {
+    const octets = normalizedIp.split(".").map(Number);
+    const [a, b] = octets;
+
+    // Plages privées/locales/réservées IPv4
+    if (a === 10 || a === 127 || (a === 169 && b === 254) || a === 0) {
+      return true;
+    }
+    if (a === 172 && b >= 16 && b <= 31) {
+      return true;
+    }
+    if (a === 192 && b === 168) {
+      return true;
+    }
+    if (a === 100 && b >= 64 && b <= 127) {
+      return true;
+    }
+    if (a >= 224) {
+      return true;
+    }
+    if (a === 198 && (b === 18 || b === 19)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  if (ipVersion === 6) {
+    if (normalizedIp === "::1" || normalizedIp === "::") {
+      return true;
+    }
+
+    // IPv4-mappée dans IPv6
+    if (normalizedIp.startsWith("::ffff:")) {
+      return isPrivateOrLocalIpAddress(normalizedIp.replace("::ffff:", ""));
+    }
+
+    // Unique local (fc00::/7) et link-local (fe80::/10)
+    if (
+      normalizedIp.startsWith("fc") ||
+      normalizedIp.startsWith("fd") ||
+      normalizedIp.startsWith("fe8") ||
+      normalizedIp.startsWith("fe9") ||
+      normalizedIp.startsWith("fea") ||
+      normalizedIp.startsWith("feb")
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function validateExternalUrl(rawUrl: string) {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(rawUrl);
+  } catch {
+    throw new Error("L'URL fournie est invalide.");
+  }
+
+  if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+    throw new Error("Seules les URLs HTTP/HTTPS sont autorisées.");
+  }
+
+  if (parsedUrl.username || parsedUrl.password) {
+    throw new Error("Les URLs avec identifiants intégrés sont interdites.");
+  }
+
+  const hostname = parsedUrl.hostname.toLowerCase();
+  if (
+    hostname === "localhost" ||
+    hostname.endsWith(".localhost") ||
+    hostname.endsWith(".local")
+  ) {
+    throw new Error("Les hôtes locaux ne sont pas autorisés.");
+  }
+
+  // Défense SSRF : validation des IPs directes et des résolutions DNS.
+  if (isIP(hostname) && isPrivateOrLocalIpAddress(hostname)) {
+    throw new Error("Adresse IP locale/interne interdite.");
+  }
+
+  const resolvedAddresses = await lookup(hostname, { all: true, verbatim: true });
+  if (resolvedAddresses.length === 0) {
+    throw new Error("Impossible de résoudre le nom de domaine.");
+  }
+
+  if (
+    resolvedAddresses.some(({ address }) => isPrivateOrLocalIpAddress(address))
+  ) {
+    throw new Error("Le domaine cible résout vers une adresse interne.");
+  }
+
+  return parsedUrl;
 }
 
 export async function POST(request: Request) {
@@ -31,7 +136,35 @@ export async function POST(request: Request) {
       );
     }
 
-    const response = await fetch(targetUrl);
+    let safeTargetUrl: URL;
+    try {
+      safeTargetUrl = await validateExternalUrl(targetUrl);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "URL refusée pour raisons de sécurité.";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(safeTargetUrl, {
+        redirect: "manual",
+        signal: AbortSignal.timeout(8_000),
+      });
+    } catch {
+      return NextResponse.json(
+        { error: "Échec de la récupération de l'URL (timeout/réseau)." },
+        { status: 400 }
+      );
+    }
+
+    if (response.status >= 300 && response.status < 400) {
+      return NextResponse.json(
+        { error: "Les redirections ne sont pas autorisées." },
+        { status: 400 }
+      );
+    }
+
     if (!response.ok) {
       return NextResponse.json(
         { error: "Impossible de récupérer le contenu de l'URL." },
