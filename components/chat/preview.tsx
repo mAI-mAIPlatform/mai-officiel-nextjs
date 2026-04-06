@@ -3,13 +3,15 @@
 import { Ghost } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { greetingPrompts, suggestions } from "@/lib/constants";
+import { useEffect, useMemo, useState } from "react";
+import { greetingPrompts } from "@/lib/constants";
+import { pickRandomSuggestions } from "@/lib/suggestion-pool";
 
 export function Preview() {
   const router = useRouter();
   const [greetingText, setGreetingText] = useState<string>(greetingPrompts[0]);
   const [isGhostModeEnabled, setIsGhostModeEnabled] = useState(false);
+  const suggestions = useMemo(() => pickRandomSuggestions(4), []);
 
   useEffect(() => {
     // Génération pseudo-aléatoire côté client uniquement (build-safe).
