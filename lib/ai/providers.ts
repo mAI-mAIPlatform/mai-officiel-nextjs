@@ -29,6 +29,25 @@ const fireworksProvider = createOpenAI({
     process.env.FIREWORKS_BASE_URL ?? "https://api.fireworks.ai/inference/v1",
 });
 
+// Instance SambaNova Cloud (API OpenAI-compatible)
+const sambanovaProvider = createOpenAI({
+  apiKey: process.env.SAMBANOVA_API_KEY,
+  baseURL: process.env.SAMBANOVA_BASE_URL ?? "https://api.sambanova.ai/v1",
+});
+
+const cloudflareAccountId =
+  process.env.CLOUDFLARE_ACCOUNT_ID ?? process.env.CF_ACCOUNT_ID;
+
+// Instance Cloudflare Workers AI (API OpenAI-compatible)
+const cloudflareProvider = createOpenAI({
+  apiKey: process.env.CLOUDFLARE_API_KEY,
+  baseURL:
+    process.env.CLOUDFLARE_BASE_URL ??
+    (cloudflareAccountId
+      ? `https://api.cloudflare.com/client/v4/accounts/${cloudflareAccountId}/ai/v1`
+      : undefined),
+});
+
 // Instance Ollama (token optionnel pour instance locale)
 const ollamaProvider = createOllama({
   baseURL: process.env.OLLAMA_BASE_URL,
@@ -77,6 +96,31 @@ export function getLanguageModel(modelId: string) {
   // --- FIREWORKS AI ---
   if (modelId.startsWith("fireworks/")) {
     return fireworksProvider(modelId.replace("fireworks/", ""));
+  }
+
+  // --- SAMBANOVA ---
+  if (modelId.startsWith("sambanova/")) {
+    if (!process.env.SAMBANOVA_API_KEY) {
+      throw new Error(
+        "SAMBANOVA_API_KEY manquante: impossible d'utiliser un modèle SambaNova."
+      );
+    }
+    return sambanovaProvider(modelId.replace("sambanova/", ""));
+  }
+
+  // --- CLOUDFLARE WORKERS AI ---
+  if (modelId.startsWith("cloudflare/")) {
+    if (!process.env.CLOUDFLARE_API_KEY) {
+      throw new Error(
+        "CLOUDFLARE_API_KEY manquante: impossible d'utiliser un modèle Cloudflare Workers AI."
+      );
+    }
+    if (!cloudflareAccountId && !process.env.CLOUDFLARE_BASE_URL) {
+      throw new Error(
+        "CLOUDFLARE_ACCOUNT_ID manquante (ou CLOUDFLARE_BASE_URL): impossible d'appeler Cloudflare Workers AI."
+      );
+    }
+    return cloudflareProvider(modelId.replace("cloudflare/", ""));
   }
 
   return gateway.languageModel(modelId);
