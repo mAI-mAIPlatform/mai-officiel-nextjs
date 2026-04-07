@@ -44,9 +44,34 @@ const geminiKeys = [
   process.env.GEMINI_API_KEY_1,
   process.env.GEMINI_API_KEY_2,
   process.env.GEMINI_API_KEY_3,
+  process.env.GEMINI_API_KEY_4,
 ].filter(Boolean) as string[];
 const cerebrasKeys = [process.env.CEREBRAS_API_KEY].filter(Boolean) as string[];
 const mistralKeys = [process.env.MISTRAL_API_KEY].filter(Boolean) as string[];
+
+// Alias pour rester compatible avec des IDs "marketing"/preview selon les périodes.
+const geminiModelAliases: Record<string, string[]> = {
+  "gemini-3.1-flash-lite-preview": [
+    "gemini-3.1-flash-lite-preview",
+    "gemini-3-flash-preview",
+    "gemini-2.5-flash-lite",
+  ],
+  "gemini-3-pro-preview": [
+    "gemini-3-pro-preview",
+    "gemini-3.1-pro-preview",
+    "gemini-2.5-pro",
+  ],
+  "gemini-3.1-pro-preview": [
+    "gemini-3.1-pro-preview",
+    "gemini-3-pro-preview",
+    "gemini-2.5-pro",
+  ],
+};
+
+function getGeminiCandidateModelIds(modelId: string): string[] {
+  const aliases = geminiModelAliases[modelId] ?? [modelId];
+  return [...new Set(aliases)];
+}
 
 async function withFallback<T>(
   calls: Array<() => Promise<T>>,
@@ -181,39 +206,55 @@ export function runExternalTextModel(
       throw new Error("Aucune clé Gemini configurée");
     }
 
+    const modelCandidates = getGeminiCandidateModelIds(modelId);
     const geminiCalls = geminiKeys.map((apiKey, index) => async () => {
-      const response = await fetch(
-        `${GEMINI_API_BASE_URL}/models/${modelId}:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            ...(systemInstruction
-              ? { systemInstruction: { parts: [{ text: systemInstruction }] } }
-              : {}),
-            generationConfig: {
-              temperature: 0.5,
-              maxOutputTokens: 1024,
-            },
-          }),
-        }
-      );
+      let lastStatus: number | undefined;
 
-      if (!response.ok) {
-        throw new Error(
-          `Gemini clé ${index + 1} a échoué (${response.status})`
+      for (const resolvedModelId of modelCandidates) {
+        const response = await fetch(
+          `${GEMINI_API_BASE_URL}/models/${resolvedModelId}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              ...(systemInstruction
+                ? {
+                    systemInstruction: { parts: [{ text: systemInstruction }] },
+                  }
+                : {}),
+              generationConfig: {
+                temperature: 0.5,
+                maxOutputTokens: 1024,
+              },
+            }),
+          }
         );
+
+        if (!response.ok) {
+          lastStatus = response.status;
+          // 404: on tente l'alias suivant pour éviter les cassures sur renommage.
+          if (response.status === 404) {
+            continue;
+          }
+          throw new Error(
+            `Gemini clé ${index + 1} a échoué (${response.status})`
+          );
+        }
+
+        const data = await response.json();
+        const text = extractTextFromGemini(data);
+
+        if (!text) {
+          throw new Error(`Gemini clé ${index + 1} a renvoyé une réponse vide`);
+        }
+
+        return { provider: `gemini-${index + 1}`, text };
       }
 
-      const data = await response.json();
-      const text = extractTextFromGemini(data);
-
-      if (!text) {
-        throw new Error(`Gemini clé ${index + 1} a renvoyé une réponse vide`);
-      }
-
-      return { provider: `gemini-${index + 1}`, text };
+      throw new Error(
+        `Gemini clé ${index + 1} a échoué (${lastStatus ?? "status inconnu"})`
+      );
     });
 
     return withFallback(geminiCalls, "Échec fallback Gemini");

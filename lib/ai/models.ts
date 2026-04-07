@@ -147,6 +147,18 @@ export const chatModels: ChatModel[] = [
     description: "Version Flash rapide avec bon rendement coût/qualité.",
   },
   {
+    id: "google/gemini-2.0-flash-lite",
+    name: "Gemini 2.0 Flash Lite",
+    provider: "google",
+    description: "Variante 2.0 Lite pour minimiser le coût par requête.",
+  },
+  {
+    id: "google/gemini-3.1-flash-lite-preview",
+    name: "Gemini 3.1 Flash Lite Preview",
+    provider: "google",
+    description: "Version preview Lite demandée pour latence et coût réduits.",
+  },
+  {
     id: "xai/grok-4.1-fast-non-reasoning",
     name: "Grok 4.1 Fast (Non-Reasoning)",
     provider: "xai",
@@ -178,12 +190,6 @@ export const chatModels: ChatModel[] = [
     description: "Très bon coût d'entrée pour automatisations fréquentes.",
   },
   {
-    id: "google/gemini-3.1-flash-lite-preview",
-    name: "Gemini 3.1 Flash Lite Preview",
-    provider: "google",
-    description: "Preview lite pour usages flash à coût contenu.",
-  },
-  {
     id: "openai/gpt-5-mini",
     name: "GPT-5 Mini",
     provider: "openai",
@@ -212,6 +218,27 @@ export const chatModels: ChatModel[] = [
     name: "Gemini 2.5 Flash",
     provider: "google",
     description: "Flash avancé pour charges plus exigeantes.",
+  },
+  {
+    id: "google/gemini-2.5-pro",
+    name: "Gemini 2.5 Pro",
+    provider: "google",
+    description: "Version Pro pour tâches complexes et raisonnement avancé.",
+    reasoningEffort: "medium",
+  },
+  {
+    id: "google/gemini-3-pro-preview",
+    name: "Gemini 3 Pro Preview",
+    provider: "google",
+    description: "Génération Gemini 3 Pro en preview pour tests avancés.",
+    reasoningEffort: "medium",
+  },
+  {
+    id: "google/gemini-3.1-pro-preview",
+    name: "Gemini 3.1 Pro Preview",
+    provider: "google",
+    description: "Variante Gemini 3.1 Pro preview pour cas complexes.",
+    reasoningEffort: "high",
   },
   {
     id: "minimax/minimax-m2.7",
