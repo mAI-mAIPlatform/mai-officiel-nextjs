@@ -3,12 +3,15 @@
 import {
   BotIcon,
   Loader2Icon,
+  PencilIcon,
   PlusIcon,
   SettingsIcon,
   SlidersHorizontalIcon,
   Trash2Icon,
+  UploadIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
@@ -23,6 +26,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { chatModels } from "@/lib/ai/models";
+
+type Agent = {
+  id: string;
+  name: string;
+  description: string | null;
+  image: string | null;
+  baseModel: string | null;
+  systemPrompt: string | null;
+  memory: string | null;
+  createdAt: string;
+};
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 const expertPresets = [
@@ -42,22 +56,68 @@ const expertPresets = [
   "Stratège",
 ] as const;
 
-export default function MaisPage() {
-  const { data: agents, error, mutate } = useSWR("/api/agents", fetcher);
-  const [isOpen, setIsOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const setModelCookie = (value: string) => {
+  const maxAge = 60 * 60 * 24 * 365;
+  // biome-ignore lint/suspicious/noDocumentCookie: setting model preference client-side intentionally
+  document.cookie = `chat-model=${encodeURIComponent(value)}; path=/; max-age=${maxAge}`;
+};
 
-  // Form state
+async function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("Lecture du fichier impossible"));
+    reader.readAsDataURL(file);
+  });
+}
+
+export default function MaisPage() {
+  const router = useRouter();
+  const {
+    data: agents,
+    error,
+    mutate,
+  } = useSWR<Agent[]>("/api/agents", fetcher);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [systemPrompt, setSystemPrompt] = useState("");
   const [memory, setMemory] = useState("");
+  const [image, setImage] = useState("");
   const [baseModel, setBaseModel] = useState(chatModels[0]?.id ?? "");
 
-  // Agent Behavior Configuration
   const [tone, setTone] = useState("50");
   const [conciseness, setConciseness] = useState("50");
   const [languageRegister, setLanguageRegister] = useState("50");
+
+  const resetForm = () => {
+    setName("");
+    setDescription("");
+    setSystemPrompt("");
+    setMemory("");
+    setImage("");
+    setBaseModel(chatModels[0]?.id ?? "");
+    setTone("50");
+    setConciseness("50");
+    setLanguageRegister("50");
+    setEditingAgentId(null);
+  };
+
+  const openSettings = (agent: Agent) => {
+    setEditingAgentId(agent.id);
+    setName(agent.name);
+    setDescription(agent.description ?? "");
+    setSystemPrompt(agent.systemPrompt ?? "");
+    setMemory(agent.memory ?? "");
+    setImage(agent.image ?? "");
+    setBaseModel(agent.baseModel ?? chatModels[0]?.id ?? "");
+    setIsSettingsOpen(true);
+  };
 
   const handleCreateAgent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,6 +132,7 @@ export default function MaisPage() {
           description,
           systemPrompt,
           memory,
+          image,
           baseModel,
           tone: Number.parseInt(tone, 10),
           conciseness: Number.parseInt(conciseness, 10),
@@ -85,18 +146,43 @@ export default function MaisPage() {
 
       toast.success("mAI créé avec succès");
       setIsOpen(false);
-      // Reset form
-      setName("");
-      setDescription("");
-      setSystemPrompt("");
-      setMemory("");
-      setBaseModel(chatModels[0]?.id ?? "");
-      setTone("50");
-      setConciseness("50");
-      setLanguageRegister("50");
+      resetForm();
       mutate();
-    } catch (_err) {
+    } catch {
       toast.error("Impossible de créer le mAI");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateAgent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAgentId) {
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/agents/${editingAgentId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          description,
+          systemPrompt,
+          memory,
+          image,
+          baseModel,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error("Erreur de mise à jour");
+      }
+      toast.success("mAI mis à jour");
+      setIsSettingsOpen(false);
+      resetForm();
+      mutate();
+    } catch {
+      toast.error("Impossible de modifier le mAI");
     } finally {
       setIsSubmitting(false);
     }
@@ -113,8 +199,12 @@ export default function MaisPage() {
               throw new Error("Erreur");
             }
             toast.success("mAI supprimé");
+            if (editingAgentId === id) {
+              setIsSettingsOpen(false);
+              resetForm();
+            }
             mutate();
-          } catch (_err) {
+          } catch {
             toast.error("Impossible de supprimer le mAI");
           }
         },
@@ -126,31 +216,39 @@ export default function MaisPage() {
     <div className="liquid-glass flex h-full w-full flex-col overflow-y-auto p-8 md:p-12">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
+          <h1 className="flex items-center gap-2 text-3xl font-bold">
             <span className="inline-flex size-9 items-center justify-center rounded-xl border border-black/20 bg-white text-black dark:border-white/20 dark:bg-black dark:text-white">
               <BotIcon className="size-5" />
             </span>
             Mes mAIs
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="mt-2 text-muted-foreground">
             IAs personnalisées avec rôles, personnalités et connaissances
             spécifiques.
           </p>
         </div>
 
-        <Dialog onOpenChange={setIsOpen} open={isOpen}>
+        <Dialog
+          onOpenChange={(nextOpen) => {
+            setIsOpen(nextOpen);
+            if (!nextOpen) {
+              resetForm();
+            }
+          }}
+          open={isOpen}
+        >
           <DialogTrigger asChild>
             <Button>
               <PlusIcon className="mr-2 size-4" />
               Créer un mAI
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto bg-white text-black dark:bg-white dark:text-black">
             <DialogHeader>
               <DialogTitle>Créer une nouvelle IA (mAI)</DialogTitle>
             </DialogHeader>
-            <form className="space-y-6 mt-4" onSubmit={handleCreateAgent}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form className="mt-4 space-y-6" onSubmit={handleCreateAgent}>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Nom du mAI</Label>
@@ -176,7 +274,7 @@ export default function MaisPage() {
                   <div className="space-y-2">
                     <Label htmlFor="baseModel">Modèle de base</Label>
                     <select
-                      className="liquid-glass flex h-10 w-full rounded-xl border border-border/60 bg-background/60 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      className="flex h-10 w-full rounded-xl border border-border/60 bg-background px-3 py-1 text-sm"
                       id="baseModel"
                       onChange={(e) => setBaseModel(e.target.value)}
                       value={baseModel}
@@ -188,10 +286,48 @@ export default function MaisPage() {
                       ))}
                     </select>
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="agent-image">
+                      Logo du mAI (URL ou fichier)
+                    </Label>
+                    <Input
+                      id="agent-image"
+                      onChange={(e) => setImage(e.target.value)}
+                      placeholder="https://.../logo.png"
+                      value={image}
+                    />
+                    <input
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) {
+                          return;
+                        }
+                        try {
+                          const dataUrl = await readFileAsDataUrl(file);
+                          setImage(dataUrl);
+                          toast.success("Logo importé");
+                        } catch {
+                          toast.error("Import du logo impossible");
+                        }
+                      }}
+                      ref={logoInputRef}
+                      type="file"
+                    />
+                    <Button
+                      onClick={() => logoInputRef.current?.click()}
+                      type="button"
+                      variant="outline"
+                    >
+                      <UploadIcon className="mr-2 size-4" />
+                      Importer un logo
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="space-y-6 rounded-lg border p-4 bg-muted/30">
-                  <h4 className="font-semibold flex items-center gap-2 text-sm">
+                <div className="space-y-6 rounded-lg border bg-muted/30 p-4">
+                  <h4 className="flex items-center gap-2 text-sm font-semibold">
                     <SlidersHorizontalIcon className="size-4" />{" "}
                     Personnalisation du Comportement
                   </h4>
@@ -253,7 +389,7 @@ export default function MaisPage() {
                 <Textarea
                   id="systemPrompt"
                   onChange={(e) => setSystemPrompt(e.target.value)}
-                  placeholder="Tu es un expert en développement web. Tes réponses doivent toujours inclure des exemples de code..."
+                  placeholder="Tu es un expert en développement web..."
                   rows={4}
                   value={systemPrompt}
                 />
@@ -272,7 +408,7 @@ export default function MaisPage() {
                 />
               </div>
 
-              <div className="pt-4 flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-4">
                 <Button
                   onClick={() => setIsOpen(false)}
                   type="button"
@@ -335,12 +471,19 @@ export default function MaisPage() {
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {agents.map((agent: any) => (
+            {agents.map((agent) => (
               <div
                 className="liquid-glass group relative flex flex-col justify-between rounded-xl border border-border/50 bg-card/70 p-6 shadow-sm transition-all hover:shadow-md"
                 key={agent.id}
               >
-                <div>
+                <button
+                  className="text-left"
+                  onClick={() => {
+                    setModelCookie(`agent-${agent.id}`);
+                    router.push("/");
+                  }}
+                  type="button"
+                >
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-black/20 bg-white text-black dark:border-white/20 dark:bg-black dark:text-white">
                     {agent.image ? (
                       <div
@@ -360,7 +503,7 @@ export default function MaisPage() {
                   <p className="line-clamp-2 text-sm text-muted-foreground">
                     {agent.description || "Aucune description."}
                   </p>
-                </div>
+                </button>
                 <div className="mt-6 flex items-center justify-between border-t pt-4">
                   <span className="text-xs text-muted-foreground">
                     Créé le {new Date(agent.createdAt).toLocaleDateString()}
@@ -368,8 +511,10 @@ export default function MaisPage() {
                   <div className="flex gap-1">
                     <Button
                       className="size-8"
+                      onClick={() => openSettings(agent)}
                       size="icon"
-                      title="Paramètres (Bientôt)"
+                      title="Paramètres"
+                      type="button"
                       variant="ghost"
                     >
                       <SettingsIcon className="size-4" />
@@ -393,6 +538,92 @@ export default function MaisPage() {
           <Loader2Icon className="size-8 animate-spin text-muted-foreground" />
         </div>
       )}
+
+      <Dialog onOpenChange={setIsSettingsOpen} open={isSettingsOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto bg-white text-black dark:bg-white dark:text-black">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PencilIcon className="size-4" /> Modifier le mAI
+            </DialogTitle>
+          </DialogHeader>
+          <form className="space-y-3" onSubmit={handleUpdateAgent}>
+            <div className="space-y-2">
+              <Label htmlFor="set-name">Nom</Label>
+              <Input
+                id="set-name"
+                onChange={(e) => setName(e.target.value)}
+                required
+                value={name}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="set-description">Description</Label>
+              <Input
+                id="set-description"
+                onChange={(e) => setDescription(e.target.value)}
+                value={description}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="set-image">Logo (URL)</Label>
+              <Input
+                id="set-image"
+                onChange={(e) => setImage(e.target.value)}
+                value={image}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="set-base">Modèle de base</Label>
+              <select
+                className="flex h-10 w-full rounded-xl border border-border/60 bg-background px-3 py-1 text-sm"
+                id="set-base"
+                onChange={(e) => setBaseModel(e.target.value)}
+                value={baseModel}
+              >
+                {chatModels.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="set-system">Instructions IA</Label>
+              <Textarea
+                id="set-system"
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                rows={4}
+                value={systemPrompt}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="set-memory">Sources</Label>
+              <Textarea
+                id="set-memory"
+                onChange={(e) => setMemory(e.target.value)}
+                rows={4}
+                value={memory}
+              />
+            </div>
+            <div className="flex items-center justify-between pt-2">
+              <Button
+                className="text-destructive"
+                onClick={() => editingAgentId && handleDelete(editingAgentId)}
+                type="button"
+                variant="ghost"
+              >
+                <Trash2Icon className="mr-2 size-4" /> Supprimer
+              </Button>
+              <Button disabled={isSubmitting} type="submit">
+                {isSubmitting && (
+                  <Loader2Icon className="mr-2 size-4 animate-spin" />
+                )}{" "}
+                Enregistrer
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
