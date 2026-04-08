@@ -11,6 +11,11 @@ import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 import {
+  buildAiCopilotNote,
+  type ExtensionAiModel,
+  extensionAiModels,
+} from "@/lib/ai/extension-models";
+import {
   canConsumeUsage,
   consumeUsage,
   getUsageCount,
@@ -41,6 +46,8 @@ export default function NewsPage() {
   const [importSource, setImportSource] = useState<"device" | "mai-library">(
     "device"
   );
+  const [selectedModel, setSelectedModel] =
+    useState<ExtensionAiModel>("gpt-5.4-mini");
 
   const dailyLimit = currentPlanDefinition.limits.newsSearchesPerDay;
   const remainingSearches = Math.max(dailyLimit - searchesToday, 0);
@@ -106,7 +113,11 @@ export default function NewsPage() {
       const response = await fetch("/api/news/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileContext: externalContext, query }),
+        body: JSON.stringify({
+          fileContext: externalContext,
+          model: selectedModel,
+          query,
+        }),
       });
       const payload = await response.json();
       if (!response.ok) {
@@ -115,7 +126,11 @@ export default function NewsPage() {
       }
 
       setResults(payload.organicResults ?? []);
-      setReport(payload.report ?? payload.error ?? "Aucun rapport généré");
+      const generatedReport =
+        payload.report ?? payload.error ?? "Aucun rapport généré";
+      setReport(
+        `${buildAiCopilotNote(selectedModel, "veille", query)}\n\n${generatedReport}`
+      );
       const usage = consumeUsage("news", "day");
       setSearchesToday(usage.count);
       if (payload.report) {
@@ -147,8 +162,8 @@ export default function NewsPage() {
         <div>
           <h1 className="text-3xl font-bold">Actualités</h1>
           <p className="text-xs text-muted-foreground">
-            Veille assistée IA avec contexte importé, rapport exportable et
-            historique persistant.
+            Veille assistée IA ({selectedModel}) avec contexte importé, rapport
+            exportable et historique persistant.
           </p>
         </div>
       </div>
@@ -185,6 +200,17 @@ export default function NewsPage() {
             <Search className="mr-1 size-4" />
             {isLoading ? "Recherche..." : "Rechercher"}
           </Button>
+          <select
+            className="h-11 rounded-xl border border-border bg-background/60 px-3 text-xs"
+            onChange={(event) =>
+              setSelectedModel(event.target.value as ExtensionAiModel)
+            }
+            value={selectedModel}
+          >
+            {extensionAiModels.map((entry) => (
+              <option key={entry}>{entry}</option>
+            ))}
+          </select>
           <select
             className="h-11 rounded-xl border border-border bg-background/60 px-3 text-xs"
             onChange={(event) =>

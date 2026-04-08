@@ -11,6 +11,11 @@ import {
   Underline,
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import {
+  buildAiCopilotNote,
+  type ExtensionAiModel,
+  extensionAiModels,
+} from "@/lib/ai/extension-models";
 
 const tones = ["Professionnel", "Amical", "Créatif", "Chill"] as const;
 const formats = [
@@ -77,6 +82,8 @@ export default function Ecri20Page() {
   const [comments, setComments] = useState<DraftComment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [assistantSuggestion, setAssistantSuggestion] = useState("");
+  const [selectedModel, setSelectedModel] =
+    useState<ExtensionAiModel>("gpt-5.4-mini");
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -84,6 +91,8 @@ export default function Ecri20Page() {
     () => generateDraft(prompt, tone, format),
     [prompt, tone, format]
   );
+
+  const aiModelBadge = `Propulsé par ${selectedModel}`;
 
   const effectiveDraft = draft || generatedDraft;
 
@@ -113,7 +122,7 @@ export default function Ecri20Page() {
   const generateAssistantSuggestion = () => {
     const context = prompt.trim() || "Sans brief explicite";
     setAssistantSuggestion(
-      `Copilote IA : pour un ton ${tone.toLowerCase()}, ajoutez une preuve chiffrée dans le développement et concluez avec un CTA orienté ${format.toLowerCase()}. Contexte retenu : ${context}.`
+      `${buildAiCopilotNote(selectedModel, "rédaction", context)} Ton ${tone.toLowerCase()} et format ${format.toLowerCase()} recommandés.`
     );
   };
 
@@ -223,6 +232,22 @@ export default function Ecri20Page() {
               <option key={entry}>{entry}</option>
             ))}
           </select>
+        </label>
+
+        <label className="text-sm md:col-span-2">
+          Modèle IA
+          <select
+            className="mt-1 w-full rounded-xl border border-border/60 bg-background/60 px-3 py-2"
+            onChange={(event) =>
+              setSelectedModel(event.target.value as ExtensionAiModel)
+            }
+            value={selectedModel}
+          >
+            {extensionAiModels.map((entry) => (
+              <option key={entry}>{entry}</option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-muted-foreground">{aiModelBadge}</p>
         </label>
 
         <label className="text-sm md:col-span-2">

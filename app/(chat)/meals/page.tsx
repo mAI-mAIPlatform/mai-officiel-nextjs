@@ -5,6 +5,11 @@ import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 import {
+  buildAiCopilotNote,
+  type ExtensionAiModel,
+  extensionAiModels,
+} from "@/lib/ai/extension-models";
+import {
   canConsumeUsage,
   consumeUsage,
   getUsageCount,
@@ -13,6 +18,15 @@ import {
 type Result = { link: string; snippet: string; source: string; title: string };
 
 type ReportHistory = { createdAt: string; query: string; report: string };
+
+const MEALS_HISTORY_STORAGE_KEY = "mai.meals.history.v2";
+const MEALS_INSPIRATION_BUBBLES = [
+  "Recettes de saison rapides",
+  "Dîner végétarien léger",
+  "Plats traditionnels revisités",
+  "Desserts sans sucre ajouté",
+  "Repas de fête à petit budget",
+] as const;
 
 export default function MealsPage() {
   const { currentPlanDefinition, isHydrated } = useSubscriptionPlan();
@@ -27,18 +41,16 @@ export default function MealsPage() {
   const [importSource, setImportSource] = useState<"device" | "mai-library">(
     "device"
   );
+  const [selectedModel, setSelectedModel] =
+    useState<ExtensionAiModel>("gpt-5.4-mini");
 
   const dailyLimit = currentPlanDefinition.limits.mealsSearchesPerDay;
   const remainingSearches = Math.max(dailyLimit - searchesToday, 0);
-  const inspirationBubbles = [
-    "Recettes de saison rapides",
-    "Dîner végétarien léger",
-    "Plats traditionnels revisités",
-    "Desserts sans sucre ajouté",
-    "Repas de fête à petit budget",
-  ];
   const randomBubbles = useMemo(
-    () => [...inspirationBubbles].sort(() => Math.random() - 0.5).slice(0, 3),
+    () =>
+      [...MEALS_INSPIRATION_BUBBLES]
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3),
     []
   );
 
@@ -48,7 +60,27 @@ export default function MealsPage() {
     }
 
     setSearchesToday(getUsageCount("meals", "day"));
+    const rawHistory = localStorage.getItem(MEALS_HISTORY_STORAGE_KEY);
+    if (rawHistory) {
+      try {
+        const parsed = JSON.parse(rawHistory) as ReportHistory[];
+        setHistory(Array.isArray(parsed) ? parsed.slice(0, 10) : []);
+      } catch {
+        localStorage.removeItem(MEALS_HISTORY_STORAGE_KEY);
+      }
+    }
   }, [isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    localStorage.setItem(
+      MEALS_HISTORY_STORAGE_KEY,
+      JSON.stringify(history.slice(0, 10))
+    );
+  }, [history, isHydrated]);
 
   const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -77,7 +109,11 @@ export default function MealsPage() {
       const response = await fetch("/api/meals/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileContext: externalContext, query }),
+        body: JSON.stringify({
+          fileContext: externalContext,
+          model: selectedModel,
+          query,
+        }),
       });
       const payload = await response.json();
       if (!response.ok) {
@@ -86,7 +122,11 @@ export default function MealsPage() {
       }
 
       setResults(payload.organicResults ?? []);
-      setReport(payload.report ?? payload.error ?? "Aucun rapport généré");
+      const generatedReport =
+        payload.report ?? payload.error ?? "Aucun rapport généré";
+      setReport(
+        `${buildAiCopilotNote(selectedModel, "cuisine", query)}\n\n${generatedReport}`
+      );
       const usage = consumeUsage("meals", "day");
       setSearchesToday(usage.count);
       if (payload.report) {
@@ -99,6 +139,8 @@ export default function MealsPage() {
           ...prev,
         ]);
       }
+    } catch {
+      setReport("Impossible de contacter le service CookAI. Réessayez.");
     } finally {
       setIsLoading(false);
     }
@@ -114,6 +156,9 @@ export default function MealsPage() {
       <div className="flex items-center gap-3">
         <Utensils className="size-8 text-primary" />
         <h1 className="text-3xl font-bold">Recettes & Repas (CookAI)</h1>
+        <p className="text-xs text-muted-foreground">
+          Propulsé par {selectedModel}
+        </p>
       </div>
       <div className="flex flex-wrap gap-2">
         {randomBubbles.map((bubble) => (
@@ -147,6 +192,17 @@ export default function MealsPage() {
           >
             {isLoading ? "Recherche..." : "Rechercher"}
           </Button>
+          <select
+            className="h-11 rounded-xl border border-border bg-background/60 px-3 text-xs"
+            onChange={(event) =>
+              setSelectedModel(event.target.value as ExtensionAiModel)
+            }
+            value={selectedModel}
+          >
+            {extensionAiModels.map((entry) => (
+              <option key={entry}>{entry}</option>
+            ))}
+          </select>
           <select
             className="h-11 rounded-xl border border-border bg-background/60 px-3 text-xs"
             onChange={(event) =>
@@ -230,16 +286,21 @@ export default function MealsPage() {
       <div className="rounded-2xl border border-border/50 bg-card/70 p-4">
         <h3 className="mb-2 font-semibold">Historique des rapports</h3>
         <div className="space-y-2 text-sm">
-          {history.map((item, index) => (
-            <div
-              className="rounded-lg border border-border/50 p-3"
-              key={`${item.createdAt}-${index}`}
+          {history.map((item) => (
+            <button
+              className="w-full rounded-lg border border-border/50 p-3 text-left hover:bg-background/45"
+              key={`${item.createdAt}-${item.query}`}
+              onClick={() => {
+                setQuery(item.query);
+                setReport(item.report);
+              }}
+              type="button"
             >
               <p className="font-medium">{item.query}</p>
               <p className="text-xs text-muted-foreground">
                 {new Date(item.createdAt).toLocaleString()}
               </p>
-            </div>
+            </button>
           ))}
           {history.length === 0 && (
             <p className="text-muted-foreground">
