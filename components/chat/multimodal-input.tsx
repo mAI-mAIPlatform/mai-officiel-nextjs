@@ -59,6 +59,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
+import { resolveModelLogoProvider } from "@/lib/ai/model-brand";
 import {
   type ChatModel,
   chatModels,
@@ -66,7 +67,6 @@ import {
   type ModelCapabilities,
 } from "@/lib/ai/models";
 import type { Attachment, ChatMessage } from "@/lib/types";
-import { resolveModelLogoProvider } from "@/lib/ai/model-brand";
 import { cn } from "@/lib/utils";
 import {
   PromptInput,
@@ -76,7 +76,7 @@ import {
   PromptInputTools,
 } from "../ai-elements/prompt-input";
 import { Button } from "../ui/button";
-import { ModelSeriesStarIcon, StopIcon } from "./icons";
+import { StopIcon } from "./icons";
 import { PreviewAttachment } from "./preview-attachment";
 import {
   type SlashCommand,
@@ -99,11 +99,6 @@ function setCookie(name: string, value: string) {
   const maxAge = 60 * 60 * 24 * 365;
   // biome-ignore lint/suspicious/noDocumentCookie: needed for client-side cookie setting
   document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}`;
-}
-
-function isMSeriesHighlighted(modelName: string): boolean {
-  const normalizedName = modelName.toLowerCase();
-  return normalizedName.includes("m-5.7") || normalizedName.includes("m-5.8");
 }
 
 function PureMultimodalInput({
@@ -1347,23 +1342,18 @@ function PureModelSelectorCompact({
                             <ModelSelectorLogo provider={logoProvider} />
                             <ModelSelectorName>{model.name}</ModelSelectorName>
                             <div className="ml-auto flex items-center gap-2 text-foreground/70">
-                              {isMSeriesHighlighted(model.name) && (
-                                <span
-                                  className="inline-flex items-center text-foreground"
-                                  title="Série m-5.7 / m-5.8"
-                                >
-                                  <ModelSeriesStarIcon size={13} />
-                                </span>
-                              )}
-                              {capabilities?.[model.id]?.tools && (
-                                <WrenchIcon className="size-3.5" />
-                              )}
-                              {capabilities?.[model.id]?.vision && (
-                                <EyeIcon className="size-3.5" />
-                              )}
-                              {capabilities?.[model.id]?.reasoning && (
-                                <BrainIcon className="size-3.5" />
-                              )}
+                              {model.provider !== "mAI" &&
+                                capabilities?.[model.id]?.tools && (
+                                  <WrenchIcon className="size-3.5" />
+                                )}
+                              {model.provider !== "mAI" &&
+                                capabilities?.[model.id]?.vision && (
+                                  <EyeIcon className="size-3.5" />
+                                )}
+                              {model.provider !== "mAI" &&
+                                capabilities?.[model.id]?.reasoning && (
+                                  <BrainIcon className="size-3.5" />
+                                )}
                               {!curated && (
                                 <LockIcon className="size-3 text-muted-foreground/50" />
                               )}
