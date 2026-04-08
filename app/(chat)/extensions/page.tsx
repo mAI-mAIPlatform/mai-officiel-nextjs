@@ -11,7 +11,11 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { extensionAiModels } from "@/lib/ai/extension-models";
+import {
+  defaultExtensionAiModel,
+  type ExtensionAiModel,
+  extensionAiModelOptions,
+} from "@/lib/ai/extension-models";
 import { extensionCatalog } from "./data";
 
 type ExtensionPreferences = {
@@ -36,6 +40,10 @@ export default function ExtensionsPage() {
   const [preferences, setPreferences] =
     useState<ExtensionPreferences>(defaultPreferences);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [globalModel, setGlobalModel] = useState<ExtensionAiModel>(
+    defaultExtensionAiModel
+  );
 
   useEffect(() => {
     try {
@@ -79,20 +87,30 @@ export default function ExtensionsPage() {
       isPinned: pinnedSet.has(extension.id),
     }));
 
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
     const filtered = withMeta.filter((extension) => {
-      if (filter === "all") {
-        return !extension.isHidden;
+      const visibleByFilter =
+        filter === "all"
+          ? !extension.isHidden
+          : filter === "favorites"
+            ? extension.isFavorite && !extension.isHidden
+            : filter === "pinned"
+              ? extension.isPinned && !extension.isHidden
+              : extension.isHidden;
+
+      if (!visibleByFilter) {
+        return false;
       }
 
-      if (filter === "favorites") {
-        return extension.isFavorite && !extension.isHidden;
+      if (!normalizedSearch) {
+        return true;
       }
 
-      if (filter === "pinned") {
-        return extension.isPinned && !extension.isHidden;
-      }
-
-      return extension.isHidden;
+      return (
+        extension.title.toLowerCase().includes(normalizedSearch) ||
+        extension.description.toLowerCase().includes(normalizedSearch)
+      );
     });
 
     return filtered.sort((a, b) => {
@@ -106,7 +124,13 @@ export default function ExtensionsPage() {
 
       return a.title.localeCompare(b.title, "fr");
     });
-  }, [filter, preferences.favorites, preferences.hidden, preferences.pinned]);
+  }, [
+    filter,
+    preferences.favorites,
+    preferences.hidden,
+    preferences.pinned,
+    searchTerm,
+  ]);
 
   const togglePreference = (
     key: keyof ExtensionPreferences,
@@ -145,7 +169,8 @@ export default function ExtensionsPage() {
   ];
 
   const handleOpenExtension = (route: string) => {
-    router.push(route);
+    const separator = route.includes("?") ? "&" : "?";
+    router.push(`${route}${separator}model=${globalModel}`);
   };
 
   return (
@@ -169,17 +194,46 @@ export default function ExtensionsPage() {
         </div>
       </header>
 
+      <section className="liquid-glass grid gap-3 rounded-2xl border border-border/50 p-4 md:grid-cols-2">
+        <label className="text-xs text-muted-foreground">
+          Recherche extension
+          <input
+            className="mt-1 h-10 w-full rounded-xl border border-border/60 bg-background/60 px-3 text-sm"
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Ex: rédaction, santé, shopping..."
+            value={searchTerm}
+          />
+        </label>
+        <label className="text-xs text-muted-foreground">
+          Modèle global par défaut
+          <select
+            className="mt-1 h-10 w-full rounded-xl border border-border/60 bg-background/60 px-3 text-sm"
+            onChange={(event) =>
+              setGlobalModel(event.target.value as ExtensionAiModel)
+            }
+            value={globalModel}
+          >
+            {extensionAiModelOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label} · coût {option.monthlyCostProfile}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
+
       <section className="liquid-glass rounded-2xl border border-border/50 p-4">
         <p className="mb-2 text-xs text-muted-foreground">
           Tous les modules sont propulsés par les modèles IA disponibles :
         </p>
         <div className="flex flex-wrap gap-2">
-          {extensionAiModels.map((model) => (
+          {extensionAiModelOptions.map((option) => (
             <span
               className="rounded-full border border-border/60 bg-background/50 px-2 py-1 text-[11px] text-muted-foreground"
-              key={model}
+              key={option.id}
+              title={option.strengths}
             >
-              {model}
+              {option.id}
             </span>
           ))}
         </div>
@@ -207,6 +261,11 @@ export default function ExtensionsPage() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {visibleExtensions.length === 0 && (
+          <div className="liquid-glass rounded-2xl border border-border/50 p-4 text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
+            Aucune extension ne correspond à votre recherche.
+          </div>
+        )}
         {visibleExtensions.map((extension) => (
           <div
             className="liquid-glass group rounded-2xl border border-border/50 p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/25 hover:shadow-[var(--shadow-card)]"

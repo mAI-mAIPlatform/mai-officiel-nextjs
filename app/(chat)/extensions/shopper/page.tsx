@@ -4,6 +4,7 @@ import { Bot, Camera, Search, ShoppingBag, Wallet } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   buildAiCopilotNote,
+  defaultExtensionAiModel,
   type ExtensionAiModel,
   extensionAiModels,
 } from "@/lib/ai/extension-models";
@@ -47,8 +48,9 @@ function generateResults(query: string) {
 export default function ShopperPage() {
   const [query, setQuery] = useState("");
   const [budget, setBudget] = useState(120);
-  const [selectedModel, setSelectedModel] =
-    useState<ExtensionAiModel>("gpt-5.4-mini");
+  const [selectedModel, setSelectedModel] = useState<ExtensionAiModel>(
+    defaultExtensionAiModel
+  );
 
   const results = useMemo(() => generateResults(query), [query]);
 

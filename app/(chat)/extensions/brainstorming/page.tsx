@@ -4,6 +4,7 @@ import { Bot, BrainCircuit, ListChecks } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   buildAiCopilotNote,
+  defaultExtensionAiModel,
   type ExtensionAiModel,
   extensionAiModels,
 } from "@/lib/ai/extension-models";
@@ -29,8 +30,9 @@ function buildPlan(topic: string) {
 
 export default function BrainstormingPage() {
   const [idea, setIdea] = useState("");
-  const [selectedModel, setSelectedModel] =
-    useState<ExtensionAiModel>("gpt-5.4-mini");
+  const [selectedModel, setSelectedModel] = useState<ExtensionAiModel>(
+    defaultExtensionAiModel
+  );
 
   const questions = useMemo(() => buildSocraticQuestions(idea), [idea]);
   const plan = useMemo(() => buildPlan(idea), [idea]);

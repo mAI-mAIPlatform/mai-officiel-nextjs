@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 import {
   buildAiCopilotNote,
+  defaultExtensionAiModel,
   type ExtensionAiModel,
   extensionAiModels,
 } from "@/lib/ai/extension-models";
@@ -41,8 +42,9 @@ export default function HealthPage() {
   const [requestsThisMonth, setRequestsThisMonth] = useState(0);
   const [quotaMessage, setQuotaMessage] = useState<string | null>(null);
   const [aiPlan, setAiPlan] = useState<string[]>([]);
-  const [selectedModel, setSelectedModel] =
-    useState<ExtensionAiModel>("gpt-5.4-mini");
+  const [selectedModel, setSelectedModel] = useState<ExtensionAiModel>(
+    defaultExtensionAiModel
+  );
   const healthBubbles = useMemo(
     () =>
       [

@@ -4,14 +4,16 @@ import { Bot, SearchIcon, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   buildAiCopilotNote,
+  defaultExtensionAiModel,
   type ExtensionAiModel,
   extensionAiModels,
 } from "@/lib/ai/extension-models";
 
 export default function AuthenticPage() {
   const [text, setText] = useState("");
-  const [selectedModel, setSelectedModel] =
-    useState<ExtensionAiModel>("gpt-5.4-mini");
+  const [selectedModel, setSelectedModel] = useState<ExtensionAiModel>(
+    defaultExtensionAiModel
+  );
   const [result, setResult] = useState<{ score: number; label: string } | null>(
     null
   );

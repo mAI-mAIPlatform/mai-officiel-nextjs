@@ -4,6 +4,7 @@ import { BookOpenCheck, FileText, GraduationCap, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   buildAiCopilotNote,
+  defaultExtensionAiModel,
   type ExtensionAiModel,
   extensionAiModels,
 } from "@/lib/ai/extension-models";
@@ -71,8 +72,9 @@ function buildCourseSheet(prompt: string, subject: string, grade: string) {
 
 export default function LearnUpPage() {
   const [prompt, setPrompt] = useState("");
-  const [selectedModel, setSelectedModel] =
-    useState<ExtensionAiModel>("gpt-5.4-mini");
+  const [selectedModel, setSelectedModel] = useState<ExtensionAiModel>(
+    defaultExtensionAiModel
+  );
   const [grade, setGrade] = useState<(typeof grades)[number]>("3e");
   const [difficulty, setDifficulty] =
     useState<(typeof difficulties)[number]>("Moyen");

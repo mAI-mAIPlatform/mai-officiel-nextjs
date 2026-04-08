@@ -4,6 +4,7 @@ import { Bot, Loader2, ScanSearch } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   buildAiCopilotNote,
+  defaultExtensionAiModel,
   type ExtensionAiModel,
   extensionAiModels,
 } from "@/lib/ai/extension-models";
@@ -27,8 +28,9 @@ export default function MAnalysePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [report, setReport] = useState<ReportPayload | null>(null);
   const [notes, setNotes] = useState<string[]>([]);
-  const [selectedModel, setSelectedModel] =
-    useState<ExtensionAiModel>("gpt-5.4-mini");
+  const [selectedModel, setSelectedModel] = useState<ExtensionAiModel>(
+    defaultExtensionAiModel
+  );
 
   const aiGuide = useMemo(
     () =>
