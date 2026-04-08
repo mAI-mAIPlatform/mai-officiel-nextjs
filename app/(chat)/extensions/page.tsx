@@ -222,23 +222,6 @@ export default function ExtensionsPage() {
         </label>
       </section>
 
-      <section className="liquid-glass rounded-2xl border border-border/50 p-4">
-        <p className="mb-2 text-xs text-muted-foreground">
-          Tous les modules sont propulsés par les modèles IA disponibles :
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {extensionAiModelOptions.map((option) => (
-            <span
-              className="rounded-full border border-border/60 bg-background/50 px-2 py-1 text-[11px] text-muted-foreground"
-              key={option.id}
-              title={option.strengths}
-            >
-              {option.id}
-            </span>
-          ))}
-        </div>
-      </section>
-
       <section className="liquid-glass flex flex-wrap gap-2 rounded-2xl border border-border/50 p-3">
         {filters.map((item) => {
           const active = filter === item.id;
