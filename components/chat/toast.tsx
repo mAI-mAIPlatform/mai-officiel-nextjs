@@ -2,15 +2,23 @@
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { toast as sonnerToast } from "sonner";
+import { createNotification } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 import { CheckCircleFillIcon, WarningIcon } from "./icons";
 
-const iconsByType: Record<"success" | "error", ReactNode> = {
+const iconsByType: Record<"success" | "error" | "warning" | "info", ReactNode> = {
   success: <CheckCircleFillIcon />,
   error: <WarningIcon />,
+  warning: <WarningIcon />,
+  info: <CheckCircleFillIcon />,
 };
 
 export function toast(props: Omit<ToastProps, "id">) {
+  createNotification({
+    level: props.type,
+    message: props.description,
+    source: "system",
+  });
   return sonnerToast.custom((id) => (
     <Toast description={props.description} id={id} type={props.type} />
   ));
@@ -53,7 +61,7 @@ function Toast(props: ToastProps) {
       >
         <div
           className={cn(
-            "data-[type=error]:text-red-600 data-[type=success]:text-green-600",
+            "data-[type=error]:text-red-600 data-[type=success]:text-green-600 data-[type=warning]:text-amber-600 data-[type=info]:text-sky-600",
             { "pt-1": multiLine }
           )}
           data-type={type}
@@ -70,6 +78,6 @@ function Toast(props: ToastProps) {
 
 type ToastProps = {
   id: string | number;
-  type: "success" | "error";
+  type: "success" | "error" | "warning" | "info";
   description: string;
 };
