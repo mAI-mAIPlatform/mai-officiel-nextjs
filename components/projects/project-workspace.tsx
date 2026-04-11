@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 type ProjectWorkspaceProps = {
@@ -24,16 +24,6 @@ export function ProjectWorkspace({
   const [importError, setImportError] = useState<string | null>(null);
 
   const canImport = selectedChatId.trim().length > 0 && !isImporting;
-
-  const features = useMemo(
-    () => [
-      "Barre de chat identique aux conversations standards",
-      "Contexte projet injecté via projectId",
-      "Import de conversations existantes depuis l'historique",
-      "Surface Liquid Glass avec texte noir pour la lisibilité",
-    ],
-    []
-  );
 
   const handleImportChat = async () => {
     if (!canImport) {
@@ -127,17 +117,6 @@ export function ProjectWorkspace({
           <p className="mt-2 text-sm text-red-600">{importError}</p>
         ) : null}
 
-        <div className="mt-5 rounded-xl border border-black/15 bg-white/70 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-black/65">
-            Nouvelles fonctionnalités
-          </p>
-          <ul className="mt-2 space-y-1 text-sm text-black/80">
-            {features.map((feature) => (
-              <li key={feature}>• {feature}</li>
-            ))}
-          </ul>
-        </div>
-
         {projectInstructions.trim().length > 0 ? (
           <div className="mt-4 rounded-xl border border-black/15 bg-white/75 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-black/65">
@@ -153,7 +132,7 @@ export function ProjectWorkspace({
           className="mt-4 inline-flex rounded-lg border border-black/20 bg-white px-3 py-1.5 text-sm text-black"
           href={`/?projectId=${projectId}`}
         >
-          Ouvrir la barre de chat du projet
+          Démarrer une discussion projet
         </Link>
       </article>
     </section>

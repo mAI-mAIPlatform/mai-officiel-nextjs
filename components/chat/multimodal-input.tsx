@@ -318,10 +318,11 @@ function PureMultimodalInput({
     false
   );
   const { data: projectsData } = useSWR<ProjectItem[]>(
-    "/api/projects",
+    projectMentionOpen ? "/api/projects" : null,
     fetcher,
     {
       revalidateOnFocus: false,
+      dedupingInterval: 5 * 60 * 1000,
     }
   );
   const filteredProjects = (projectsData ?? []).filter((project) =>
