@@ -1,6 +1,6 @@
 "use client";
 
-import { PenSquareIcon, SearchIcon, TrashIcon } from "lucide-react";
+import { FolderIcon, PenSquareIcon, SearchIcon, TrashIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { User } from "next-auth";
@@ -183,6 +183,9 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                       tooltip={item.label}
                     >
                       <Link href={item.href} onClick={closeMobileSidebar}>
+                        {item.label === "Projets" ? (
+                          <FolderIcon className="size-3.5" />
+                        ) : null}
                         <span className="font-medium">{item.label}</span>
                       </Link>
                     </SidebarMenuButton>
