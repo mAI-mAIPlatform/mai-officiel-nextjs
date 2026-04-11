@@ -34,27 +34,31 @@ export function ProjectCard({ project }: ProjectCardProps) {
   };
 
   return (
-    <article className="liquid-panel flex flex-col gap-3 rounded-2xl border border-white/20 bg-white/5 p-5 backdrop-blur-2xl">
+    <article className="liquid-panel flex flex-col gap-3 rounded-2xl border border-white/30 bg-white/85 p-5 text-black backdrop-blur-2xl">
       <header>
-        <h3 className="text-base font-semibold text-white">{project.name}</h3>
-        <p className="text-xs text-white/60">
+        <h3 className="text-base font-semibold text-black">
+          <Link className="hover:underline" href={`/projects/${project.id}`}>
+            {project.name}
+          </Link>
+        </h3>
+        <p className="text-xs text-black/60">
           Créé le {new Date(project.createdAt).toLocaleDateString("fr-FR")}
         </p>
       </header>
 
-      <p className="line-clamp-4 text-sm text-white/75">
+      <p className="line-clamp-4 text-sm text-black/75">
         {project.instructions?.trim() || "Aucune instruction globale définie."}
       </p>
 
       <div className="mt-2 flex items-center gap-2">
         <Link
-          className="rounded-lg border border-cyan-300/40 bg-cyan-400/20 px-3 py-1.5 text-xs font-medium text-cyan-50"
+          className="rounded-lg border border-cyan-400/40 bg-cyan-200/70 px-3 py-1.5 text-xs font-medium text-black"
           href={`/projects/${project.id}/edit`}
         >
           Éditer
         </Link>
         <button
-          className="rounded-lg border border-red-300/40 bg-red-500/15 px-3 py-1.5 text-xs font-medium text-red-100"
+          className="rounded-lg border border-red-400/40 bg-red-100 px-3 py-1.5 text-xs font-medium text-red-800"
           onClick={onDelete}
           type="button"
         >

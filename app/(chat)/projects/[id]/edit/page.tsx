@@ -23,10 +23,10 @@ export default async function EditProjectPage({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8 text-white md:px-6">
+    <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8 text-black md:px-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Éditer le projet</h1>
-        <Link className="text-sm text-white/70 underline" href="/projects">
+        <Link className="text-sm text-black/70 underline" href="/projects">
           Retour à la liste
         </Link>
       </div>

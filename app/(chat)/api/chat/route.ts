@@ -35,6 +35,7 @@ import {
   createStreamId,
   deleteChatById,
   getChatById,
+  getProjectById,
   getMessageCountByUserId,
   getMessagesByChatId,
   saveChat,
@@ -82,6 +83,7 @@ export async function POST(request: Request) {
       contextualActions,
       ghostMode,
       persistentMemory,
+      projectId,
     } = requestBody;
     const isGhostMode = ghostMode === true;
 
@@ -125,11 +127,18 @@ export async function POST(request: Request) {
       }
       messagesFromDb = await getMessagesByChatId({ id });
     } else if (message?.role === "user" && !isGhostMode) {
+      if (projectId) {
+        const selectedProject = await getProjectById(projectId);
+        if (!selectedProject || selectedProject.userId !== session.user.id) {
+          return new ChatbotError("forbidden:chat").toResponse();
+        }
+      }
       await saveChat({
         id,
         userId: session.user.id,
         title: "New chat",
         visibility: selectedVisibilityType,
+        projectId,
       });
       titlePromise = generateTitleFromUserMessage({ message });
     }

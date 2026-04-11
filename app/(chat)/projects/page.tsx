@@ -14,18 +14,18 @@ export default async function ProjectsPage() {
   const projects = await getProjects(session.user.id);
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 text-white md:px-6">
-      <section className="liquid-panel rounded-3xl border border-white/20 bg-white/10 p-6 backdrop-blur-3xl">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 text-black md:px-6">
+      <section className="liquid-panel rounded-3xl border border-white/30 bg-white/80 p-6 text-black backdrop-blur-3xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">Projets</h1>
-            <p className="text-sm text-white/70">
+            <p className="text-sm text-black/70">
               Isolez conversations, sources, mémoire et tâches par contexte.
             </p>
           </div>
 
           <Link
-            className="rounded-xl border border-cyan-300/40 bg-cyan-400/20 px-4 py-2 text-sm font-medium text-cyan-50"
+            className="rounded-xl border border-cyan-400/40 bg-cyan-200/70 px-4 py-2 text-sm font-medium text-black"
             href="/projects/new"
           >
             Nouveau projet
@@ -34,7 +34,7 @@ export default async function ProjectsPage() {
       </section>
 
       {projects.length === 0 ? (
-        <section className="liquid-panel rounded-2xl border border-white/20 bg-white/5 p-8 text-sm text-white/75 backdrop-blur-2xl">
+        <section className="liquid-panel rounded-2xl border border-white/30 bg-white/80 p-8 text-sm text-black/75 backdrop-blur-2xl">
           Aucun projet pour le moment. Créez votre premier projet pour
           structurer vos données.
         </section>

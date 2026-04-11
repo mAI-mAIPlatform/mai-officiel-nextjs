@@ -79,11 +79,13 @@ export async function saveChat({
   userId,
   title,
   visibility,
+  projectId,
 }: {
   id: string;
   userId: string;
   title: string;
   visibility: VisibilityType;
+  projectId?: string;
 }) {
   try {
     return await db.insert(chat).values({
@@ -92,9 +94,54 @@ export async function saveChat({
       userId,
       title,
       visibility,
+      projectId,
     });
   } catch (_error) {
     throw new ChatbotError("bad_request:database", "Failed to save chat");
+  }
+}
+
+export async function getChatsByProjectId({
+  projectId,
+  userId,
+}: {
+  projectId: string;
+  userId: string;
+}) {
+  try {
+    return await db
+      .select()
+      .from(chat)
+      .where(and(eq(chat.projectId, projectId), eq(chat.userId, userId)))
+      .orderBy(desc(chat.createdAt));
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to get chats by project id"
+    );
+  }
+}
+
+export async function assignChatToProject({
+  chatId,
+  projectId,
+  userId,
+}: {
+  chatId: string;
+  projectId: string;
+  userId: string;
+}) {
+  try {
+    return await db
+      .update(chat)
+      .set({ projectId })
+      .where(and(eq(chat.id, chatId), eq(chat.userId, userId)))
+      .returning();
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to assign chat to project"
+    );
   }
 }
 

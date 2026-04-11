@@ -58,7 +58,7 @@ export function ProjectForm({ mode, initialValues }: ProjectFormProps) {
 
   return (
     <form
-      className="liquid-panel mx-auto flex w-full max-w-3xl flex-col gap-4 rounded-2xl border border-white/20 p-6 backdrop-blur-2xl"
+      className="liquid-panel mx-auto flex w-full max-w-3xl flex-col gap-4 rounded-2xl border border-white/30 bg-white/85 p-6 text-black backdrop-blur-2xl"
       onSubmit={onSubmit}
     >
       <div className="flex flex-col gap-2">
@@ -66,7 +66,7 @@ export function ProjectForm({ mode, initialValues }: ProjectFormProps) {
           Nom du projet
         </label>
         <input
-          className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm outline-none transition focus:border-cyan-300"
+          className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-black outline-none transition focus:border-cyan-500"
           id="project-name"
           maxLength={120}
           onChange={(event) => setName(event.target.value)}
@@ -81,7 +81,7 @@ export function ProjectForm({ mode, initialValues }: ProjectFormProps) {
           Instructions globales
         </label>
         <textarea
-          className="min-h-40 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm outline-none transition focus:border-cyan-300"
+          className="min-h-40 rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-black outline-none transition focus:border-cyan-500"
           id="project-instructions"
           maxLength={5000}
           onChange={(event) => setInstructions(event.target.value)}
@@ -93,7 +93,7 @@ export function ProjectForm({ mode, initialValues }: ProjectFormProps) {
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
 
       <button
-        className="rounded-xl border border-cyan-300/30 bg-cyan-400/20 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/30 disabled:opacity-50"
+        className="rounded-xl border border-cyan-400/40 bg-cyan-200/80 px-4 py-2 text-sm font-medium text-black transition hover:bg-cyan-300/80 disabled:opacity-50"
         disabled={isSaving}
         type="submit"
       >
