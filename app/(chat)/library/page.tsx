@@ -250,6 +250,11 @@ export default function LibraryPage() {
   };
 
   const handleOpenAsset = (asset: LibraryAsset) => {
+    if (previewAsset?.id === asset.id) {
+      setPreviewAsset(null);
+      return;
+    }
+
     const pendingKey = "mai.chat.pending-library-attachments";
     const existingRaw = localStorage.getItem(pendingKey);
     const existing = existingRaw ? (JSON.parse(existingRaw) as unknown[]) : [];
@@ -469,14 +474,24 @@ export default function LibraryPage() {
         <section className="liquid-glass rounded-2xl border border-border/60 bg-card/70 p-4">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="font-semibold">Aperçu instantané</h3>
-            <Button
-              onClick={() => handleOpenAsset(previewAsset)}
-              size="sm"
-              variant="outline"
-            >
-              <Download className="mr-1 size-3.5" />
-              Télécharger à nouveau
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => handleOpenAsset(previewAsset)}
+                size="sm"
+                variant="outline"
+              >
+                <Download className="mr-1 size-3.5" />
+                Ajouter au chat
+              </Button>
+              <Button
+                onClick={() => setPreviewAsset(null)}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                Fermer
+              </Button>
+            </div>
           </div>
           {previewAsset.url ? (
             <Image
