@@ -44,6 +44,7 @@ const QUICK_LINKS = [
   { href: "/studio", label: "Studio" },
   { href: "/translation", label: "Traduction" },
   { href: "/library", label: "Bibliothèque" },
+  { href: "/projects", label: "Projets" },
   { href: "/meals", label: "Repas" },
   { href: "/Health", label: "Santé" },
   { href: "/settings", label: "Paramètres" },
