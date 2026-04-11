@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
+import { APP_VERSION } from "@/lib/app-version";
 import { type PlanKey, planDefinitions } from "@/lib/subscription";
 import { cn } from "@/lib/utils";
 
@@ -139,7 +140,7 @@ export default function PricingPage() {
           <BadgeCheck className="size-7 text-primary" />
           <h1 className="text-3xl font-bold">Comparer les forfaits mAI</h1>
           <Badge className="rounded-full bg-primary/90 text-white hover:bg-primary/90">
-            v0.8.1
+            v{APP_VERSION}
           </Badge>
         </div>
         <p className="mt-3 text-sm text-muted-foreground">

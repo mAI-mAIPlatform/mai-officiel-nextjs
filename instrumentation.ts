@@ -1,5 +1,6 @@
 import { registerOTel } from "@vercel/otel";
+import { APP_NAME } from "@/lib/app-version";
 
 export function register() {
-  registerOTel({ serviceName: "chatbot" });
+  registerOTel({ serviceName: APP_NAME });
 }
