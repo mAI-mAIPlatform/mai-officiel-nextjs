@@ -25,20 +25,22 @@ import {
 import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
 import { getLanguageModel } from "@/lib/ai/providers";
 import { createDocument } from "@/lib/ai/tools/create-document";
+import { createMaiTool } from "@/lib/ai/tools/create-mai";
+import { createProjectTool } from "@/lib/ai/tools/create-project";
+import { createProjectTaskTool } from "@/lib/ai/tools/create-project-task";
 import { editDocument } from "@/lib/ai/tools/edit-document";
 import { getWeather } from "@/lib/ai/tools/get-weather";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
 import { updateDocument } from "@/lib/ai/tools/update-document";
-import { createProjectTaskTool } from "@/lib/ai/tools/create-project-task";
 import { webSearch } from "@/lib/ai/tools/web-search";
 import { isProductionEnvironment } from "@/lib/constants";
 import {
   createStreamId,
   deleteChatById,
   getChatById,
-  getProjectById,
   getMessageCountByUserId,
   getMessagesByChatId,
+  getProjectById,
   saveChat,
   saveMessages,
   updateChatTitleById,
@@ -308,6 +310,8 @@ export async function POST(request: Request) {
       | "updateDocument"
       | "requestSuggestions"
       | "createProjectTask"
+      | "createProject"
+      | "createMai"
       | "webSearch"
     )[] = [
       "getWeather",
@@ -316,6 +320,8 @@ export async function POST(request: Request) {
       "updateDocument",
       "requestSuggestions",
       "createProjectTask",
+      "createProject",
+      "createMai",
     ];
 
     // Add web search tool if contextual action is enabled
@@ -369,6 +375,8 @@ export async function POST(request: Request) {
               modelId: chatModel,
             }),
             createProjectTask: createProjectTaskTool(session.user.id),
+            createProject: createProjectTool(session.user.id),
+            createMai: createMaiTool(session.user.id),
             webSearch,
           },
           experimental_telemetry: {

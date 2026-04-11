@@ -94,11 +94,12 @@ export function AppSidebar({ user }: { user: User | undefined }) {
     );
   }, [normalizedGlobalQuery]);
 
-  const featuredLinks = useMemo(
-    () =>
-      QUICK_LINKS.filter((item) => ["mAIs", "Projets"].includes(item.label)),
-    []
-  );
+  const featuredLinks = useMemo(() => {
+    const order = ["mAIs", "Projets", "Traduction"] as const;
+    return order
+      .map((label) => QUICK_LINKS.find((item) => item.label === label))
+      .filter((item) => item !== undefined);
+  }, []);
 
   const handleDeleteAll = async () => {
     setShowDeleteAllDialog(false);

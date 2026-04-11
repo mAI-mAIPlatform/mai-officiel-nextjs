@@ -2,17 +2,28 @@
 
 import {
   Bot,
+  Languages,
+  Pin,
+  PinOff,
   Plus,
   Sparkles,
   SquarePen,
   Trash2,
+  UploadCloud,
   UserRound,
 } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { chatModels } from "@/lib/ai/models";
@@ -36,6 +47,8 @@ type MaiDraft = {
   avatarUrl: string;
 };
 
+const MAI_PINNED_STORAGE_KEY = "mai.pinned.mai.ids";
+
 const presets: MaiDraft[] = [
   {
     name: "Coach Produit",
@@ -54,11 +67,11 @@ const presets: MaiDraft[] = [
     avatarUrl: "",
   },
   {
-    name: "Analyste Support",
-    description: "Rédige des réponses SAV empathiques et structurées.",
+    name: "Prof collège",
+    description: "Explique simplement les leçons et crée des exercices.",
     instructions:
-      "Tu réponds poliment, diagnostiques les causes racines et proposes des next steps précis.",
-    model: "azure/deepseek-v3.2",
+      "Tu es un professeur de collège pédagogue. Explique étape par étape et vérifie la compréhension.",
+    model: "openai/gpt-5.4-nano",
     avatarUrl: "",
   },
 ];
@@ -73,15 +86,38 @@ const emptyDraft: MaiDraft = {
   avatarUrl: "",
 };
 
+function getPinnedIdsFromStorage(): string[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const raw = localStorage.getItem(MAI_PINNED_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((id) => typeof id === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function MaisPage() {
+  const router = useRouter();
   const {
     data: agents,
     mutate,
     isLoading,
   } = useSWR<MaiAgent[]>("/api/agents", fetcher);
+
   const [draft, setDraft] = useState<MaiDraft>(emptyDraft);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [pinnedIds, setPinnedIds] = useState<string[]>(getPinnedIdsFromStorage);
 
   const availableModels = useMemo(
     () =>
@@ -92,9 +128,35 @@ export default function MaisPage() {
     []
   );
 
+  const sortedAgents = useMemo(() => {
+    const source = agents ?? [];
+    return [...source].sort((a, b) => {
+      const aPinned = pinnedIds.includes(a.id) ? 1 : 0;
+      const bPinned = pinnedIds.includes(b.id) ? 1 : 0;
+      return bPinned - aPinned || a.name.localeCompare(b.name, "fr");
+    });
+  }, [agents, pinnedIds]);
+
   const resetForm = () => {
     setDraft(emptyDraft);
     setEditingId(null);
+  };
+
+  const openCreateDialog = () => {
+    resetForm();
+    setIsDialogOpen(true);
+  };
+
+  const openEditDialog = (agent: MaiAgent) => {
+    setEditingId(agent.id);
+    setDraft({
+      name: agent.name,
+      description: agent.description ?? "",
+      instructions: agent.instructions ?? "",
+      model: agent.model ?? "openai/gpt-5.4",
+      avatarUrl: agent.avatarUrl ?? "",
+    });
+    setIsDialogOpen(true);
   };
 
   const submit = async () => {
@@ -119,6 +181,7 @@ export default function MaisPage() {
       }
 
       toast.success(editingId ? "mAI mis à jour" : "mAI créé");
+      setIsDialogOpen(false);
       resetForm();
       mutate();
     } catch {
@@ -134,11 +197,53 @@ export default function MaisPage() {
       if (!response.ok) {
         throw new Error("delete_failed");
       }
+      const nextPinned = pinnedIds.filter((pinnedId) => pinnedId !== id);
+      setPinnedIds(nextPinned);
+      localStorage.setItem(MAI_PINNED_STORAGE_KEY, JSON.stringify(nextPinned));
       toast.success("mAI supprimé");
       mutate();
     } catch {
       toast.error("La suppression a échoué.");
     }
+  };
+
+  const togglePin = (id: string) => {
+    const nextPinned = pinnedIds.includes(id)
+      ? pinnedIds.filter((pinnedId) => pinnedId !== id)
+      : [id, ...pinnedIds];
+    setPinnedIds(nextPinned);
+    localStorage.setItem(MAI_PINNED_STORAGE_KEY, JSON.stringify(nextPinned));
+  };
+
+  const connectMaiToChat = (agent: MaiAgent) => {
+    const mention = `@${agent.name.replace(/\s+/g, "_")} `;
+    localStorage.setItem("input", mention);
+    router.push("/");
+    toast.success(
+      `Connexion au mAI « ${agent.name} » prête dans la barre de chat.`
+    );
+  };
+
+  const uploadLogoToBlob = async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch("/api/files/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error("upload_failed");
+    }
+
+    const payload = (await response.json()) as { url?: string };
+    if (!payload.url) {
+      throw new Error("upload_missing_url");
+    }
+
+    setDraft((current) => ({ ...current, avatarUrl: payload.url ?? "" }));
+    toast.success("Logo importé depuis Vercel Blob.");
   };
 
   return (
@@ -150,22 +255,154 @@ export default function MaisPage() {
               <Bot className="size-7 text-primary" /> mAIs personnalisés
             </h1>
             <p className="text-sm text-muted-foreground">
-              Créez vos assistants à la manière des GPTs/Gems, avec modèle et
-              instructions dédiés.
+              Créez vos assistants à la manière des GPTs/Gems, connectez-les au
+              chat via @NomDuMAI et épinglez vos favoris.
             </p>
           </div>
-          <Button className="rounded-xl" onClick={resetForm} variant="outline">
+          <Button className="rounded-xl" onClick={openCreateDialog}>
             <Plus className="mr-2 size-4" /> Nouveau mAI
           </Button>
         </div>
       </header>
 
-      <section className="grid gap-4 lg:grid-cols-[1.1fr,1.9fr]">
-        <article className="liquid-glass rounded-2xl border border-border/60 bg-background/50 p-4">
-          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
-            <SquarePen className="size-4" />{" "}
-            {editingId ? "Édition du mAI" : "Créer un mAI"}
-          </h2>
+      <section className="liquid-glass rounded-2xl border border-border/60 bg-background/50 p-4">
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+          <Sparkles className="size-4" /> Presets rapides
+        </h2>
+        <div className="grid gap-2 md:grid-cols-3">
+          {presets.map((preset) => (
+            <button
+              className="rounded-xl border border-border/50 bg-background/60 px-3 py-2 text-left text-sm hover:border-primary/40"
+              key={preset.name}
+              onClick={() => {
+                setDraft(preset);
+                setEditingId(null);
+                setIsDialogOpen(true);
+              }}
+              type="button"
+            >
+              <p className="font-medium">{preset.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {preset.description}
+              </p>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-border/60 bg-card/65 p-4 backdrop-blur-xl">
+        <h2 className="mb-3 text-lg font-semibold">Liste des mAIs</h2>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Chargement…</p>
+        ) : null}
+        <div className="grid gap-3 md:grid-cols-2">
+          {sortedAgents.map((agent) => {
+            const isPinned = pinnedIds.includes(agent.id);
+
+            return (
+              <div
+                className="liquid-glass rounded-2xl border border-border/50 bg-background/45 p-3"
+                key={agent.id}
+              >
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <button
+                    className="flex items-center gap-2 rounded-md p-1 text-left transition hover:bg-muted/40"
+                    onClick={() => connectMaiToChat(agent)}
+                    type="button"
+                  >
+                    {agent.avatarUrl ? (
+                      <Image
+                        alt={agent.name}
+                        className="size-9 rounded-full border border-border/60 object-cover"
+                        height={36}
+                        src={agent.avatarUrl}
+                        width={36}
+                      />
+                    ) : (
+                      <span className="inline-flex size-9 items-center justify-center rounded-full border border-border/60 bg-muted/60">
+                        <UserRound className="size-4" />
+                      </span>
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold">{agent.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {agent.model || "openai/gpt-5.4"}
+                      </p>
+                    </div>
+                  </button>
+                  <Button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      togglePin(agent.id);
+                    }}
+                    size="icon"
+                    title={isPinned ? "Désépingler" : "Épingler"}
+                    variant="ghost"
+                  >
+                    {isPinned ? (
+                      <PinOff className="size-4 text-amber-500" />
+                    ) : (
+                      <Pin className="size-4" />
+                    )}
+                  </Button>
+                </div>
+
+                <p className="line-clamp-2 text-xs text-muted-foreground">
+                  {agent.description || "Aucune description"}
+                </p>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      connectMaiToChat(agent);
+                    }}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <Languages className="mr-1 size-3.5" /> Connecter au chat
+                  </Button>
+                  <Button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openEditDialog(agent);
+                    }}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <SquarePen className="mr-1 size-3.5" /> Éditer
+                  </Button>
+                  <Button
+                    className="text-destructive"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      remove(agent.id);
+                    }}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    <Trash2 className="mr-1 size-3.5" /> Supprimer
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {sortedAgents.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Aucun mAI pour le moment.
+          </p>
+        ) : null}
+      </section>
+
+      <Dialog onOpenChange={setIsDialogOpen} open={isDialogOpen}>
+        <DialogContent className="border border-slate-200 bg-white text-slate-900 shadow-2xl sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingId ? "Modifier le mAI" : "Créer un nouveau mAI"}
+            </DialogTitle>
+          </DialogHeader>
+
           <div className="space-y-3">
             <Input
               onChange={(event) =>
@@ -199,7 +436,7 @@ export default function MaisPage() {
               value={draft.instructions}
             />
             <select
-              className="h-10 w-full rounded-xl border border-border/60 bg-background/60 px-3 text-sm"
+              className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm"
               onChange={(event) =>
                 setDraft((current) => ({
                   ...current,
@@ -214,127 +451,66 @@ export default function MaisPage() {
                 </option>
               ))}
             </select>
-            <Input
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  avatarUrl: event.target.value,
-                }))
-              }
-              placeholder="URL d'avatar (optionnel)"
-              value={draft.avatarUrl}
-            />
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+              <p className="mb-2 text-xs text-slate-600">Logo du mAI</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  className="bg-white"
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      avatarUrl: event.target.value,
+                    }))
+                  }
+                  placeholder="https://..."
+                  value={draft.avatarUrl}
+                />
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs hover:bg-slate-100">
+                  <UploadCloud className="size-3.5" /> Importer depuis Blob
+                  <input
+                    className="hidden"
+                    onChange={async (event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) {
+                        return;
+                      }
+
+                      try {
+                        await uploadLogoToBlob(file);
+                      } catch {
+                        toast.error("Échec de l'upload du logo.");
+                      } finally {
+                        event.target.value = "";
+                      }
+                    }}
+                    type="file"
+                  />
+                </label>
+              </div>
+            </div>
           </div>
 
-          <div className="mt-4 flex gap-2">
-            <Button className="rounded-xl" disabled={isSaving} onClick={submit}>
+          <div className="flex justify-end gap-2">
+            <Button
+              onClick={() => {
+                setIsDialogOpen(false);
+                resetForm();
+              }}
+              variant="outline"
+            >
+              Annuler
+            </Button>
+            <Button disabled={isSaving} onClick={submit}>
               {isSaving
                 ? "Enregistrement..."
                 : editingId
                   ? "Mettre à jour"
                   : "Créer"}
             </Button>
-            {editingId ? (
-              <Button onClick={resetForm} variant="ghost">
-                Annuler
-              </Button>
-            ) : null}
           </div>
-
-          <div className="mt-6">
-            <h3 className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Sparkles className="size-4" /> Presets rapides
-            </h3>
-            <div className="grid gap-2">
-              {presets.map((preset) => (
-                <button
-                  className="rounded-xl border border-border/50 bg-background/50 px-3 py-2 text-left text-sm hover:border-primary/40"
-                  key={preset.name}
-                  onClick={() => setDraft(preset)}
-                  type="button"
-                >
-                  <p className="font-medium">{preset.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {preset.description}
-                  </p>
-                </button>
-              ))}
-            </div>
-          </div>
-        </article>
-
-        <article className="rounded-2xl border border-border/60 bg-card/65 p-4 backdrop-blur-xl">
-          <h2 className="mb-3 text-lg font-semibold">Liste des mAIs</h2>
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">Chargement…</p>
-          ) : null}
-          <div className="grid gap-3 md:grid-cols-2">
-            {agents?.map((agent) => (
-              <div
-                className="liquid-glass rounded-2xl border border-border/50 bg-background/45 p-3"
-                key={agent.id}
-              >
-                <div className="mb-2 flex items-center gap-2">
-                  {agent.avatarUrl ? (
-                    <Image
-                      alt={agent.name}
-                      className="size-9 rounded-full border border-border/60 object-cover"
-                      height={36}
-                      src={agent.avatarUrl}
-                      width={36}
-                    />
-                  ) : (
-                    <span className="inline-flex size-9 items-center justify-center rounded-full border border-border/60 bg-muted/60">
-                      <UserRound className="size-4" />
-                    </span>
-                  )}
-                  <div>
-                    <p className="text-sm font-semibold">{agent.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {agent.model || "openai/gpt-5.4"}
-                    </p>
-                  </div>
-                </div>
-                <p className="line-clamp-2 text-xs text-muted-foreground">
-                  {agent.description || "Aucune description"}
-                </p>
-
-                <div className="mt-3 flex gap-2">
-                  <Button
-                    onClick={() => {
-                      setEditingId(agent.id);
-                      setDraft({
-                        name: agent.name,
-                        description: agent.description ?? "",
-                        instructions: agent.instructions ?? "",
-                        model: agent.model ?? "openai/gpt-5.4",
-                        avatarUrl: agent.avatarUrl ?? "",
-                      });
-                    }}
-                    size="sm"
-                    variant="outline"
-                  >
-                    <SquarePen className="mr-1 size-3.5" /> Éditer
-                  </Button>
-                  <Button
-                    className="text-destructive"
-                    onClick={() => remove(agent.id)}
-                    size="sm"
-                    variant="ghost"
-                  >
-                    <Trash2 className="mr-1 size-3.5" /> Supprimer
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-          {agents?.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Aucun mAI pour le moment.
-            </p>
-          ) : null}
-        </article>
-      </section>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

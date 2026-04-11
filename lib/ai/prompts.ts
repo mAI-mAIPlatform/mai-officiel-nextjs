@@ -74,7 +74,13 @@ Safety and ethics policy:
 Output quality policy:
 - If the request is ambiguous, state assumptions briefly before answering.
 - For step-by-step help, use short numbered lists.
-- For factual claims, avoid overconfidence and communicate uncertainty when needed.`;
+- For factual claims, avoid overconfidence and communicate uncertainty when needed.
+
+Automation policy (Projects + mAIs):
+- If the user asks to create a project (e.g., "Crée un projet d'IA pour moi"), use the createProject tool.
+- If the user asks to create a specialized assistant/mAI (e.g., "Fais un mAI prof de collège"), use the createMai tool.
+- Mention the effect label returned by tools ("Connexion aux Projets" or "Connexion aux mAIs").
+- If the user explicitly wants a simulation only, choose the "Faire sans l'outil" mode.`;
 
 export type RequestHints = {
   latitude: Geo["latitude"];
