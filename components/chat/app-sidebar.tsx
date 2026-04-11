@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
 import { unstable_serialize } from "swr/infinite";
+import { NotificationCenter } from "@/components/chat/notification-center";
 import {
   getChatHistoryPaginationKey,
   SidebarHistory,
@@ -242,6 +243,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+          <NotificationCenter />
           <SidebarHistory globalSearchQuery={globalSearchQuery} user={user} />
         </SidebarContent>
         <SidebarFooter className="border-t border-sidebar-border pt-2 pb-3">

@@ -91,14 +91,9 @@ export default function PricingPage() {
         `${planDefinitions[key].limits.messagesPerHour}`,
     },
     {
-      label: "Crédits IA / semaine",
+      label: "Quiz",
       getValue: (key: PlanKey) =>
-        `${planDefinitions[key].limits.unifiedCreditsPerWeek}`,
-    },
-    {
-      label: "Images / semaine",
-      getValue: (key: PlanKey) =>
-        `${planDefinitions[key].limits.imagesPerWeek}`,
+        `${planDefinitions[key].limits.quizPerDay}`,
     },
     {
       label: "Mémoire IA (entrées)",
@@ -285,12 +280,12 @@ export default function PricingPage() {
                   /h
                 </p>
                 <p className="flex items-center gap-1">
-                  <Wand2 className="size-3.5" />{" "}
-                  {planItem.limits.unifiedCreditsPerWeek} crédits IA/sem
+                  <Wand2 className="size-3.5" /> Quiz{" "}
+                  {planItem.limits.quizPerDay}
                 </p>
                 <p className="flex items-center gap-1">
-                  <Image className="size-3.5" /> {planItem.limits.imagesPerWeek}
-                  /sem
+                  <Image className="size-3.5" /> Fichiers{" "}
+                  {planItem.limits.filesPerDay}/jour
                 </p>
                 <p className="flex items-center gap-1">
                   <Brain className="size-3.5" /> {planItem.limits.memoryUnits}{" "}

@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
+import { createNotification } from "@/lib/notifications";
 import { APP_VERSION } from "@/lib/app-version";
 import { planDefinitions } from "@/lib/subscription";
 import { getNextResetDate } from "@/lib/usage-limits";
@@ -41,6 +42,7 @@ const TASKS_STORAGE_KEY = "mai.settings.automated-tasks.v017";
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
 const NOTIFICATIONS_SETTINGS_STORAGE_KEY = "mai.settings.notifications.v1";
 const PARENTAL_SETTINGS_STORAGE_KEY = "mai.settings.parental.v1";
+const POSITION_SETTINGS_STORAGE_KEY = "mai.settings.position.v1";
 const MAX_MEMORY_ENTRY_LENGTH = 500;
 const ABSOLUTE_MAX_MEMORY_ENTRIES = 200;
 const schedulerModels = [
@@ -259,6 +261,49 @@ function sanitizeScheduledTasks(input: unknown): ScheduledTask[] {
     .filter((task) => task.title.length > 0);
 }
 
+function parseTaskCommand(command: string): {
+  date?: string;
+  frequency: ScheduledTask["frequency"];
+  title: string;
+} | null {
+  const normalized = command.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const lower = normalized.toLowerCase();
+  const title = normalized
+    .replace(/^(créer|cree|ajoute[rz]?)( une)? tâche planifiée\s*[:\-]?\s*/i, "")
+    .trim();
+  const nextDate = new Date();
+
+  if (lower.includes("demain")) {
+    nextDate.setDate(nextDate.getDate() + 1);
+  }
+
+  const timeMatch = lower.match(/(\d{1,2})h(?:(\d{2}))?/);
+  if (timeMatch) {
+    nextDate.setHours(Number(timeMatch[1] ?? 9), Number(timeMatch[2] ?? 0), 0, 0);
+  } else {
+    nextDate.setHours(9, 0, 0, 0);
+  }
+
+  let frequency: ScheduledTask["frequency"] = "ponctuelle";
+  if (lower.includes("chaque jour") || lower.includes("quotid")) {
+    frequency = "quotidienne";
+  } else if (lower.includes("chaque semaine") || lower.includes("hebdo")) {
+    frequency = "hebdomadaire";
+  } else if (lower.includes("chaque mois") || lower.includes("mensuel")) {
+    frequency = "mensuelle";
+  }
+
+  return {
+    date: nextDate.toISOString().slice(0, 16),
+    frequency,
+    title: title || "Tâche planifiée",
+  };
+}
+
 export default function SettingsPage() {
   const { data, status } = useSession();
   const {
@@ -276,6 +321,7 @@ export default function SettingsPage() {
   } | null>(null);
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [taskError, setTaskError] = useState<string | null>(null);
+  const [taskCommand, setTaskCommand] = useState("");
   const [tasksHydrated, setTasksHydrated] = useState(false);
   const [taskForm, setTaskForm] = useState<{
     frequency: ScheduledTask["frequency"];
@@ -317,6 +363,8 @@ export default function SettingsPage() {
   const manualMemoryOrderRef = useRef<string[]>([]);
   const [aiName, setAiName] = useState("mAI");
   const [activeSettingsSection, setActiveSettingsSection] = useState("compte");
+  const [positionEnabled, setPositionEnabled] = useState(false);
+  const [positionLabel, setPositionLabel] = useState("");
   const [notifications, setNotifications] = useState({
     projectUpdates: true,
     responseReady: true,
@@ -670,6 +718,29 @@ export default function SettingsPage() {
   }, [parentalSettings]);
 
   useEffect(() => {
+    const raw = window.localStorage.getItem(POSITION_SETTINGS_STORAGE_KEY);
+    if (!raw) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as { enabled?: boolean; label?: string };
+      setPositionEnabled(Boolean(parsed.enabled));
+      setPositionLabel(typeof parsed.label === "string" ? parsed.label : "");
+    } catch {
+      setPositionEnabled(false);
+      setPositionLabel("");
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      POSITION_SETTINGS_STORAGE_KEY,
+      JSON.stringify({ enabled: positionEnabled, label: positionLabel.trim() })
+    );
+  }, [positionEnabled, positionLabel]);
+
+  useEffect(() => {
     const storedChatBarSize = window.localStorage.getItem("mai.chatbar.size");
     if (
       storedChatBarSize === "compact" ||
@@ -760,10 +831,39 @@ export default function SettingsPage() {
     setTasks((prev) => [nextTask, ...prev]);
     setTaskForm((prev) => ({ ...prev, title: "" }));
     setTaskError(null);
+    createNotification({
+      level: "success",
+      message: `Tâche planifiée créée: ${nextTask.title}`,
+      source: "user",
+      title: "Tâches",
+    });
   };
 
   const handleDeleteTask = (taskId: string) => {
     setTasks((prev) => prev.filter((task) => task.id !== taskId));
+    createNotification({
+      level: "info",
+      message: "Tâche planifiée supprimée.",
+      source: "user",
+      title: "Tâches",
+    });
+  };
+
+  const handleTaskCommand = () => {
+    const parsed = parseTaskCommand(taskCommand);
+    if (!parsed) {
+      setTaskError("Commande vide. Essayez : créer une tâche planifiée demain à 18h.");
+      return;
+    }
+
+    setTaskForm((prev) => ({
+      ...prev,
+      frequency: parsed.frequency,
+      nextRunAt: parsed.date ?? prev.nextRunAt,
+      title: parsed.title,
+    }));
+    setTaskCommand("");
+    setTaskError(null);
   };
 
   const handleChatBarSizeChange = (size: "compact" | "standard" | "large") => {
@@ -980,21 +1080,13 @@ export default function SettingsPage() {
       return [];
     }
 
-    // Le suivi existant est branché pour messages/fichiers/images/tâches; les
-    // autres quotas sont préparés pour une instrumentation progressive.
+    // Le suivi local est prêt pour messages/fichiers/quiz/tâches.
     return [
       {
         key: "messages",
         limit: currentPlanDefinition.limits.messagesPerHour,
         period: "hour",
         title: "Messages",
-        used: 0,
-      },
-      {
-        key: "credits",
-        limit: currentPlanDefinition.limits.unifiedCreditsPerWeek,
-        period: "week",
-        title: "Crédits IA unifiés",
         used: 0,
       },
       {
@@ -1006,19 +1098,9 @@ export default function SettingsPage() {
       },
       {
         key: "quiz",
-        limit:
-          currentPlanDefinition.limits.quizPerDay === "illimites"
-            ? 9999
-            : currentPlanDefinition.limits.quizPerDay,
+        limit: 9999,
         period: "day",
         title: "Quiz",
-        used: 0,
-      },
-      {
-        key: "images",
-        limit: currentPlanDefinition.limits.imagesPerWeek,
-        period: "week",
-        title: "Images",
         used: 0,
       },
       {
@@ -1031,23 +1113,6 @@ export default function SettingsPage() {
     ];
   }, [currentPlanDefinition, isHydrated, tasks.length]);
 
-  const totalCreditsOverview = useMemo(() => {
-    if (creditMetrics.length === 0) {
-      return { remaining: 0, total: 0 };
-    }
-
-    return creditMetrics.reduce(
-      (acc, metric) => {
-        const consumed = Math.min(metric.used, metric.limit);
-        return {
-          remaining: acc.remaining + (metric.limit - consumed),
-          total: acc.total + metric.limit,
-        };
-      },
-      { remaining: 0, total: 0 }
-    );
-  }, [creditMetrics]);
-
   const settingsSections = [
     { href: "#compte", key: "compte", label: "Compte" },
     { href: "#notifications", key: "notifications", label: "Notifications" },
@@ -1058,7 +1123,12 @@ export default function SettingsPage() {
     },
     { href: "#parental", key: "parental", label: "Contrôle parental" },
     { href: "#donnees", key: "donnees", label: "Données" },
+    { href: "#credits", key: "credits", label: "Crédits" },
+    { href: "#taches", key: "taches", label: "Tâches" },
+    { href: "#apropos", key: "apropos", label: "À propos" },
   ] as const;
+  const sectionVisibility = (key: (typeof settingsSections)[number]["key"]) =>
+    activeSettingsSection === key ? "block" : "hidden";
   const isParentalSessionUnlocked =
     parentalSettings.sessionUnlockedUntil > Date.now();
   const isAdvancedAccessRestricted =
@@ -1173,7 +1243,10 @@ export default function SettingsPage() {
       </section>
 
       <section
-        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        className={cn(
+          "rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl",
+          sectionVisibility("compte")
+        )}
         id="compte"
       >
         <h2 className="text-lg font-semibold">Compte</h2>
@@ -1197,7 +1270,7 @@ export default function SettingsPage() {
           </div>
           <p className="mt-3 text-sm text-muted-foreground">
             {isHydrated
-              ? `${currentPlanDefinition.limits.messagesPerHour} messages/h • ${currentPlanDefinition.limits.unifiedCreditsPerWeek} crédits IA/semaine • ${currentPlanDefinition.limits.imagesPerWeek} images/semaine`
+              ? `${currentPlanDefinition.limits.messagesPerHour} messages/h • ${currentPlanDefinition.limits.filesPerDay} fichiers/jour • Quiz illimités`
               : "Chargement du forfait..."}
           </p>
 
@@ -1218,7 +1291,10 @@ export default function SettingsPage() {
       </section>
 
       <section
-        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        className={cn(
+          "rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl",
+          sectionVisibility("notifications")
+        )}
         id="notifications"
       >
         <h2 className="flex items-center gap-2 text-lg font-semibold">
@@ -1272,7 +1348,10 @@ export default function SettingsPage() {
       </section>
 
       <section
-        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        className={cn(
+          "rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl",
+          sectionVisibility("personnalisation")
+        )}
         id="personnalisation"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1493,7 +1572,12 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
+      <section
+        className={cn(
+          "rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl",
+          sectionVisibility("personnalisation")
+        )}
+      >
         <h2 className="flex items-center gap-2 text-lg font-semibold">
           <SlidersHorizontal className="size-4 text-primary" />
           Ergonomie de la barre de dialogue
@@ -1525,7 +1609,10 @@ export default function SettingsPage() {
       </section>
 
       <section
-        className="liquid-glass rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        className={cn(
+          "liquid-glass rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl",
+          sectionVisibility("parental")
+        )}
         id="parental"
       >
         <h2 className="flex items-center gap-2 text-lg font-semibold">
@@ -1724,7 +1811,10 @@ export default function SettingsPage() {
       </section>
 
       <section
-        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
+        className={cn(
+          "rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl",
+          sectionVisibility("donnees")
+        )}
         id="donnees"
       >
         <h2 className="flex items-center gap-2 text-lg font-semibold">
@@ -1826,9 +1916,39 @@ export default function SettingsPage() {
             {activationMessage.text}
           </p>
         )}
+
+        <div className="mt-6 rounded-xl border border-border/60 bg-background/60 p-3">
+          <p className="text-sm font-medium">Position (localisation optionnelle)</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Personnalise certains contenus selon votre position.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              onClick={() => setPositionEnabled((prev) => !prev)}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {positionEnabled ? "Désactiver" : "Activer"}
+            </Button>
+            <Input
+              className="max-w-xs"
+              disabled={!positionEnabled}
+              onChange={(event) => setPositionLabel(event.target.value)}
+              placeholder="Ex: Paris, FR"
+              value={positionLabel}
+            />
+          </div>
+        </div>
       </section>
 
-      <section className="liquid-glass rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
+      <section
+        className={cn(
+          "liquid-glass rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl",
+          sectionVisibility("credits")
+        )}
+        id="credits"
+      >
         <h2 className="flex items-center gap-2 text-lg font-semibold">
           <Gauge className="size-5" />
           Consommation & quotas globaux
@@ -1837,15 +1957,6 @@ export default function SettingsPage() {
           Suivi de toutes les limites avec date de réinitialisation automatique
           selon la période de quota.
         </p>
-
-        <div className="mt-4 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background/60 to-primary/5 p-4">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            Quotas restants (toutes limites)
-          </p>
-          <p className="mt-2 text-2xl font-bold">
-            {totalCreditsOverview.remaining}/{totalCreditsOverview.total}
-          </p>
-        </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {creditMetrics.map((metric) => {
@@ -1878,7 +1989,13 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
+      <section
+        className={cn(
+          "rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl",
+          sectionVisibility("taches")
+        )}
+        id="taches"
+      >
         <h2 className="flex items-center gap-2 text-lg font-semibold">
           <CalendarClock className="size-5" />
           Tâches — Programmateur de prompts automatiques
@@ -1890,6 +2007,14 @@ export default function SettingsPage() {
         </p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <Input
+            onChange={(event) => setTaskCommand(event.target.value)}
+            placeholder='Commande IA (ex: "créer une tâche planifiée : réviser la physique demain à 18h")'
+            value={taskCommand}
+          />
+          <Button onClick={handleTaskCommand} type="button" variant="outline">
+            Pré-remplir via IA
+          </Button>
           <Input
             onChange={(event) =>
               setTaskForm((prev) => ({ ...prev, title: event.target.value }))
@@ -1987,7 +2112,13 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
+      <section
+        className={cn(
+          "rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl",
+          sectionVisibility("apropos")
+        )}
+        id="apropos"
+      >
         <h2 className="flex items-center gap-2 text-lg font-semibold">
           <MessageCircle className="size-5" />
           Communauté & support

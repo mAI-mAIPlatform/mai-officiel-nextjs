@@ -3,11 +3,9 @@ export type PlanKey = "free" | "plus" | "pro" | "max";
 export type PlanLimits = {
   filesPerDay: number;
   maxFileSizeMb: number;
-  quizPerDay: number | "illimites";
+  quizPerDay: "illimites";
   memoryUnits: number;
   messagesPerHour: number;
-  unifiedCreditsPerWeek: number;
-  imagesPerWeek: number;
   taskSchedules: number;
   newsSearchesPerDay: number;
   mealsSearchesPerDay: number;
@@ -28,13 +26,11 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
     key: "free",
     label: "mAI Free",
     limits: {
-      filesPerDay: 3,
+      filesPerDay: 5,
       maxFileSizeMb: 10,
-      quizPerDay: 2,
+      quizPerDay: "illimites",
       memoryUnits: 50,
       messagesPerHour: 20,
-      unifiedCreditsPerWeek: 20,
-      imagesPerWeek: 2,
       taskSchedules: 2,
       newsSearchesPerDay: 3,
       mealsSearchesPerDay: 3,
@@ -47,11 +43,9 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
     limits: {
       filesPerDay: 10,
       maxFileSizeMb: 50,
-      quizPerDay: 10,
+      quizPerDay: "illimites",
       memoryUnits: 75,
-      messagesPerHour: 30,
-      unifiedCreditsPerWeek: 35,
-      imagesPerWeek: 3,
+      messagesPerHour: 50,
       taskSchedules: 5,
       newsSearchesPerDay: 5,
       mealsSearchesPerDay: 5,
@@ -65,11 +59,9 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
     limits: {
       filesPerDay: 20,
       maxFileSizeMb: 100,
-      quizPerDay: 20,
+      quizPerDay: "illimites",
       memoryUnits: 100,
-      messagesPerHour: 50,
-      unifiedCreditsPerWeek: 50,
-      imagesPerWeek: 4,
+      messagesPerHour: 75,
       taskSchedules: 10,
       newsSearchesPerDay: 10,
       mealsSearchesPerDay: 10,
@@ -78,15 +70,13 @@ export const planDefinitions: Record<PlanKey, PlanDefinition> = {
   },
   max: {
     key: "max",
-    label: "mAI Max",
+    label: "mAIMax",
     limits: {
       filesPerDay: 50,
       maxFileSizeMb: 200,
       quizPerDay: "illimites",
       memoryUnits: 200,
-      messagesPerHour: 75,
-      unifiedCreditsPerWeek: 75,
-      imagesPerWeek: 5,
+      messagesPerHour: 100,
       taskSchedules: 20,
       newsSearchesPerDay: 20,
       mealsSearchesPerDay: 20,
