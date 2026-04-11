@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { APP_VERSION } from "@/lib/app-version";
 import { cn } from "@/lib/utils";
 
 type ProfileSettings = {
@@ -35,7 +36,6 @@ type ProfileSettings = {
 };
 
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
-const APP_VERSION = "0.7.8";
 
 const AVATAR_PRESETS = [
   {
