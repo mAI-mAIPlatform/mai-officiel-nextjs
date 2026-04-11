@@ -151,7 +151,10 @@ export function PureMessageActions({
     <Actions className="-ml-0.5 opacity-0 transition-opacity duration-150 group-hover/message:opacity-100">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="inline-flex h-7 items-center justify-center rounded-md px-1.5 text-xs text-muted-foreground/70 hover:text-foreground">
+          <button
+            className="inline-flex h-7 items-center justify-center rounded-md px-1.5 text-xs text-muted-foreground/70 hover:text-foreground"
+            type="button"
+          >
             Réécrire
           </button>
         </DropdownMenuTrigger>

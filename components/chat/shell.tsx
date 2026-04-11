@@ -75,7 +75,8 @@ export function ChatShell() {
   }, [chatId, setArtifact]);
 
   useEffect(() => {
-    const normalize = (value: string) => value.toLowerCase().replace(/\s+/g, "");
+    const normalize = (value: string) =>
+      value.toLowerCase().replace(/\s+/g, "");
     const fromKeyboardEvent = (event: KeyboardEvent) =>
       normalize(
         [
@@ -90,9 +91,16 @@ export function ChatShell() {
 
     const handler = async (event: KeyboardEvent) => {
       const configRaw = window.localStorage.getItem(SHORTCUTS_STORAGE_KEY);
-      const shortcuts: ShortcutConfig = configRaw
-        ? JSON.parse(configRaw)
-        : defaultShortcuts;
+      const shortcuts: ShortcutConfig = (() => {
+        if (!configRaw) {
+          return defaultShortcuts;
+        }
+        try {
+          return JSON.parse(configRaw) as ShortcutConfig;
+        } catch {
+          return defaultShortcuts;
+        }
+      })();
       const combo = fromKeyboardEvent(event);
       const getLastAssistantMessage = () =>
         [...messages].reverse().find((message) => message.role === "assistant");
@@ -167,7 +175,10 @@ export function ChatShell() {
         ],
       });
     };
-    window.addEventListener("mai:rewrite-message", rewriteHandler as EventListener);
+    window.addEventListener(
+      "mai:rewrite-message",
+      rewriteHandler as EventListener
+    );
     return () =>
       window.removeEventListener(
         "mai:rewrite-message",

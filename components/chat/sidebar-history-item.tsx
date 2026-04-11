@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { FolderIcon } from "lucide-react";
 import { useChatVisibility } from "@/hooks/use-chat-visibility";
 import {
@@ -19,7 +19,13 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 import {
   SidebarMenuAction,
   SidebarMenuButton,
@@ -62,17 +68,14 @@ const PureChatItem = ({
     initialVisibilityType: chat.visibility,
   });
   const [summaryOpen, setSummaryOpen] = useState(false);
-  const [summaryLength, setSummaryLength] = useState<"short" | "medium" | "long">("medium");
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState(chat.title);
+  const [summaryLength, setSummaryLength] = useState<
+    "short" | "medium" | "long"
+  >("medium");
   const [summaryText, setSummaryText] = useState("");
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
-  const [tagRefreshTick, setTagRefreshTick] = useState(0);
-
-  const chatTags = useMemo(() => {
-    const allTags = readJsonStorage<Record<string, string[]>>(CHAT_TAGS_STORAGE_KEY, {});
-    const definitions = readJsonStorage<TagDefinition[]>(TAG_DEFINITIONS_STORAGE_KEY, []);
-    const ids = allTags[chat.id] ?? [];
-    return definitions.filter((tag) => ids.includes(tag.id));
-  }, [chat.id, tagRefreshTick]);
+  const [chatTags, setChatTags] = useState<TagDefinition[]>([]);
 
   const handleCopyId = async () => {
     await navigator.clipboard.writeText(chat.id);
@@ -85,23 +88,37 @@ const PureChatItem = ({
     const messages = payload.messages ?? [];
 
     const normalized: Array<{ role: string; text: string }> = messages
-      .map((msg: { role: string; parts?: Array<{ type: string; text?: string }> }) => {
-        const text = (msg.parts ?? [])
-          .filter((part: { type: string; text?: string }) => part.type === "text")
-          .map((part: { type: string; text?: string }) => part.text ?? "")
-          .join("\n")
-          .trim();
-        return { role: msg.role, text };
-      })
+      .map(
+        (msg: {
+          role: string;
+          parts?: Array<{ type: string; text?: string }>;
+        }) => {
+          const text = (msg.parts ?? [])
+            .filter(
+              (part: { type: string; text?: string }) => part.type === "text"
+            )
+            .map((part: { type: string; text?: string }) => part.text ?? "")
+            .join("\n")
+            .trim();
+          return { role: msg.role, text };
+        }
+      )
       .filter((item: { role: string; text: string }) => item.text.length > 0);
 
     const content =
       format === "json"
-        ? JSON.stringify({ chat: { id: chat.id, title }, messages: normalized }, null, 2)
+        ? JSON.stringify(
+            { chat: { id: chat.id, title }, messages: normalized },
+            null,
+            2
+          )
         : format === "md"
           ? `# ${title}\n\n${normalized.map((item: { role: string; text: string }) => `## ${item.role}\n\n${item.text}`).join("\n\n")}`
           : normalized
-              .map((item: { role: string; text: string }) => `[${item.role}]\n${item.text}`)
+              .map(
+                (item: { role: string; text: string }) =>
+                  `[${item.role}]\n${item.text}`
+              )
               .join("\n\n");
 
     const mime = format === "json" ? "application/json" : "text/plain";
@@ -131,17 +148,44 @@ const PureChatItem = ({
   };
 
   const assignTag = (tagId: string) => {
-    const allTags = readJsonStorage<Record<string, string[]>>(CHAT_TAGS_STORAGE_KEY, {});
+    const allTags = readJsonStorage<Record<string, string[]>>(
+      CHAT_TAGS_STORAGE_KEY,
+      {}
+    );
     const current = allTags[chat.id] ?? [];
     const next = current.includes(tagId)
       ? current.filter((id) => id !== tagId)
       : [...current, tagId].slice(0, 3);
     allTags[chat.id] = next;
     window.localStorage.setItem(CHAT_TAGS_STORAGE_KEY, JSON.stringify(allTags));
-    setTagRefreshTick((v) => v + 1);
+    const definitions = readJsonStorage<TagDefinition[]>(
+      TAG_DEFINITIONS_STORAGE_KEY,
+      []
+    );
+    setChatTags(definitions.filter((tag) => next.includes(tag.id)));
   };
 
-  const allTagDefinitions = readJsonStorage<TagDefinition[]>(TAG_DEFINITIONS_STORAGE_KEY, []);
+  const allTagDefinitions = readJsonStorage<TagDefinition[]>(
+    TAG_DEFINITIONS_STORAGE_KEY,
+    []
+  );
+
+  useEffect(() => {
+    setRenameValue(chat.title);
+  }, [chat.title]);
+
+  useEffect(() => {
+    const allTags = readJsonStorage<Record<string, string[]>>(
+      CHAT_TAGS_STORAGE_KEY,
+      {}
+    );
+    const definitions = readJsonStorage<TagDefinition[]>(
+      TAG_DEFINITIONS_STORAGE_KEY,
+      []
+    );
+    const ids = allTags[chat.id] ?? [];
+    setChatTags(definitions.filter((tag) => ids.includes(tag.id)));
+  }, [chat.id]);
 
   return (
     <SidebarMenuItem>
@@ -185,16 +229,7 @@ const PureChatItem = ({
         >
           <DropdownMenuItem
             className="cursor-pointer"
-            onSelect={() => {
-              const nextTitle = window.prompt(
-                "Nouveau nom de la discussion",
-                chat.title
-              );
-              if (!nextTitle) {
-                return;
-              }
-              onRename(chat.id, nextTitle.trim());
-            }}
+            onSelect={() => setRenameOpen(true)}
           >
             Renommer
           </DropdownMenuItem>
@@ -202,35 +237,80 @@ const PureChatItem = ({
             Copier l'ID
           </DropdownMenuItem>
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="cursor-pointer">Exporter</DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger className="cursor-pointer">
+              Exporter
+            </DropdownMenuSubTrigger>
             <DropdownMenuPortal>
               <DropdownMenuSubContent className="rounded-xl border border-border/60 bg-card/90 backdrop-blur-xl">
-                <DropdownMenuItem className="cursor-pointer" onClick={() => handleExportChat("md")}>Markdown (.md)</DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer" onClick={() => handleExportChat("json")}>JSON (.json)</DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer" onClick={() => handleExportChat("txt")}>Texte (.txt)</DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => handleExportChat("md")}
+                >
+                  Markdown (.md)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => handleExportChat("json")}
+                >
+                  JSON (.json)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => handleExportChat("txt")}
+                >
+                  Texte (.txt)
+                </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuPortal>
           </DropdownMenuSub>
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="cursor-pointer">Résumé</DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger className="cursor-pointer">
+              Résumé
+            </DropdownMenuSubTrigger>
             <DropdownMenuPortal>
               <DropdownMenuSubContent className="rounded-xl border border-border/60 bg-card/90 backdrop-blur-xl">
-                <DropdownMenuItem className="cursor-pointer" onClick={() => handleOpenSummary("short")}>Plus court</DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer" onClick={() => handleOpenSummary("medium")}>Concis</DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer" onClick={() => handleOpenSummary("long")}>Plus long</DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => handleOpenSummary("short")}
+                >
+                  Plus court
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => handleOpenSummary("medium")}
+                >
+                  Concis
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => handleOpenSummary("long")}
+                >
+                  Plus long
+                </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuPortal>
           </DropdownMenuSub>
           <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="cursor-pointer">Tags</DropdownMenuSubTrigger>
+            <DropdownMenuSubTrigger className="cursor-pointer">
+              Tags
+            </DropdownMenuSubTrigger>
             <DropdownMenuPortal>
               <DropdownMenuSubContent className="rounded-xl border border-border/60 bg-card/90 backdrop-blur-xl">
                 {allTagDefinitions.length === 0 ? (
-                  <DropdownMenuItem disabled>Créez d'abord des tags</DropdownMenuItem>
+                  <DropdownMenuItem disabled>
+                    Créez d'abord des tags
+                  </DropdownMenuItem>
                 ) : (
                   allTagDefinitions.map((tag) => (
-                    <DropdownMenuItem className="cursor-pointer" key={tag.id} onClick={() => assignTag(tag.id)}>
-                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      key={tag.id}
+                      onClick={() => assignTag(tag.id)}
+                    >
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                      />
                       <span>{tag.name}</span>
                     </DropdownMenuItem>
                   ))
@@ -320,10 +400,45 @@ const PureChatItem = ({
       <Dialog onOpenChange={setSummaryOpen} open={summaryOpen}>
         <DialogContent className="liquid-panel border-white/25 bg-white/85 text-black backdrop-blur-2xl">
           <DialogHeader>
-            <DialogTitle>Résumé de la conversation ({summaryLength})</DialogTitle>
+            <DialogTitle>
+              Résumé de la conversation ({summaryLength})
+            </DialogTitle>
           </DialogHeader>
           <div className="max-h-[50vh] overflow-auto whitespace-pre-wrap rounded-lg border border-border/60 bg-background/70 p-3 text-sm">
             {isSummaryLoading ? "Génération en cours..." : summaryText}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog onOpenChange={setRenameOpen} open={renameOpen}>
+        <DialogContent className="liquid-panel border-white/25 bg-white/85 text-black backdrop-blur-2xl">
+          <DialogHeader>
+            <DialogTitle>Renommer la discussion</DialogTitle>
+            <DialogDescription>
+              Choisissez un titre court et clair.
+            </DialogDescription>
+          </DialogHeader>
+          <input
+            className="h-10 w-full rounded-xl border border-border/60 bg-background/80 px-3 text-sm outline-none"
+            maxLength={80}
+            onChange={(event) => setRenameValue(event.target.value)}
+            value={renameValue}
+          />
+          <div className="mt-3 flex justify-end">
+            <button
+              className="rounded-xl border border-border/60 px-3 py-1.5 text-sm"
+              onClick={() => {
+                const next = renameValue.trim();
+                if (!next) {
+                  return;
+                }
+                onRename(chat.id, next);
+                setRenameOpen(false);
+              }}
+              type="button"
+            >
+              Enregistrer
+            </button>
           </div>
         </DialogContent>
       </Dialog>
