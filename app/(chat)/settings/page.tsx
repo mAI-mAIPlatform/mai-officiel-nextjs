@@ -1097,13 +1097,6 @@ export default function SettingsPage() {
         used: 0,
       },
       {
-        key: "quiz",
-        limit: 9999,
-        period: "day",
-        title: "Quiz",
-        used: 0,
-      },
-      {
         key: "tasks",
         limit: currentPlanDefinition.limits.taskSchedules,
         period: "month",
@@ -1288,6 +1281,76 @@ export default function SettingsPage() {
             </div>
           )}
         </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-[auto_1fr]">
+          <div className="flex flex-col items-center gap-2">
+            <div
+              className="size-16 rounded-full border border-border/50 bg-cover bg-center shadow-sm"
+              style={{
+                backgroundImage: profileLogoDataUrl
+                  ? `url(${profileLogoDataUrl})`
+                  : "linear-gradient(135deg, oklch(0.72 0.19 248), oklch(0.66 0.15 168))",
+              }}
+            />
+            <label
+              className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-1 text-xs"
+              htmlFor="profile-logo-input"
+            >
+              <Camera className="size-3.5" />
+              Changer le logo
+            </label>
+            <input
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              id="profile-logo-input"
+              onChange={handleProfileLogoUpload}
+              type="file"
+            />
+          </div>
+          <div className="space-y-2">
+            <label
+              className="text-xs text-muted-foreground"
+              htmlFor="profile-name-input"
+            >
+              Nom de profil
+            </label>
+            <Input
+              id="profile-name-input"
+              maxLength={40}
+              onChange={(event) => setProfileName(event.target.value)}
+              placeholder="Ex: Dr. Lemaire"
+              value={profileName}
+            />
+            <p className="text-xs text-muted-foreground">
+              Ce nom est utilisé dans les en-têtes et interactions personnalisées.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground" htmlFor="ai-call-name">
+              Nom (comment l&apos;IA doit vous appeler)
+            </label>
+            <Input
+              id="ai-call-name"
+              onChange={(event) => setProfileName(event.target.value)}
+              placeholder="Ex: Alex"
+              value={profileName}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground" htmlFor="profession">
+              Profession
+            </label>
+            <Input
+              id="profession"
+              onChange={(event) => setProfession(event.target.value)}
+              placeholder="Ex: Product Designer"
+              value={profession}
+            />
+          </div>
+        </div>
       </section>
 
       <section
@@ -1374,81 +1437,7 @@ export default function SettingsPage() {
           Personnalisez l&apos;IA et vos informations pour adapter ses réponses.
         </p>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-[auto_1fr]">
-          <div className="flex flex-col items-center gap-2">
-            <div
-              className="size-16 rounded-full border border-border/50 bg-cover bg-center shadow-sm"
-              style={{
-                backgroundImage: profileLogoDataUrl
-                  ? `url(${profileLogoDataUrl})`
-                  : "linear-gradient(135deg, oklch(0.72 0.19 248), oklch(0.66 0.15 168))",
-              }}
-            />
-            <label
-              className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-1 text-xs"
-              htmlFor="profile-logo-input"
-            >
-              <Camera className="size-3.5" />
-              Changer le logo
-            </label>
-            <input
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              id="profile-logo-input"
-              onChange={handleProfileLogoUpload}
-              type="file"
-            />
-          </div>
-          <div className="space-y-2">
-            <label
-              className="text-xs text-muted-foreground"
-              htmlFor="profile-name-input"
-            >
-              Nom de profil
-            </label>
-            <Input
-              id="profile-name-input"
-              maxLength={40}
-              onChange={(event) => setProfileName(event.target.value)}
-              placeholder="Ex: Dr. Lemaire"
-              value={profileName}
-            />
-            <p className="text-xs text-muted-foreground">
-              Ce nom est utilisé dans les en-têtes et interactions
-              personnalisées.
-            </p>
-          </div>
-        </div>
-
         <div className="mt-5 grid gap-3 md:grid-cols-2">
-          <div className="space-y-2">
-            <label
-              className="text-xs text-muted-foreground"
-              htmlFor="ai-call-name"
-            >
-              Nom (comment l&apos;IA doit vous appeler)
-            </label>
-            <Input
-              id="ai-call-name"
-              onChange={(event) => setProfileName(event.target.value)}
-              placeholder="Ex: Alex"
-              value={profileName}
-            />
-          </div>
-          <div className="space-y-2">
-            <label
-              className="text-xs text-muted-foreground"
-              htmlFor="profession"
-            >
-              Profession
-            </label>
-            <Input
-              id="profession"
-              onChange={(event) => setProfession(event.target.value)}
-              placeholder="Ex: Product Designer"
-              value={profession}
-            />
-          </div>
           <div className="space-y-2">
             <label className="text-xs text-muted-foreground" htmlFor="ai-name">
               Nom de l&apos;assistant IA

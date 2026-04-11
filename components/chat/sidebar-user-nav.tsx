@@ -91,6 +91,18 @@ export function SidebarUserNav({ user }: { user: User }) {
               Paramètres
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
+              <button
+                className="w-full cursor-pointer rounded-md bg-blue-600 text-[13px] font-medium text-white hover:bg-blue-500"
+                onClick={() => {
+                  closeMobileSidebar();
+                  router.push("/pricing");
+                }}
+                type="button"
+              >
+                Mettre à niveau
+              </button>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
               <a
                 className="w-full cursor-pointer text-[13px]"
                 download

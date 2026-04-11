@@ -1,15 +1,7 @@
 "use client";
 
-import {
-  BadgeCheck,
-  Brain,
-  CheckCircle2,
-  Image,
-  MessageCircle,
-  Sparkles,
-  Wand2,
-} from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { BadgeCheck, Brain, CheckCircle2, MessageCircle } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,86 +28,67 @@ const planPrices: Record<PlanKey, { amount: string; subtitle: string }> = {
 const highlightsByPlan: Record<PlanKey, string[]> = {
   free: [
     "20 messages / heure",
-    "Obtenez des explications simples",
-    "Discutez brièvement pour des besoins courants",
-    "Essayez la génération d'images",
-    "Mémoire et contexte limités",
+    "Idéal pour découvrir mAI",
+    "Quiz illimités",
+    "Jusqu'à 5 fichiers / jour",
   ],
   plus: [
-    "30 messages / heure",
-    "Résolvez des problèmes complexes",
-    "Discutez plus longtemps dans différentes sessions",
-    "Créez plus d'images, plus vite",
-    "Mémorisez objectifs et conversations",
-    "Planifiez des tâches récurrentes",
+    "50 messages / heure",
+    "IA plus confortable au quotidien",
+    "10 fichiers / jour",
+    "Tâches planifiées avancées",
   ],
   pro: [
-    "50 messages / heure",
-    "Analyses avancées multi-outils",
-    "Capacités étendues pour Coder et Studio",
-    "Volume de messages et fichiers élevé",
-    "Exécution fluide pour équipes projet",
+    "75 messages / heure",
+    "Pour usage intensif et projets multi-modules",
+    "20 fichiers / jour",
+    "Mémoire IA renforcée",
   ],
   max: [
-    "75 messages / heure",
-    "Capacité maximale sur tous les modules mAI",
-    "Priorité sur les flux intensifs",
-    "Quotas unifiés élevés pour un usage intensif",
-    "Conçu pour usage professionnel continu",
+    "100 messages / heure",
+    "Pour équipes et usages professionnels continus",
+    "50 fichiers / jour",
+    "Capacité maximale mAI",
   ],
 };
 
-export default function PricingPage() {
-  const {
-    activateByCode,
-    currentPlanDefinition,
-    isActivating,
-    isHydrated,
-    plan,
-  } = useSubscriptionPlan();
+const explainByPlan: Record<Exclude<PlanKey, "free">, string> = {
+  plus:
+    "GPT-5.4 Nano conseille Plus si vous utilisez l'IA chaque jour pour étude, rédaction, organisation et assistance générale. Vous obtenez un meilleur débit (50 msg/h) et plus de fichiers que Free.",
+  pro:
+    "GPT-5.4 Nano conseille Pro pour les analyses longues, la production régulière de contenu et les workflows techniques. Pro augmente le débit (75 msg/h), les fichiers/jour et la mémoire.",
+  max:
+    "GPT-5.4 Nano conseille mAIMax pour un usage professionnel soutenu, plusieurs sessions intensives et des besoins critiques en continuité. Max pousse toutes les limites au plus haut niveau.",
+};
 
-  const [selectedTargetPlan, setSelectedTargetPlan] =
-    useState<Exclude<PlanKey, "free">>("plus");
+export default function PricingPage() {
+  const { activateByCode, currentPlanDefinition, isActivating, isHydrated, plan } =
+    useSubscriptionPlan();
+
   const [activationCode, setActivationCode] = useState("");
   const [message, setMessage] = useState<{
     text: string;
     type: "error" | "success";
   } | null>(null);
-  const activationSectionRef = useRef<HTMLElement | null>(null);
+  const [explainPlan, setExplainPlan] = useState<Exclude<PlanKey, "free"> | null>(
+    null
+  );
+  const [activatePlan, setActivatePlan] = useState<Exclude<PlanKey, "free"> | null>(
+    null
+  );
 
   const plans = useMemo(() => planOrder.map((key) => planDefinitions[key]), []);
-  const comparativeRows = [
-    {
-      label: "Messages / heure",
-      getValue: (key: PlanKey) =>
-        `${planDefinitions[key].limits.messagesPerHour}`,
-    },
-    {
-      label: "Quiz",
-      getValue: (key: PlanKey) =>
-        `${planDefinitions[key].limits.quizPerDay}`,
-    },
-    {
-      label: "Mémoire IA (entrées)",
-      getValue: (key: PlanKey) => `${planDefinitions[key].limits.memoryUnits}`,
-    },
-    {
-      label: "Fichiers / jour",
-      getValue: (key: PlanKey) => `${planDefinitions[key].limits.filesPerDay}`,
-    },
-    {
-      label: "Tâches planifiées",
-      getValue: (key: PlanKey) =>
-        `${planDefinitions[key].limits.taskSchedules}`,
-    },
-  ] as const;
 
   const handleActivate = async () => {
+    if (!activatePlan) {
+      return;
+    }
+
     const nextPlan = await activateByCode(activationCode);
 
     if (!nextPlan) {
       setMessage({
-        text: `Code invalide pour ${planDefinitions[selectedTargetPlan].label}. Vérifiez votre code officiel.`,
+        text: `Code invalide pour ${planDefinitions[activatePlan].label}. Vérifiez votre code officiel.`,
         type: "error",
       });
       return;
@@ -126,6 +99,7 @@ export default function PricingPage() {
       type: "success",
     });
     setActivationCode("");
+    setActivatePlan(null);
   };
 
   return (
@@ -138,81 +112,28 @@ export default function PricingPage() {
             v{APP_VERSION}
           </Badge>
         </div>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Comparez les forfaits, puis cliquez sur{" "}
-          <strong>Passer à mAI Plus</strong>, <strong>Passer à mAI Pro</strong>{" "}
-          ou <strong>Passer à mAI Max</strong> pour entrer votre code officiel.
-        </p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Forfait actuel :{" "}
-          <strong>
-            {isHydrated ? currentPlanDefinition.label : "Chargement..."}
-          </strong>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Forfait actuel : <strong>{isHydrated ? currentPlanDefinition.label : "Chargement..."}</strong>
         </p>
       </header>
 
-      <section className="liquid-glass rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl">
-        <h2 className="text-base font-semibold">Vue comparative rapide</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Tableau synthétique pour comparer les capacités clés en un coup
-          d&apos;œil.
-        </p>
-        <div className="mt-4 overflow-x-auto rounded-xl border border-border/60">
-          <table className="min-w-full text-sm">
-            <thead className="bg-background/70 text-left">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Capacité</th>
-                {planOrder.map((planKey) => (
-                  <th
-                    className="px-4 py-3 font-semibold"
-                    key={`head-${planKey}`}
-                  >
-                    {planDefinitions[planKey].label.replace("mAI ", "")}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {comparativeRows.map((row) => (
-                <tr className="border-t border-border/50" key={row.label}>
-                  <td className="px-4 py-3 text-foreground">{row.label}</td>
-                  {planOrder.map((planKey) => (
-                    <td
-                      className="px-4 py-3 text-muted-foreground"
-                      key={`${row.label}-${planKey}`}
-                    >
-                      {row.getValue(planKey)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-2">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {plans.map((planItem) => {
           const price = planPrices[planItem.key];
           const isCurrent = planItem.key === plan;
-          // Empêche l'UI de proposer un downgrade comme "upgrade".
           const canUpgrade =
             planItem.key !== "free" && planRank[planItem.key] > planRank[plan];
 
           return (
             <article
               className={cn(
-                "rounded-3xl border p-6 shadow-sm backdrop-blur-xl transition-all",
-                isCurrent
-                  ? "border-primary/45 bg-primary/10"
-                  : "border-border/50 bg-card/70"
+                "liquid-glass rounded-3xl border p-5 shadow-sm backdrop-blur-xl",
+                isCurrent ? "border-primary/45 bg-primary/10" : "border-border/50 bg-card/70"
               )}
               key={planItem.key}
             >
               <div className="flex items-center justify-between gap-2">
-                <h2 className="text-3xl font-bold">
-                  {planItem.label.replace("mAI ", "")}
-                </h2>
+                <h2 className="text-2xl font-bold">{planItem.label.replace("mAI ", "")}</h2>
                 {planItem.recommended && (
                   <Badge className="rounded-full bg-violet-500/90 text-white hover:bg-violet-500/90">
                     Populaire
@@ -220,51 +141,12 @@ export default function PricingPage() {
                 )}
               </div>
 
-              <div className="mt-5 flex items-end gap-3">
-                <p className="text-6xl font-bold tracking-tight">
-                  {price.amount}
-                </p>
-                <p className="pb-2 text-muted-foreground">{price.subtitle}</p>
+              <div className="mt-4 flex items-end gap-2">
+                <p className="text-5xl font-bold tracking-tight">{price.amount}</p>
+                <p className="pb-2 text-xs text-muted-foreground">{price.subtitle}</p>
               </div>
 
-              <p className="mt-4 text-lg font-semibold">
-                {planItem.key === "free"
-                  ? "Découvrez ce que l’IA peut faire"
-                  : "Bénéficiez d’une expérience complète"}
-              </p>
-
-              <div className="mt-5">
-                {isCurrent ? (
-                  <Button className="w-full" disabled variant="secondary">
-                    Votre forfait actuel
-                  </Button>
-                ) : canUpgrade ? (
-                  <Button
-                    className="w-full"
-                    onClick={() => {
-                      // Le clic "Passer à..." sélectionne le forfait et amène
-                      // directement l'utilisateur vers la zone d'activation.
-                      setSelectedTargetPlan(
-                        planItem.key as Exclude<PlanKey, "free">
-                      );
-                      activationSectionRef.current?.scrollIntoView({
-                        behavior: "smooth",
-                        block: "start",
-                      });
-                    }}
-                  >
-                    {planItem.key === "plus"
-                      ? "Passer à mAI Plus"
-                      : `Passer à ${planItem.label}`}
-                  </Button>
-                ) : (
-                  <Button className="w-full" variant="outline">
-                    Revenir à mAI Free
-                  </Button>
-                )}
-              </div>
-
-              <ul className="mt-5 space-y-2 text-sm">
+              <ul className="mt-4 space-y-2 text-sm">
                 {highlightsByPlan[planItem.key].map((item) => (
                   <li className="flex items-start gap-2" key={item}>
                     <CheckCircle2 className="mt-0.5 size-4 text-primary" />
@@ -273,79 +155,109 @@ export default function PricingPage() {
                 ))}
               </ul>
 
-              <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl border border-border/50 bg-background/60 p-3 text-xs text-muted-foreground">
+              <div className="mt-4 grid grid-cols-1 gap-1 rounded-xl border border-border/50 bg-background/60 p-3 text-xs text-muted-foreground">
                 <p className="flex items-center gap-1">
-                  <MessageCircle className="size-3.5" />{" "}
-                  {planItem.limits.messagesPerHour}
-                  /h
+                  <MessageCircle className="size-3.5" /> {planItem.limits.messagesPerHour}/h
                 </p>
                 <p className="flex items-center gap-1">
-                  <Wand2 className="size-3.5" /> Quiz{" "}
-                  {planItem.limits.quizPerDay}
-                </p>
-                <p className="flex items-center gap-1">
-                  <Image className="size-3.5" /> Fichiers{" "}
-                  {planItem.limits.filesPerDay}/jour
-                </p>
-                <p className="flex items-center gap-1">
-                  <Brain className="size-3.5" /> {planItem.limits.memoryUnits}{" "}
-                  mémoire
+                  <Brain className="size-3.5" /> Mémoire: {planItem.limits.memoryUnits}
                 </p>
                 <p>Fichiers: {planItem.limits.filesPerDay}/jour</p>
-                <p>Tâches: {planItem.limits.taskSchedules}</p>
+                <p>Tâches planifiées: {planItem.limits.taskSchedules}</p>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-2">
+                {isCurrent ? (
+                  <Button className="w-full" disabled variant="secondary">
+                    Votre forfait actuel
+                  </Button>
+                ) : canUpgrade ? (
+                  <>
+                    <Button
+                      className="w-full"
+                      onClick={() => {
+                        setActivatePlan(planItem.key as Exclude<PlanKey, "free">);
+                        setMessage(null);
+                      }}
+                    >
+                      {planItem.key === "plus"
+                        ? "Passer à mAI Plus"
+                        : `Passer à ${planItem.label}`}
+                    </Button>
+                    <Button
+                      className="w-full"
+                      onClick={() =>
+                        setExplainPlan(planItem.key as Exclude<PlanKey, "free">)
+                      }
+                      variant="outline"
+                    >
+                      Expliquer
+                    </Button>
+                  </>
+                ) : (
+                  <Button className="w-full" variant="outline">
+                    Revenir à mAI Free
+                  </Button>
+                )}
               </div>
             </article>
           );
         })}
       </section>
 
-      <section
-        className="rounded-2xl border border-border/50 bg-card/70 p-5 backdrop-blur-xl"
-        ref={activationSectionRef}
-      >
-        <h3 className="text-lg font-semibold">Activation par code officiel</h3>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Forfait ciblé:{" "}
-          <strong>{planDefinitions[selectedTargetPlan].label}</strong>.
-          Saisissez votre code officiel reçu via les canaux mAI.
-        </p>
-
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-          <Input
-            onChange={(event) => setActivationCode(event.target.value)}
-            placeholder={`Entrez votre code ${planDefinitions[selectedTargetPlan].label}`}
-            value={activationCode}
-          />
-          <Button
-            disabled={
-              !isHydrated || isActivating || activationCode.trim().length === 0
-            }
-            onClick={handleActivate}
-          >
-            {isActivating
-              ? "Activation..."
-              : `Activer ${planDefinitions[selectedTargetPlan].label}`}
-          </Button>
+      {explainPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="liquid-glass w-full max-w-xl rounded-2xl border border-border/60 bg-card/90 p-5">
+            <h3 className="text-lg font-semibold">Pourquoi choisir {planDefinitions[explainPlan].label} ?</h3>
+            <p className="mt-3 text-sm text-muted-foreground">{explainByPlan[explainPlan]}</p>
+            <div className="mt-4 flex justify-end">
+              <Button onClick={() => setExplainPlan(null)} type="button" variant="outline">
+                Fermer
+              </Button>
+            </div>
+          </div>
         </div>
+      )}
 
-        {message && (
-          <p
-            className={cn(
-              "mt-3 text-sm",
-              message.type === "success" ? "text-emerald-600" : "text-rose-600"
+      {activatePlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="liquid-glass w-full max-w-lg rounded-2xl border border-border/60 bg-card/90 p-5">
+            <h3 className="text-lg font-semibold">Activer {planDefinitions[activatePlan].label}</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Entrez votre code officiel pour débloquer le forfait.
+            </p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <Input
+                onChange={(event) => setActivationCode(event.target.value)}
+                placeholder={`Code ${planDefinitions[activatePlan].label}`}
+                value={activationCode}
+              />
+              <Button
+                disabled={!isHydrated || isActivating || activationCode.trim().length === 0}
+                onClick={handleActivate}
+                type="button"
+              >
+                {isActivating ? "Activation..." : "Activer"}
+              </Button>
+            </div>
+            {message && (
+              <p
+                className={cn(
+                  "mt-3 text-sm",
+                  message.type === "success" ? "text-emerald-600" : "text-rose-600"
+                )}
+              >
+                {message.text}
+              </p>
             )}
-          >
-            {message.text}
-          </p>
-        )}
-      </section>
-
-      <footer className="rounded-2xl border border-border/50 bg-card/70 p-4 text-xs text-muted-foreground">
-        <p className="flex items-center gap-2">
-          <Sparkles className="size-3.5" /> Interface modernisée: cartes
-          lisibles, transitions fluides et activation instantanée.
-        </p>
-      </footer>
+            <div className="mt-4 flex justify-end">
+              <Button onClick={() => setActivatePlan(null)} type="button" variant="outline">
+                Annuler
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
