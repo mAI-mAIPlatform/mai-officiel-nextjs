@@ -7,7 +7,7 @@ import {
   CreditCardIcon,
   FolderIcon,
   LanguagesIcon,
-  LayoutGridIcon,
+  PanelsTopLeftIcon,
   PenSquareIcon,
   SearchIcon,
   Settings2Icon,
@@ -151,7 +151,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
               <div className="flex w-full items-center gap-2 px-1">
                 <SidebarMenuButton
                   asChild
-                  className="group/logo relative h-8 w-8 shrink-0 justify-center rounded-lg border border-sidebar-border/60 bg-sidebar-accent/15 p-0 transition-colors hover:bg-sidebar-accent/35"
+                  className="group/logo relative h-10 w-10 shrink-0 justify-center rounded-lg border border-sidebar-border/60 bg-sidebar-accent/15 p-0 transition-colors hover:bg-sidebar-accent/35"
                   tooltip="mAI"
                 >
                   <Link
@@ -159,7 +159,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     href="/"
                     onClick={closeMobileSidebar}
                   >
-                    <BrandStarLogoIcon size={16} />
+                    <BrandStarLogoIcon size={22} />
                     <span className="pointer-events-none absolute top-1/2 right-1 -translate-y-1/2 rounded-md border border-sidebar-border/70 bg-sidebar/90 p-0.5 opacity-0 transition-opacity duration-150 group-hover/logo:opacity-100 group-focus-visible/logo:opacity-100">
                       <PenSquareIcon className="size-3 text-sidebar-foreground/80" />
                     </span>
@@ -225,7 +225,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                         className="h-8 rounded-lg border border-sidebar-border/70 text-[13px] text-sidebar-foreground/85 transition-colors duration-150 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                         tooltip="Applications"
                       >
-                        <LayoutGridIcon className="size-3.5" />
+                        <PanelsTopLeftIcon className="size-4" />
                         <span className="font-medium">Applications</span>
                       </SidebarMenuButton>
                     </DropdownMenuTrigger>

@@ -9,6 +9,7 @@ import {
   CircleHelpIcon,
   FilePenLineIcon,
   Ghost,
+  Globe2Icon,
   GraduationCapIcon,
   LockIcon,
   MicIcon,
@@ -1569,53 +1570,14 @@ function PureContextualActionsMenu({
           }}
           variant="ghost"
         >
-          <SearchIcon
+          <Globe2Icon
             className={
               forceWebSearchEnabled ? "text-primary" : "text-muted-foreground"
             }
             size={16}
           />
-          Recherche web
+          Recherche web forcée
         </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              className="flex h-8 w-full items-center justify-start gap-2 text-xs font-normal"
-              variant="ghost"
-            >
-              <Puzzle className="text-muted-foreground" size={16} />
-              Plugins
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            className="w-60 bg-white text-black"
-            sideOffset={4}
-          >
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>Activer un plugin</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="bg-white text-black">
-                {[
-                  "none",
-                  "interpreter.python",
-                  "interpreter.javascript",
-                  "plugin.audio-generator",
-                  "plugin.password-generator",
-                ].map((pluginId) => (
-                  <DropdownMenuItem
-                    key={pluginId}
-                    onClick={() => {
-                      setSelectedPlugin(pluginId);
-                      setOpen(false);
-                    }}
-                  >
-                    {pluginId === "none" ? "Aucun plugin" : pluginId}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          </DropdownMenuContent>
-        </DropdownMenu>
 
         <Button
           className="flex h-8 w-full items-center justify-start gap-2 text-xs font-normal"
@@ -1642,6 +1604,32 @@ function PureContextualActionsMenu({
           <FilePenLineIcon className="text-muted-foreground" size={16} />
           Canevas
         </Button>
+
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="flex h-8 w-full items-center justify-start gap-2 text-xs font-normal">
+            <Puzzle className="text-muted-foreground" size={16} />
+            Plugins
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-60">
+            {[
+              "none",
+              "interpreter.python",
+              "interpreter.javascript",
+              "plugin.audio-generator",
+              "plugin.password-generator",
+            ].map((pluginId) => (
+              <DropdownMenuItem
+                key={pluginId}
+                onClick={() => {
+                  setSelectedPlugin(pluginId);
+                  setOpen(false);
+                }}
+              >
+                {pluginId === "none" ? "Aucun plugin" : pluginId}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
 
         <Button
           className={cn(
