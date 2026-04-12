@@ -5,7 +5,7 @@ import { useMessages } from "@/hooks/use-messages";
 import type { Vote } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { useDataStream } from "./data-stream-provider";
+
 import { Greeting } from "./greeting";
 import { PreviewMessage, ThinkingMessage } from "./message";
 
@@ -48,8 +48,6 @@ function PureMessages({
   } = useMessages({
     status,
   });
-
-  useDataStream();
 
   const prevChatIdRef = useRef(chatId);
   useEffect(() => {
