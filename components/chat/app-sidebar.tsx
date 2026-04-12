@@ -18,7 +18,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { User } from "next-auth";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
 import { unstable_serialize } from "swr/infinite";
@@ -60,13 +60,8 @@ import { BrandStarLogoIcon } from "./icons";
 
 const QUICK_LINKS = [
   { href: "/", label: "Discussion", icon: PenSquareIcon },
-  { href: "/mais", label: "mAIs", icon: BotIcon },
-  { href: "/translation", label: "Traduction", icon: LanguagesIcon },
-  { href: "/humanizy", label: "Humanizy", icon: BrainCircuitIcon },
   { href: "/library", label: "Bibliothèque", icon: BookOpenIcon },
   { href: "/projects", label: "Projets", icon: FolderIcon },
-  { href: "/interpreter", label: "Code", icon: TerminalSquareIcon },
-  { href: "/speaky", label: "Speaky", icon: Volume2Icon },
   { href: "/settings", label: "Paramètres", icon: Settings2Icon },
   { href: "/pricing", label: "Tarifs", icon: CreditCardIcon },
 ] as const;
@@ -86,6 +81,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [isApplicationsOpen, setIsApplicationsOpen] = useState(false);
+  const closeApplicationsTimeout = useRef<number | null>(null);
   const normalizedGlobalQuery = globalSearchQuery.trim().toLowerCase();
 
   const closeMobileSidebar = () => {
@@ -106,6 +102,15 @@ export function AppSidebar({ user }: { user: User | undefined }) {
     return () => window.removeEventListener("keydown", onShortcut);
   }, []);
 
+  useEffect(
+    () => () => {
+      if (closeApplicationsTimeout.current !== null) {
+        window.clearTimeout(closeApplicationsTimeout.current);
+      }
+    },
+    []
+  );
+
   const quickLinks = useMemo(() => {
     if (!normalizedGlobalQuery) {
       return [];
@@ -117,17 +122,28 @@ export function AppSidebar({ user }: { user: User | undefined }) {
   }, [normalizedGlobalQuery]);
 
   const featuredLinks = useMemo(() => {
-    const order = [
-      "mAIs",
-      "Projets",
-      "Code",
-      "Speaky",
-      "Bibliothèque",
-    ] as const;
+    const order = ["Projets", "Bibliothèque"] as const;
     return order
       .map((label) => QUICK_LINKS.find((item) => item.label === label))
       .filter((item) => item !== undefined);
   }, []);
+
+  const openApplicationsMenu = () => {
+    if (closeApplicationsTimeout.current !== null) {
+      window.clearTimeout(closeApplicationsTimeout.current);
+      closeApplicationsTimeout.current = null;
+    }
+    setIsApplicationsOpen(true);
+  };
+
+  const closeApplicationsMenu = () => {
+    if (closeApplicationsTimeout.current !== null) {
+      window.clearTimeout(closeApplicationsTimeout.current);
+    }
+    closeApplicationsTimeout.current = window.setTimeout(() => {
+      setIsApplicationsOpen(false);
+    }, 140);
+  };
 
   const handleDeleteAll = async () => {
     setShowDeleteAllDialog(false);
@@ -238,8 +254,8 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     <DropdownMenuTrigger asChild>
                       <SidebarMenuButton
                         className="h-8 rounded-lg border border-sidebar-border/70 text-[13px] text-sidebar-foreground/85 transition-colors duration-150 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                        onMouseEnter={() => setIsApplicationsOpen(true)}
-                        onMouseLeave={() => setIsApplicationsOpen(false)}
+                        onMouseEnter={openApplicationsMenu}
+                        onMouseLeave={closeApplicationsMenu}
                         tooltip="Applications"
                       >
                         <LayoutGridIcon className="size-3.5" />
@@ -249,8 +265,10 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     <DropdownMenuContent
                       align="start"
                       className="w-56"
-                      onMouseEnter={() => setIsApplicationsOpen(true)}
-                      onMouseLeave={() => setIsApplicationsOpen(false)}
+                      onMouseEnter={openApplicationsMenu}
+                      onMouseLeave={closeApplicationsMenu}
+                      side="right"
+                      sideOffset={10}
                     >
                       {APPLICATION_LINKS.map((item) => (
                         <DropdownMenuItem asChild key={`app-${item.href}`}>
