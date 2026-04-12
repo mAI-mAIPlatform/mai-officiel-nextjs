@@ -219,7 +219,7 @@ export default function PricingPage() {
 
       {explainPlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="liquid-glass w-full max-w-xl rounded-2xl border border-border/60 bg-card/90 p-5">
+          <div className="liquid-glass w-full max-w-xl rounded-2xl border border-border/60 bg-white p-5 text-black">
             <h3 className="text-lg font-semibold">Pourquoi choisir {planDefinitions[explainPlan].label} ?</h3>
             <p className="mt-3 text-sm text-muted-foreground">{explainByPlan[explainPlan]}</p>
             <div className="mt-4 flex justify-end">
@@ -233,7 +233,7 @@ export default function PricingPage() {
 
       {activatePlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="liquid-glass w-full max-w-lg rounded-2xl border border-border/60 bg-card/90 p-5">
+          <div className="liquid-glass w-full max-w-lg rounded-2xl border border-border/60 bg-white p-5 text-black">
             <h3 className="text-lg font-semibold">Activer {planDefinitions[activatePlan].label}</h3>
             <p className="mt-2 text-sm text-muted-foreground">
               Entrez votre code officiel pour débloquer le forfait.

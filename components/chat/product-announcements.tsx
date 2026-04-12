@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpenCheck, Download, Rocket, X } from "lucide-react";
+import { BookOpenCheck, Rocket, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { APP_VERSION } from "@/lib/app-version";
 import { Button } from "../ui/button";
@@ -8,16 +8,9 @@ import { Button } from "../ui/button";
 const ONBOARDING_KEY = "mai.onboarding.v1.completed";
 const WHATS_NEW_KEY = "mai.whatsnew.version";
 
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
-
 export function ProductAnnouncements() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] =
-    useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
     const onboardingDone = localStorage.getItem(ONBOARDING_KEY) === "true";
@@ -29,20 +22,6 @@ export function ProductAnnouncements() {
     if (seenVersion !== APP_VERSION) {
       setShowWhatsNew(true);
     }
-  }, []);
-
-  useEffect(() => {
-    const onBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setDeferredPrompt(event as BeforeInstallPromptEvent);
-    };
-
-    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-    return () =>
-      window.removeEventListener(
-        "beforeinstallprompt",
-        onBeforeInstallPrompt
-      );
   }, []);
 
   const onboardingSteps = useMemo(
@@ -65,39 +44,11 @@ export function ProductAnnouncements() {
     setShowWhatsNew(false);
   };
 
-  const handleInstall = async () => {
-    if (!deferredPrompt) {
-      return;
-    }
-
-    await deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
-    setDeferredPrompt(null);
-  };
-
   return (
     <>
-      {deferredPrompt && (
-        <div className="liquid-panel fixed right-3 bottom-3 z-50 flex items-center gap-2 rounded-2xl border border-border/50 bg-card/85 p-2 backdrop-blur-xl">
-          <Download className="size-4 text-primary" />
-          <p className="text-xs">Installer mAI en PWA</p>
-          <Button onClick={handleInstall} size="sm" type="button" variant="secondary">
-            Installer
-          </Button>
-          <Button
-            onClick={() => setDeferredPrompt(null)}
-            size="icon"
-            type="button"
-            variant="ghost"
-          >
-            <X className="size-4" />
-          </Button>
-        </div>
-      )}
-
       {showOnboarding && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
-          <div className="liquid-glass w-full max-w-xl rounded-3xl border border-border/60 bg-background/85 p-5">
+          <div className="liquid-glass w-full max-w-xl rounded-3xl border border-border/60 bg-white p-5 text-black">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-lg font-semibold">
                 <BookOpenCheck className="size-5 text-primary" /> Onboarding mAI
@@ -120,7 +71,7 @@ export function ProductAnnouncements() {
 
       {showWhatsNew && (
         <div className="fixed inset-x-0 top-3 z-50 mx-auto w-[min(92vw,760px)]">
-          <div className="liquid-glass flex items-start gap-3 rounded-2xl border border-border/60 bg-background/80 p-4 backdrop-blur-xl">
+          <div className="liquid-glass flex items-start gap-3 rounded-2xl border border-border/60 bg-white p-4 text-black backdrop-blur-xl">
             <Rocket className="mt-0.5 size-5 text-primary" />
             <div className="min-w-0 flex-1">
               <p className="font-semibold">Quoi de neuf — v{APP_VERSION}</p>

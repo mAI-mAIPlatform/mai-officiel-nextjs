@@ -1454,7 +1454,7 @@ function PureContextualActionsMenu({
       </div>
       <PopoverContent
         align="start"
-        className="flex w-72 flex-col gap-1 rounded-xl p-2 shadow-lg"
+        className="flex w-72 flex-col gap-1 rounded-xl bg-white p-2 text-black shadow-lg"
         sideOffset={8}
       >
         <DropdownMenu>

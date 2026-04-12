@@ -6,6 +6,7 @@ import {
   Camera,
   Clock3,
   Database,
+  Download,
   FileText,
   Gauge,
   KeyRound,
@@ -124,6 +125,10 @@ type PersistedMemoryEntry = {
 };
 
 type ExtensionKey = "projects" | "library" | "translation";
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+};
 
 type ParentalSettings = {
   advancedSettingsLocked: boolean;
@@ -415,6 +420,8 @@ export default function SettingsPage() {
     outputTokens: 0,
   });
   const [webSearchUsage, setWebSearchUsage] = useState(0);
+  const [deferredPwaPrompt, setDeferredPwaPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
 
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
   const maxMemoryEntries = getMemoryEntriesLimitForPlan(plan);
@@ -961,6 +968,16 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    const onBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setDeferredPwaPrompt(event as BeforeInstallPromptEvent);
+    };
+    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    return () =>
+      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+  }, []);
+
+  useEffect(() => {
     // Évite d'écraser le stockage avant la première lecture locale.
     if (!tasksHydrated) {
       return;
@@ -1132,6 +1149,15 @@ export default function SettingsPage() {
   const handleWordCounterVisibility = (nextValue: boolean) => {
     setShowWordCounter(nextValue);
     window.localStorage.setItem("mai.show-word-counter", String(nextValue));
+  };
+
+  const handleInstallPwa = async () => {
+    if (!deferredPwaPrompt) {
+      return;
+    }
+    await deferredPwaPrompt.prompt();
+    await deferredPwaPrompt.userChoice;
+    setDeferredPwaPrompt(null);
   };
 
   const handleProfileLogoUpload = (event: ChangeEvent<HTMLInputElement>) => {
@@ -1550,6 +1576,35 @@ export default function SettingsPage() {
               </Button>
             </div>
           )}
+        </div>
+
+        <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-white p-3 text-black">
+          <p className="text-sm font-medium">Installation PWA</p>
+          <p className="mt-1 text-xs text-black/70">
+            Installez mAI sur l&apos;écran d&apos;accueil pour un usage natif.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Button
+              disabled={!deferredPwaPrompt}
+              onClick={handleInstallPwa}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <Download className="mr-2 size-4" />
+              Installer mAI en PWA
+            </Button>
+            {deferredPwaPrompt ? (
+              <Button
+                onClick={() => setDeferredPwaPrompt(null)}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                Fermer
+              </Button>
+            ) : null}
+          </div>
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-[auto_1fr]">
