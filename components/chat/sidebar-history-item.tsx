@@ -1,14 +1,21 @@
+import { FolderIcon } from "lucide-react";
 import Link from "next/link";
 import { memo, useEffect, useState } from "react";
-import { FolderIcon } from "lucide-react";
 import { useChatVisibility } from "@/hooks/use-chat-visibility";
 import {
   CHAT_TAGS_STORAGE_KEY,
+  readJsonStorage,
   TAG_DEFINITIONS_STORAGE_KEY,
   type TagDefinition,
-  readJsonStorage,
 } from "@/lib/chat-preferences";
 import type { Chat, Project } from "@/lib/db/schema";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,13 +27,6 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "../ui/dialog";
-import {
   SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -34,6 +34,7 @@ import {
 import {
   CheckCircleFillIcon,
   GlobeIcon,
+  LoaderIcon,
   LockIcon,
   MoreHorizontalIcon,
   ShareIcon,
@@ -43,6 +44,7 @@ import {
 const PureChatItem = ({
   chat,
   isActive,
+  isGenerating,
   isPinned,
   onDelete,
   onPin,
@@ -54,6 +56,7 @@ const PureChatItem = ({
 }: {
   chat: Chat;
   isActive: boolean;
+  isGenerating: boolean;
   isPinned: boolean;
   onDelete: (chatId: string) => void;
   onPin: (chatId: string) => void;
@@ -195,7 +198,19 @@ const PureChatItem = ({
         isActive={isActive}
       >
         <Link href={`/chat/${chat.id}`} onClick={() => setOpenMobile(false)}>
-          <span className="truncate">{chat.title}</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate">{chat.title}</span>
+            {isGenerating ? (
+              <span
+                className="liquid-panel inline-flex size-3 items-center justify-center rounded-full"
+                title="Réponse en cours…"
+              >
+                <span className="animate-spin text-sidebar-foreground/80">
+                  <LoaderIcon />
+                </span>
+              </span>
+            ) : null}
+          </span>
           {chatTags.length > 0 && (
             <span className="ml-2 inline-flex items-center gap-1">
               {chatTags.map((tag) => (
@@ -448,6 +463,15 @@ const PureChatItem = ({
 
 export const ChatItem = memo(PureChatItem, (prevProps, nextProps) => {
   if (prevProps.isActive !== nextProps.isActive) {
+    return false;
+  }
+  if (prevProps.isGenerating !== nextProps.isGenerating) {
+    return false;
+  }
+  if (prevProps.chat.title !== nextProps.chat.title) {
+    return false;
+  }
+  if (prevProps.isPinned !== nextProps.isPinned) {
     return false;
   }
   return true;
