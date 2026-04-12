@@ -1,0 +1,30 @@
+name: mAI Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version de la release (ex: v0.8.2)"
+        required: true
+      description:
+        description: "Description de la release"
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🎉 Créer la release GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: ${{ github.event.inputs.version }}
+          body: |
+            Nouvelle version ${{ github.event.inputs.version }} disponible.
+
+            ${{ github.event.inputs.description }}
+
+            Nous publierons de nouvelles mises à jour bientôt.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
