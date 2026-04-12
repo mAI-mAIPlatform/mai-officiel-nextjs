@@ -13,7 +13,7 @@ import {
   ToolInput,
   ToolOutput,
 } from "../ai-elements/tool";
-import { useDataStream } from "./data-stream-provider";
+
 import { DocumentToolResult } from "./document";
 import { DocumentPreview } from "./document-preview";
 import { SparklesIcon } from "./icons";
@@ -48,8 +48,6 @@ const PurePreviewMessage = ({
   const attachmentsFromMessage = message.parts.filter(
     (part) => part.type === "file"
   );
-
-  useDataStream();
 
   const isUser = message.role === "user";
   const isAssistant = message.role === "assistant";
@@ -366,11 +364,7 @@ const PurePreviewMessage = ({
 // during streaming or when the parent Messages component updates.
 // Expected Impact: Significantly reduces CPU usage and jank during fast message streaming by ~50-80%
 // for long conversations, as only the actively changing message re-renders.
-// ⚡ Bolt Optimization:
-// Wrapped PurePreviewMessage in React.memo to prevent unnecessary re-renders of the entire message history
-// during streaming or when the parent Messages component updates.
-// Expected Impact: Significantly reduces CPU usage and jank during fast message streaming by ~50-80%
-// for long conversations, as only the actively changing message re-renders.
+// (Also removed unnecessary `useDataStream` hook calls that caused re-renders on every stream update)
 export const PreviewMessage = memo(
   PurePreviewMessage,
   (prevProps, nextProps) => {
