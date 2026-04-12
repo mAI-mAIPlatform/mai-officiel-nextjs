@@ -6,6 +6,7 @@ import {
   Camera,
   Clock3,
   Database,
+  Download,
   FileText,
   Gauge,
   KeyRound,
@@ -41,7 +42,7 @@ import {
 } from "@/lib/chat-preferences";
 import { createNotification } from "@/lib/notifications";
 import { planDefinitions } from "@/lib/subscription";
-import { getNextResetDate } from "@/lib/usage-limits";
+import { getNextResetDate, getUsageCount } from "@/lib/usage-limits";
 import { cn } from "@/lib/utils";
 
 const TASKS_STORAGE_KEY = "mai.settings.automated-tasks.v017";
@@ -49,6 +50,7 @@ const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
 const NOTIFICATIONS_SETTINGS_STORAGE_KEY = "mai.settings.notifications.v1";
 const PARENTAL_SETTINGS_STORAGE_KEY = "mai.settings.parental.v1";
 const POSITION_SETTINGS_STORAGE_KEY = "mai.settings.position.v1";
+const TOKEN_USAGE_STORAGE_KEY = "mai.token-usage.v1";
 const MAX_MEMORY_ENTRY_LENGTH = 500;
 const ABSOLUTE_MAX_MEMORY_ENTRIES = 200;
 const schedulerModels = [
@@ -76,7 +78,10 @@ type ScheduledTask = {
   createdAt: string;
   frequency: (typeof schedulerFrequencies)[number];
   id: string;
+  isEnabled: boolean;
+  lastRunAt?: string;
   model: (typeof schedulerModels)[number];
+  notes?: string;
   nextRunAt: string;
   title: string;
 };
@@ -120,6 +125,10 @@ type PersistedMemoryEntry = {
 };
 
 type ExtensionKey = "projects" | "library" | "translation";
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+};
 
 type ParentalSettings = {
   advancedSettingsLocked: boolean;
@@ -262,6 +271,9 @@ function sanitizeScheduledTasks(input: unknown): ScheduledTask[] {
     )
     .map((task) => ({
       ...task,
+      isEnabled:
+        typeof task.isEnabled === "boolean" ? task.isEnabled : true,
+      notes: typeof task.notes === "string" ? task.notes.trim() : "",
       title: task.title.trim(),
     }))
     .filter((task) => task.title.length > 0);
@@ -346,16 +358,19 @@ export default function SettingsPage() {
     frequency: ScheduledTask["frequency"];
     model: ScheduledTask["model"];
     nextRunAt: string;
+    notes: string;
     title: string;
   }>({
     frequency: "quotidienne",
     model: "openai/gpt-5.4",
     nextRunAt: "",
+    notes: "",
     title: "",
   });
   const [chatBarSize, setChatBarSize] = useState<
     "compact" | "standard" | "large"
   >("compact");
+  const [showWordCounter, setShowWordCounter] = useState(true);
   const [profileName, setProfileName] = useState("");
   const [profileLogoDataUrl, setProfileLogoDataUrl] = useState<
     string | undefined
@@ -400,6 +415,13 @@ export default function SettingsPage() {
     text: string;
     type: "error" | "success";
   } | null>(null);
+  const [tokenUsage, setTokenUsage] = useState({
+    inputTokens: 0,
+    outputTokens: 0,
+  });
+  const [webSearchUsage, setWebSearchUsage] = useState(0);
+  const [deferredPwaPrompt, setDeferredPwaPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
 
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
   const maxMemoryEntries = getMemoryEntriesLimitForPlan(plan);
@@ -428,6 +450,22 @@ export default function SettingsPage() {
       );
       setTasksHydrated(true);
     }
+  }, []);
+
+  useEffect(() => {
+    const refreshWebSearchUsage = () => {
+      setWebSearchUsage(getUsageCount("websearch", "day"));
+    };
+    refreshWebSearchUsage();
+    window.addEventListener("storage", refreshWebSearchUsage);
+    window.addEventListener("mai:websearch-usage-updated", refreshWebSearchUsage);
+    return () => {
+      window.removeEventListener("storage", refreshWebSearchUsage);
+      window.removeEventListener(
+        "mai:websearch-usage-updated",
+        refreshWebSearchUsage
+      );
+    };
   }, []);
 
   useEffect(() => {
@@ -809,6 +847,36 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    const refreshTokenUsage = () => {
+      const raw = window.localStorage.getItem(TOKEN_USAGE_STORAGE_KEY);
+      if (!raw) {
+        setTokenUsage({ inputTokens: 0, outputTokens: 0 });
+        return;
+      }
+      try {
+        const parsed = JSON.parse(raw) as {
+          inputTokens?: number;
+          outputTokens?: number;
+        };
+        setTokenUsage({
+          inputTokens: Math.max(0, Math.floor(parsed.inputTokens ?? 0)),
+          outputTokens: Math.max(0, Math.floor(parsed.outputTokens ?? 0)),
+        });
+      } catch {
+        setTokenUsage({ inputTokens: 0, outputTokens: 0 });
+      }
+    };
+
+    refreshTokenUsage();
+    window.addEventListener("storage", refreshTokenUsage);
+    window.addEventListener("mai:token-usage-updated", refreshTokenUsage);
+    return () => {
+      window.removeEventListener("storage", refreshTokenUsage);
+      window.removeEventListener("mai:token-usage-updated", refreshTokenUsage);
+    };
+  }, []);
+
+  useEffect(() => {
     window.localStorage.setItem(
       POSITION_SETTINGS_STORAGE_KEY,
       JSON.stringify({ enabled: positionEnabled, label: positionLabel.trim() })
@@ -891,6 +959,25 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    const raw = window.localStorage.getItem("mai.show-word-counter");
+    if (raw === "false") {
+      setShowWordCounter(false);
+      return;
+    }
+    setShowWordCounter(true);
+  }, []);
+
+  useEffect(() => {
+    const onBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setDeferredPwaPrompt(event as BeforeInstallPromptEvent);
+    };
+    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    return () =>
+      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+  }, []);
+
+  useEffect(() => {
     // Évite d'écraser le stockage avant la première lecture locale.
     if (!tasksHydrated) {
       return;
@@ -962,13 +1049,19 @@ export default function SettingsPage() {
       createdAt: new Date().toISOString(),
       frequency: taskForm.frequency,
       id: crypto.randomUUID(),
+      isEnabled: true,
+      notes: taskForm.notes.trim(),
       model: taskForm.model,
       nextRunAt: taskForm.nextRunAt,
       title: taskForm.title.trim(),
     };
 
-    setTasks((prev) => [nextTask, ...prev]);
-    setTaskForm((prev) => ({ ...prev, title: "" }));
+    setTasks((prev) =>
+      [nextTask, ...prev].sort(
+        (a, b) => +new Date(a.nextRunAt) - +new Date(b.nextRunAt)
+      )
+    );
+    setTaskForm((prev) => ({ ...prev, notes: "", title: "" }));
     setTaskError(null);
     createNotification({
       level: "success",
@@ -986,6 +1079,47 @@ export default function SettingsPage() {
       source: "user",
       title: "Tâches",
     });
+  };
+
+  const computeNextRun = (
+    sourceDateIso: string,
+    frequency: ScheduledTask["frequency"]
+  ): string => {
+    const nextDate = new Date(sourceDateIso);
+    if (frequency === "quotidienne") {
+      nextDate.setDate(nextDate.getDate() + 1);
+    } else if (frequency === "hebdomadaire") {
+      nextDate.setDate(nextDate.getDate() + 7);
+    } else if (frequency === "mensuelle") {
+      nextDate.setMonth(nextDate.getMonth() + 1);
+    }
+    return nextDate.toISOString().slice(0, 16);
+  };
+
+  const handleRunTaskNow = (taskId: string) => {
+    const nowIso = new Date().toISOString();
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              lastRunAt: nowIso,
+              nextRunAt:
+                task.frequency === "ponctuelle"
+                  ? task.nextRunAt
+                  : computeNextRun(task.nextRunAt, task.frequency),
+            }
+          : task
+      )
+    );
+  };
+
+  const handleToggleTaskEnabled = (taskId: string) => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskId ? { ...task, isEnabled: !task.isEnabled } : task
+      )
+    );
   };
 
   const handleTaskCommand = () => {
@@ -1010,6 +1144,20 @@ export default function SettingsPage() {
   const handleChatBarSizeChange = (size: "compact" | "standard" | "large") => {
     setChatBarSize(size);
     window.localStorage.setItem("mai.chatbar.size", size);
+  };
+
+  const handleWordCounterVisibility = (nextValue: boolean) => {
+    setShowWordCounter(nextValue);
+    window.localStorage.setItem("mai.show-word-counter", String(nextValue));
+  };
+
+  const handleInstallPwa = async () => {
+    if (!deferredPwaPrompt) {
+      return;
+    }
+    await deferredPwaPrompt.prompt();
+    await deferredPwaPrompt.userChoice;
+    setDeferredPwaPrompt(null);
   };
 
   const handleProfileLogoUpload = (event: ChangeEvent<HTMLInputElement>) => {
@@ -1244,8 +1392,15 @@ export default function SettingsPage() {
         title: "Tâches planifiées",
         used: tasks.length,
       },
+      {
+        key: "websearch",
+        limit: currentPlanDefinition.limits.webSearchesPerDay,
+        period: "day",
+        title: "Recherche web",
+        used: webSearchUsage,
+      },
     ];
-  }, [currentPlanDefinition, isHydrated, tasks.length]);
+  }, [currentPlanDefinition, isHydrated, tasks.length, webSearchUsage]);
 
   const settingsSections = [
     { href: "#compte", key: "compte", label: "Compte" },
@@ -1423,6 +1578,35 @@ export default function SettingsPage() {
           )}
         </div>
 
+        <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-white p-3 text-black">
+          <p className="text-sm font-medium">Installation PWA</p>
+          <p className="mt-1 text-xs text-black/70">
+            Installez mAI sur l&apos;écran d&apos;accueil pour un usage natif.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Button
+              disabled={!deferredPwaPrompt}
+              onClick={handleInstallPwa}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <Download className="mr-2 size-4" />
+              Installer mAI en PWA
+            </Button>
+            {deferredPwaPrompt ? (
+              <Button
+                onClick={() => setDeferredPwaPrompt(null)}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                Fermer
+              </Button>
+            ) : null}
+          </div>
+        </div>
+
         <div className="mt-5 grid gap-4 md:grid-cols-[auto_1fr]">
           <div className="flex flex-col items-center gap-2">
             <div
@@ -1497,6 +1681,31 @@ export default function SettingsPage() {
               placeholder="Ex: Product Designer"
               value={profession}
             />
+          </div>
+        </div>
+
+        <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-background/60 p-3">
+          <p className="text-sm font-medium">Affichage du compteur de saisie</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Affiche/masque les mots et caractères dans la barre de chat.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              onClick={() => handleWordCounterVisibility(true)}
+              size="sm"
+              type="button"
+              variant={showWordCounter ? "default" : "outline"}
+            >
+              Afficher
+            </Button>
+            <Button
+              onClick={() => handleWordCounterVisibility(false)}
+              size="sm"
+              type="button"
+              variant={!showWordCounter ? "default" : "outline"}
+            >
+              Masquer
+            </Button>
           </div>
         </div>
       </section>
@@ -2013,6 +2222,33 @@ export default function SettingsPage() {
           )}
         </div>
 
+        <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-background/60 p-4">
+          <h3 className="text-sm font-semibold">Compteur de tokens (hors chat fantôme)</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Compte cumulatif de tous les échanges non fantômes (entrée/sortie).
+          </p>
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
+            <div className="rounded-lg border border-border/50 bg-card/70 p-3">
+              <p className="text-xs text-muted-foreground">Tokens entrée</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {tokenUsage.inputTokens.toLocaleString("fr-FR")}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border/50 bg-card/70 p-3">
+              <p className="text-xs text-muted-foreground">Tokens sortie</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {tokenUsage.outputTokens.toLocaleString("fr-FR")}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border/50 bg-card/70 p-3">
+              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {(tokenUsage.inputTokens + tokenUsage.outputTokens).toLocaleString("fr-FR")}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="liquid-panel mt-6 rounded-2xl border border-white/30 bg-white/80 p-4 text-black backdrop-blur-2xl">
           <h3 className="text-base font-semibold">Tags de conversations</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -2376,6 +2612,13 @@ export default function SettingsPage() {
               </option>
             ))}
           </select>
+          <Input
+            onChange={(event) =>
+              setTaskForm((prev) => ({ ...prev, notes: event.target.value }))
+            }
+            placeholder="Notes d'exécution (optionnel)"
+            value={taskForm.notes}
+          />
         </div>
 
         <Button className="mt-3" onClick={handleCreateTask} type="button">
@@ -2407,16 +2650,46 @@ export default function SettingsPage() {
                     {task.frequency} • {task.model} • prochain lancement :{" "}
                     {new Date(task.nextRunAt).toLocaleString()}
                   </p>
+                  <p className="text-xs text-muted-foreground">
+                    Statut : {task.isEnabled ? "Actif" : "En pause"}
+                  </p>
+                  {task.notes ? (
+                    <p className="text-xs text-muted-foreground">{task.notes}</p>
+                  ) : null}
+                  {task.lastRunAt ? (
+                    <p className="text-xs text-muted-foreground">
+                      Dernière exécution :{" "}
+                      {new Date(task.lastRunAt).toLocaleString()}
+                    </p>
+                  ) : null}
                 </div>
-                <Button
-                  onClick={() => handleDeleteTask(task.id)}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  <Trash2 className="mr-1 size-4" />
-                  Supprimer
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => handleToggleTaskEnabled(task.id)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    {task.isEnabled ? "Mettre en pause" : "Réactiver"}
+                  </Button>
+                  <Button
+                    onClick={() => handleRunTaskNow(task.id)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    Exécuter maintenant
+                  </Button>
+                  <Button
+                    onClick={() => handleDeleteTask(task.id)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <Trash2 className="mr-1 size-4" />
+                    Supprimer
+                  </Button>
+                </div>
               </div>
             ))
           )}

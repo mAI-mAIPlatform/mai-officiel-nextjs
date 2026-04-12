@@ -31,24 +31,28 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
     "Idéal pour découvrir mAI",
     "Quiz illimités",
     "Jusqu'à 5 fichiers / jour",
+    "10 recherches web / jour",
   ],
   plus: [
     "50 messages / heure",
     "IA plus confortable au quotidien",
     "10 fichiers / jour",
     "Tâches planifiées avancées",
+    "20 recherches web / jour",
   ],
   pro: [
     "75 messages / heure",
     "Pour usage intensif et projets multi-modules",
     "20 fichiers / jour",
     "Mémoire IA renforcée",
+    "35 recherches web / jour",
   ],
   max: [
     "100 messages / heure",
     "Pour équipes et usages professionnels continus",
     "50 fichiers / jour",
     "Capacité maximale mAI",
+    "50 recherches web / jour",
   ],
 };
 
@@ -76,6 +80,9 @@ export default function PricingPage() {
   const [activatePlan, setActivatePlan] = useState<Exclude<PlanKey, "free"> | null>(
     null
   );
+  const [recentlyUnlockedPlan, setRecentlyUnlockedPlan] = useState<PlanKey | null>(
+    null
+  );
 
   const plans = useMemo(() => planOrder.map((key) => planDefinitions[key]), []);
 
@@ -98,6 +105,8 @@ export default function PricingPage() {
       text: `Activation réussie : votre forfait est maintenant ${planDefinitions[nextPlan].label}.`,
       type: "success",
     });
+    setRecentlyUnlockedPlan(nextPlan);
+    window.setTimeout(() => setRecentlyUnlockedPlan(null), 2400);
     setActivationCode("");
     setActivatePlan(null);
   };
@@ -128,7 +137,9 @@ export default function PricingPage() {
             <article
               className={cn(
                 "liquid-glass rounded-3xl border p-5 shadow-sm backdrop-blur-xl",
-                isCurrent ? "border-primary/45 bg-primary/10" : "border-border/50 bg-card/70"
+                isCurrent ? "border-primary/45 bg-primary/10" : "border-border/50 bg-card/70",
+                recentlyUnlockedPlan === planItem.key &&
+                  "animate-pulse border-emerald-400/70 bg-emerald-500/10 shadow-[0_0_0_2px_rgba(16,185,129,0.2)]"
               )}
               key={planItem.key}
             >
@@ -164,6 +175,7 @@ export default function PricingPage() {
                 </p>
                 <p>Fichiers: {planItem.limits.filesPerDay}/jour</p>
                 <p>Tâches planifiées: {planItem.limits.taskSchedules}</p>
+                <p>Recherche web: {planItem.limits.webSearchesPerDay}/jour</p>
               </div>
 
               <div className="mt-4 flex flex-col gap-2">
@@ -207,7 +219,7 @@ export default function PricingPage() {
 
       {explainPlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="liquid-glass w-full max-w-xl rounded-2xl border border-border/60 bg-card/90 p-5">
+          <div className="liquid-glass w-full max-w-xl rounded-2xl border border-border/60 bg-white p-5 text-black">
             <h3 className="text-lg font-semibold">Pourquoi choisir {planDefinitions[explainPlan].label} ?</h3>
             <p className="mt-3 text-sm text-muted-foreground">{explainByPlan[explainPlan]}</p>
             <div className="mt-4 flex justify-end">
@@ -221,7 +233,7 @@ export default function PricingPage() {
 
       {activatePlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="liquid-glass w-full max-w-lg rounded-2xl border border-border/60 bg-card/90 p-5">
+          <div className="liquid-glass w-full max-w-lg rounded-2xl border border-border/60 bg-white p-5 text-black">
             <h3 className="text-lg font-semibold">Activer {planDefinitions[activatePlan].label}</h3>
             <p className="mt-2 text-sm text-muted-foreground">
               Entrez votre code officiel pour débloquer le forfait.
@@ -256,6 +268,23 @@ export default function PricingPage() {
               </Button>
             </div>
           </div>
+        </div>
+      )}
+      {recentlyUnlockedPlan && (
+        <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
+          {Array.from({ length: 18 }).map((_, index) => (
+            <span
+              className="absolute rounded-full bg-primary/40 blur-[1px] animate-pulse"
+              key={`unlock-fx-${index}`}
+              style={{
+                animationDelay: `${index * 70}ms`,
+                height: `${6 + (index % 4) * 3}px`,
+                left: `${(index * 17) % 100}%`,
+                top: `${(index * 29) % 100}%`,
+                width: `${6 + (index % 4) * 3}px`,
+              }}
+            />
+          ))}
         </div>
       )}
     </div>
