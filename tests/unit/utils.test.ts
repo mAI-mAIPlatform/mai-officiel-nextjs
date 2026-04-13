@@ -126,6 +126,7 @@ test("fetcher", async (t) => {
     await fetcher("https://example.com");
     assert.fail("Expected fetcher to throw ChatbotError");
   } catch (error: any) {
+    if (error.name === 'AssertionError') throw error;
     assert.ok(error instanceof ChatbotError);
     assert.equal(error.type, "bad_request");
     assert.equal(error.surface, "api");
@@ -162,6 +163,7 @@ test("fetchWithErrorHandlers - api error", async (t) => {
     await fetchWithErrorHandlers("https://example.com");
     assert.fail("Expected fetchWithErrorHandlers to throw ChatbotError");
   } catch (error: any) {
+    if (error.name === 'AssertionError') throw error;
     assert.ok(error instanceof ChatbotError);
     assert.equal(error.type, "bad_request");
     assert.equal(error.surface, "api");
@@ -195,6 +197,7 @@ test("fetchWithErrorHandlers - network error", async (t) => {
     await fetchWithErrorHandlers("https://example.com");
     assert.fail("Expected fetchWithErrorHandlers to throw Error");
   } catch (error: any) {
+    if (error.name === 'AssertionError') throw error;
     assert.ok(!(error instanceof ChatbotError));
     assert.equal(error.message, "Network error");
   } finally {
@@ -225,9 +228,69 @@ test("fetchWithErrorHandlers - offline error", async (t) => {
     await fetchWithErrorHandlers("https://example.com");
     assert.fail("Expected fetchWithErrorHandlers to throw offline error");
   } catch (error: any) {
+    if (error.name === 'AssertionError') throw error;
     assert.ok(error instanceof ChatbotError);
     assert.equal(error.type, "offline");
     assert.equal(error.surface, "chat");
+  } finally {
+    if (originalNavigator !== undefined) {
+      Object.defineProperty(global, 'navigator', {
+        value: originalNavigator,
+        configurable: true
+      });
+    } else {
+      // @ts-ignore
+      delete global.navigator;
+    }
+  }
+});
+
+test("fetchWithErrorHandlers - offline error, typeof navigator undefined", async (t) => {
+  t.mock.method(global, 'fetch', async () => {
+    throw new TypeError("Failed to fetch");
+  });
+
+  const originalNavigator = global.navigator;
+  // Make navigator completely undefined to hit the typeof navigator !== 'undefined' check
+  delete (global as any).navigator;
+
+  try {
+    await fetchWithErrorHandlers("https://example.com");
+    assert.fail("Expected fetchWithErrorHandlers to throw original Error");
+  } catch (error: any) {
+    if (error.name === 'AssertionError') throw error;
+    assert.ok(!(error instanceof ChatbotError));
+    assert.equal(error.message, "Failed to fetch");
+  } finally {
+    if (originalNavigator !== undefined) {
+      Object.defineProperty(global, 'navigator', {
+        value: originalNavigator,
+        configurable: true
+      });
+    }
+  }
+});
+
+test("fetchWithErrorHandlers - non-ok response throwing non-JSON", async (t) => {
+  const mockResponseErr = {
+    ok: false,
+    json: async () => { throw new Error("Invalid JSON"); }
+  };
+  t.mock.method(global, 'fetch', async () => mockResponseErr);
+
+  const originalNavigator = global.navigator;
+  Object.defineProperty(global, 'navigator', {
+    value: { onLine: true },
+    configurable: true
+  });
+
+  try {
+    await fetchWithErrorHandlers("https://example.com");
+    assert.fail("Expected fetchWithErrorHandlers to throw original Error");
+  } catch (error: any) {
+    if (error.name === 'AssertionError') throw error;
+    assert.ok(!(error instanceof ChatbotError));
+    assert.equal(error.message, "Invalid JSON");
   } finally {
     if (originalNavigator !== undefined) {
       Object.defineProperty(global, 'navigator', {
