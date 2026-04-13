@@ -57,6 +57,24 @@ export async function POST(request: Request) {
           history.push(`[Fix] Logs de debug neutralisés dans ${file.path}.`);
         }
 
+        if (content.includes("debugger;")) {
+          content = content.replaceAll("debugger;", "// debugger;");
+          touched = true;
+          history.push(`[Fix] Statement debugger neutralisé dans ${file.path}.`);
+        }
+
+        if (content.includes("alert(")) {
+          content = content.replaceAll("alert(", "// alert(");
+          touched = true;
+          history.push(`[Fix] alert() neutralisé dans ${file.path}.`);
+        }
+
+        if (content.includes("eval(")) {
+          history.push(
+            `[Sécurité] eval() détecté dans ${file.path}.`
+          );
+        }
+
         if (content.includes("TODO")) {
           history.push(`[Alerte] TODO détecté dans ${file.path}.`);
         }
