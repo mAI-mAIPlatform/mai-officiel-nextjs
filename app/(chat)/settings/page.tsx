@@ -135,6 +135,8 @@ type BeforeInstallPromptEvent = Event & {
 type ParentalSettings = {
   advancedSettingsLocked: boolean;
   bedtimeMode: boolean;
+  bedtimeWindowEndHour: number;
+  bedtimeWindowStartHour: number;
   weekendBonusMinutes: number;
   dailyLimitMinutes: number;
   enabled: boolean;
@@ -147,6 +149,8 @@ type ParentalSettings = {
 const defaultParentalSettings: ParentalSettings = {
   advancedSettingsLocked: true,
   bedtimeMode: false,
+  bedtimeWindowEndHour: 7,
+  bedtimeWindowStartHour: 21,
   weekendBonusMinutes: 20,
   dailyLimitMinutes: 90,
   enabled: false,
@@ -202,6 +206,17 @@ function formatDateTime(date: Date): string {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function isNowWithinBedtimeWindow(startHour: number, endHour: number): boolean {
+  const currentHour = new Date().getHours();
+  if (startHour === endHour) {
+    return true;
+  }
+  if (startHour < endHour) {
+    return currentHour >= startHour && currentHour < endHour;
+  }
+  return currentHour >= startHour || currentHour < endHour;
 }
 
 function getCreditBadgeColor(remainingRatio: number): string {
@@ -791,6 +806,19 @@ export default function SettingsPage() {
           typeof parsed.bedtimeMode === "boolean"
             ? parsed.bedtimeMode
             : defaultParentalSettings.bedtimeMode,
+        bedtimeWindowEndHour:
+          typeof parsed.bedtimeWindowEndHour === "number" &&
+          Number.isFinite(parsed.bedtimeWindowEndHour)
+            ? Math.max(0, Math.min(23, Math.round(parsed.bedtimeWindowEndHour)))
+            : defaultParentalSettings.bedtimeWindowEndHour,
+        bedtimeWindowStartHour:
+          typeof parsed.bedtimeWindowStartHour === "number" &&
+          Number.isFinite(parsed.bedtimeWindowStartHour)
+            ? Math.max(
+                0,
+                Math.min(23, Math.round(parsed.bedtimeWindowStartHour))
+              )
+            : defaultParentalSettings.bedtimeWindowStartHour,
         dailyLimitMinutes:
           typeof parsed.dailyLimitMinutes === "number" &&
           Number.isFinite(parsed.dailyLimitMinutes)
@@ -1457,8 +1485,16 @@ export default function SettingsPage() {
     parentalSettings.enabled &&
     parentalSettings.dailyLimitMinutes > 0 &&
     parentalSettings.usageMinutes >= parentalSettings.dailyLimitMinutes;
+  const isBedtimeRestrictionActive =
+    parentalSettings.enabled &&
+    parentalSettings.bedtimeMode &&
+    isNowWithinBedtimeWindow(
+      parentalSettings.bedtimeWindowStartHour,
+      parentalSettings.bedtimeWindowEndHour
+    ) &&
+    !isParentalSessionUnlocked;
   const isDataAccessRestricted =
-    isAdvancedAccessRestricted || isUsageLimitReached;
+    isAdvancedAccessRestricted || isUsageLimitReached || isBedtimeRestrictionActive;
 
   const handleSetLockCode = () => {
     const normalizedNewCode = newLockCode.trim();
@@ -2179,7 +2215,10 @@ export default function SettingsPage() {
             }
             type="button"
           >
-            <span className="text-sm font-medium">Mode coucher (21h-7h)</span>
+            <span className="text-sm font-medium">
+              Mode coucher ({parentalSettings.bedtimeWindowStartHour}h-
+              {parentalSettings.bedtimeWindowEndHour}h)
+            </span>
             <Badge variant="secondary">
               {parentalSettings.bedtimeMode ? "Actif" : "Inactif"}
             </Badge>
@@ -2203,6 +2242,44 @@ export default function SettingsPage() {
               />
               <span className="text-xs text-muted-foreground">min</span>
             </div>
+          </div>
+        </div>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+            <p className="text-sm font-medium">Début du mode coucher</p>
+            <Input
+              max={23}
+              min={0}
+              onChange={(event) =>
+                setParentalSettings((prev) => ({
+                  ...prev,
+                  bedtimeWindowStartHour: Math.max(
+                    0,
+                    Math.min(23, Number(event.target.value) || 0)
+                  ),
+                }))
+              }
+              type="number"
+              value={parentalSettings.bedtimeWindowStartHour}
+            />
+          </div>
+          <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+            <p className="text-sm font-medium">Fin du mode coucher</p>
+            <Input
+              max={23}
+              min={0}
+              onChange={(event) =>
+                setParentalSettings((prev) => ({
+                  ...prev,
+                  bedtimeWindowEndHour: Math.max(
+                    0,
+                    Math.min(23, Number(event.target.value) || 0)
+                  ),
+                }))
+              }
+              type="number"
+              value={parentalSettings.bedtimeWindowEndHour}
+            />
           </div>
         </div>
 
@@ -2245,6 +2322,13 @@ export default function SettingsPage() {
           <p className="mt-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
             Accès restreint : entrez le code parental dans la section "Contrôle
             parental" pour autoriser temporairement ces actions.
+          </p>
+        )}
+        {isBedtimeRestrictionActive && (
+          <p className="mt-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+            Mode coucher actif ({parentalSettings.bedtimeWindowStartHour}h-
+            {parentalSettings.bedtimeWindowEndHour}h) : les actions sensibles
+            sont temporairement bloquées.
           </p>
         )}
         <div className="mt-4 grid gap-2 md:grid-cols-3">

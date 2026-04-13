@@ -6,6 +6,8 @@ const HIGH_RISK_PATTERNS = [
   /\b(exploit|sqlmap|xss|rce|payload)\b/i,
   /\b(credential\s*stuffing|brute\s*force|phishing)\b/i,
   /\b(self[- ]?harm|suicide)\b/i,
+  /\b(fentanyl|ricin|napalm|tannerite)\b/i,
+  /\b(3d[- ]?printed?\s+gun|ghost\s+gun)\b/i,
   /\b(commande|command)\s+rm\s+-rf\s+\/?\b/i,
 ] as const;
 
@@ -14,6 +16,8 @@ const SENSITIVE_PROMPT_PATTERNS = [
   /bypass\s+(security|guardrails|restrictions)/i,
   /reveal\s+(system|hidden)\s+prompt/i,
   /affiche\s+les\s+instructions\s+système/i,
+  /\b(base64|rot13|hex)\b.{0,30}\b(instructions?|prompt|payload)\b/i,
+  /\b(simule|pretend|act as)\b.{0,40}\b(admin|system|root)\b/i,
 ] as const;
 
 export function normalizePromptInput(input: string): string {
