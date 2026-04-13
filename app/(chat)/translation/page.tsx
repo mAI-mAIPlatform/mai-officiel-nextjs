@@ -7,7 +7,7 @@ import {
   RefreshCcw,
   SendHorizonal,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 const languageOptions = [
@@ -31,6 +31,16 @@ const languageOptions = [
   { code: "uk", label: "Ukrainien" },
   { code: "id", label: "Indonésien" },
   { code: "vi", label: "Vietnamien" },
+  { code: "cs", label: "Tchèque" },
+  { code: "da", label: "Danois" },
+  { code: "el", label: "Grec" },
+  { code: "fi", label: "Finnois" },
+  { code: "he", label: "Hébreu" },
+  { code: "hu", label: "Hongrois" },
+  { code: "no", label: "Norvégien" },
+  { code: "ro", label: "Roumain" },
+  { code: "sk", label: "Slovaque" },
+  { code: "th", label: "Thaï" },
 ] as const;
 
 const synonymsMap: Record<string, string[]> = {
@@ -50,6 +60,10 @@ const detectorPatterns = {
   de: /\b(der|die|das|mit|und|ist|für)\b/giu,
   it: /\b(il|lo|gli|che|per|con|una)\b/giu,
   pt: /\b(o|a|os|as|com|para|que|uma)\b/giu,
+  nl: /\b(de|het|een|en|met|voor)\b/giu,
+  sv: /\b(och|det|att|som|med|för)\b/giu,
+  pl: /\b(i|oraz|jest|nie|dla|czy)\b/giu,
+  tr: /\b(ve|bir|için|ile|bu|şu)\b/giu,
 };
 
 function detectLanguage(text: string) {
@@ -88,6 +102,7 @@ export default function TranslationPage() {
   const [aiLexicalAnalysis, setAiLexicalAnalysis] = useState("");
   const [isGeneratingLexicalAnalysis, setIsGeneratingLexicalAnalysis] =
     useState(false);
+  const translationCacheRef = useRef<Record<string, string>>({});
 
   const detectedLanguage = useMemo(
     () => detectLanguage(sourceText),
@@ -100,29 +115,53 @@ export default function TranslationPage() {
       return;
     }
 
+    const abortController = new AbortController();
     const timer = setTimeout(async () => {
       setIsTranslating(true);
+      const sourceLang =
+        sourceLanguage === "auto" ? detectedLanguage : sourceLanguage;
+      const langPair = `${sourceLang}|${targetLanguage}`;
+      const cacheKey = `${langPair}:${sourceText.trim()}`;
+
+      const cachedTranslation = translationCacheRef.current[cacheKey];
+      if (cachedTranslation) {
+        setTranslatedText(cachedTranslation);
+        setIsTranslating(false);
+        return;
+      }
+
       try {
-        const sourceLang =
-          sourceLanguage === "auto" ? detectedLanguage : sourceLanguage;
-        const langPair = `${sourceLang}|${targetLanguage}`;
         const response = await fetch(
-          `https://api.mymemory.translated.net/get?q=${encodeURIComponent(sourceText)}&langpair=${langPair}`
+          `https://api.mymemory.translated.net/get?q=${encodeURIComponent(sourceText)}&langpair=${langPair}`,
+          { signal: abortController.signal }
         );
         const payload = await response.json();
         const bestMatch = payload?.matches?.[0]?.translation;
-        setTranslatedText(
+        const nextTranslation =
           (bestMatch || payload?.responseData?.translatedText || "").trim()
-        );
-      } catch {
+            || "Aucune traduction n'a été trouvée.";
+        setTranslatedText(nextTranslation);
+        translationCacheRef.current[cacheKey] = nextTranslation;
+      } catch (error) {
+        if ((error as Error).name === "AbortError") {
+          return;
+        }
         setTranslatedText("La traduction a échoué. Vérifiez votre connexion.");
       } finally {
         setIsTranslating(false);
       }
     }, 350);
 
-    return () => clearTimeout(timer);
-  }, [detectedLanguage, sourceLanguage, sourceText, targetLanguage]);
+    return () => {
+      clearTimeout(timer);
+      abortController.abort();
+    };
+  }, [
+    detectedLanguage,
+    sourceLanguage,
+    sourceText,
+    targetLanguage,
+  ]);
 
   const lexicalAnalysis = useMemo(() => {
     const textToAnalyze = translatedText.trim() || sourceText.trim();

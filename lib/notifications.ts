@@ -39,6 +39,7 @@ export const interpolateTemplate = (
 
 const STORAGE_KEY = "mai.notifications.history.v1";
 const EVENT_NAME = "mai:notifications-updated";
+const DUPLICATE_WINDOW_MS = 30_000;
 
 function emitUpdate() {
   if (typeof window === "undefined") {
@@ -111,6 +112,20 @@ export function createNotification(input: {
   };
 
   const current = getNotificationHistory();
+  const latest = current[0];
+  if (latest) {
+    const latestTimestamp = new Date(latest.createdAt).getTime();
+    const nextTimestamp = new Date(next.createdAt).getTime();
+    const isDuplicate =
+      latest.level === next.level &&
+      latest.title === next.title &&
+      latest.message === next.message &&
+      nextTimestamp - latestTimestamp < DUPLICATE_WINDOW_MS;
+
+    if (isDuplicate) {
+      return;
+    }
+  }
   saveNotificationHistory([next, ...current]);
 }
 
