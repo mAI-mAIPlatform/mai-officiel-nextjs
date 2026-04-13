@@ -119,16 +119,47 @@ async function withFallback<T>(
   throw new Error(`${errorLabel}: ${message}`);
 }
 
-function extractTextFromGemini(data: any): string {
-  const parts = data?.candidates?.[0]?.content?.parts ?? [];
+
+interface GeminiResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ text?: string }>;
+    };
+  }>;
+}
+
+interface ChatCompletionResponse {
+  choices?: Array<{
+    message?: {
+      content?: string | Array<{ text?: string }>;
+    };
+  }>;
+  output_text?: string;
+}
+
+interface ImagePayloadResponse {
+  data?: Array<{
+    url?: string;
+    b64_json?: string;
+  }>;
+  image_url?: string;
+  output?: Array<{
+    url?: string;
+  }>;
+}
+
+function extractTextFromGemini(data: unknown): string {
+  const typedData = data as GeminiResponse;
+  const parts = typedData?.candidates?.[0]?.content?.parts ?? [];
   return parts
     .map((part: { text?: string }) => part.text ?? "")
     .join("\n")
     .trim();
 }
 
-function extractTextFromChatCompletion(data: any): string {
-  const content = data?.choices?.[0]?.message?.content;
+function extractTextFromChatCompletion(data: unknown): string {
+  const typedData = data as ChatCompletionResponse;
+  const content = typedData?.choices?.[0]?.message?.content;
 
   if (typeof content === "string") {
     return content.trim();
@@ -141,14 +172,15 @@ function extractTextFromChatCompletion(data: any): string {
       .trim();
   }
 
-  return (data?.output_text ?? "").trim();
+  return (typedData?.output_text ?? "").trim();
 }
 
-function extractImagePayload(data: any): {
+function extractImagePayload(data: unknown): {
   imageUrl?: string;
   imageBase64?: string;
 } {
-  const firstData = data?.data?.[0];
+  const typedData = data as ImagePayloadResponse;
+  const firstData = typedData?.data?.[0];
 
   if (typeof firstData?.url === "string") {
     return { imageUrl: firstData.url };
@@ -158,12 +190,12 @@ function extractImagePayload(data: any): {
     return { imageBase64: firstData.b64_json };
   }
 
-  if (typeof data?.image_url === "string") {
-    return { imageUrl: data.image_url };
+  if (typeof typedData?.image_url === "string") {
+    return { imageUrl: typedData.image_url };
   }
 
-  if (typeof data?.output?.[0]?.url === "string") {
-    return { imageUrl: data.output[0].url };
+  if (typeof typedData?.output?.[0]?.url === "string") {
+    return { imageUrl: typedData.output[0].url };
   }
 
   return {};
