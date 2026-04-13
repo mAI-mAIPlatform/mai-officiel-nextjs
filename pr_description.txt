@@ -1,0 +1,3 @@
+🎯 **What:** The testing gap addressed (missing edge cases for getTextFromMessage)
+📊 **Coverage:** What scenarios are now tested (empty array, multiple text parts, empty strings)
+✨ **Result:** The improvement in test coverage

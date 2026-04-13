@@ -54,6 +54,35 @@ test("getTextFromMessage", () => {
     ],
   };
   assert.equal(getTextFromMessage(mockMessageEmpty as any), "");
+
+
+
+  const mockMessageNoParts = {
+    id: "3",
+    role: "user",
+    parts: [],
+  };
+  assert.equal(getTextFromMessage(mockMessageNoParts as any), "");
+
+  const mockMessageMultipleText = {
+    id: "4",
+    role: "user",
+    parts: [
+      { type: "text", text: "Hello" },
+      { type: "text", text: " " },
+      { type: "text", text: "World" },
+    ],
+  };
+  assert.equal(getTextFromMessage(mockMessageMultipleText as any), "Hello World");
+
+  const mockMessageEmptyStrings = {
+    id: "5",
+    role: "user",
+    parts: [
+      { type: "text", text: "" },
+    ],
+  };
+  assert.equal(getTextFromMessage(mockMessageEmptyStrings as any), "");
 });
 
 test("getDocumentTimestampByIndex", () => {
