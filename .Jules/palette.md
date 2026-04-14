@@ -2,3 +2,6 @@
 ## 2024-06-18 - Missing ARIA Labels on Icon-only Buttons
 **Learning:** Found an accessibility issue pattern where `size="icon"` buttons within the application (e.g., in `AgentListDialog`) often lacked descriptive `aria-label` attributes. This makes screen readers unable to convey the button`s purpose to users.
 **Action:** Always ensure that icon-only `<button>` or `<Button>` components include a descriptive `aria-label`. Checked `components/chat/agent-list.tsx` specifically today and addressed missing attributes for edit and delete actions.
+## 2026-04-14 - Redundant ARIA Labels on Text Buttons
+**Learning:** Added `aria-label` attributes to buttons that already had visible text content (e.g., `<button><PencilIcon /> Modifier</button>`). This is an accessibility anti-pattern because the visible text already serves as the accessible name, and the label just overrides it redundantly.
+**Action:** Only add `aria-label` attributes to buttons that are strictly icon-only and have no visible text content. If a button has text, rely on that text for the accessible name.

@@ -111,6 +111,7 @@ export function DocumentCanvas({
                 </span>
                 {blocks.length > 1 ? (
                   <button
+                    aria-label="Supprimer le bloc"
                     className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                     onClick={() => {
                       const next = blocks.filter((item) => item.id !== block.id);
