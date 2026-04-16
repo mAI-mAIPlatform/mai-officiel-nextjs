@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 
 const FS_API_BASE_URL =
-  process.env.FS_API_BASE_URL ?? "https://api.francestudent.org/v1";
+  process.env.FS_API_BASE_URL ?? "https://api.francestudent.org/v1/chat/completions";
 const FS_TIMEOUT_MS = Number.parseInt(
   process.env.FS_API_TIMEOUT_MS ?? "10000",
   10
