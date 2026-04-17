@@ -33,6 +33,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
+import {
+  getTierRemaining,
+  getTierUsage,
+  type ModelTier,
+} from "@/lib/ai/credits";
 import { APP_VERSION } from "@/lib/app-version";
 import { LANGUAGE_STORAGE_KEY, resolveLanguage, setLanguageInStorage } from "@/lib/i18n";
 import {
@@ -454,7 +459,12 @@ export default function SettingsPage() {
     inputTokens: 0,
     outputTokens: 0,
   });
-  const [webSearchUsage, setWebSearchUsage] = useState(0);
+  const [fileUsageToday, setFileUsageToday] = useState(0);
+  const [tierUsage, setTierUsage] = useState<Record<ModelTier, number>>({
+    tier1: 0,
+    tier2: 0,
+    tier3: 0,
+  });
   const [deferredPwaPrompt, setDeferredPwaPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [securitySettings, setSecuritySettings] =
@@ -505,18 +515,25 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    const refreshWebSearchUsage = () => {
-      setWebSearchUsage(getUsageCount("websearch", "day"));
+    const refreshUsage = () => {
+      setFileUsageToday(getUsageCount("files", "day"));
+      setTierUsage({
+        tier1: getTierUsage("tier1"),
+        tier2: getTierUsage("tier2"),
+        tier3: getTierUsage("tier3"),
+      });
     };
-    refreshWebSearchUsage();
-    window.addEventListener("storage", refreshWebSearchUsage);
-    window.addEventListener("mai:websearch-usage-updated", refreshWebSearchUsage);
+    refreshUsage();
+    window.addEventListener("storage", refreshUsage);
+    window.addEventListener("mai:websearch-usage-updated", refreshUsage);
+    window.addEventListener("mai:usage-updated", refreshUsage);
     return () => {
-      window.removeEventListener("storage", refreshWebSearchUsage);
+      window.removeEventListener("storage", refreshUsage);
       window.removeEventListener(
         "mai:websearch-usage-updated",
-        refreshWebSearchUsage
+        refreshUsage
       );
+      window.removeEventListener("mai:usage-updated", refreshUsage);
     };
   }, []);
 
@@ -1498,38 +1515,65 @@ export default function SettingsPage() {
       return [];
     }
 
-    // Le suivi local est prêt pour messages/fichiers/quiz/tâches.
+    const tier1 = getTierRemaining("tier1", plan, isAuthenticated);
+    const tier2 = getTierRemaining("tier2", plan, isAuthenticated);
+    const tier3 = getTierRemaining("tier3", plan, isAuthenticated);
+
     return [
       {
-        key: "messages",
-        limit: currentPlanDefinition.limits.messagesPerHour,
-        period: "hour",
-        title: "Messages",
-        used: 0,
+        key: "tier1",
+        limit: tier1.limit,
+        period: "day",
+        title: "Tier 1",
+        used: tierUsage.tier1,
+      },
+      {
+        key: "tier2",
+        limit: tier2.limit,
+        period: "day",
+        title: "Tier 2",
+        used: tierUsage.tier2,
+      },
+      {
+        key: "tier3",
+        limit: tier3.limit,
+        period: "day",
+        title: "Tier 3",
+        used: tierUsage.tier3,
       },
       {
         key: "files",
         limit: currentPlanDefinition.limits.filesPerDay,
         period: "day",
         title: "Fichiers",
-        used: 0,
+        used: fileUsageToday,
       },
       {
         key: "tasks",
         limit: currentPlanDefinition.limits.taskSchedules,
         period: "month",
-        title: "Tâches planifiées",
+        title: "Tâches",
         used: tasks.length,
       },
       {
-        key: "websearch",
-        limit: currentPlanDefinition.limits.webSearchesPerDay,
+        key: "quiz",
+        limit: -1,
         period: "day",
-        title: "Recherche web",
-        used: webSearchUsage,
+        title: "Quiz",
+        used: 0,
       },
     ];
-  }, [currentPlanDefinition, isHydrated, tasks.length, webSearchUsage]);
+  }, [
+    currentPlanDefinition,
+    fileUsageToday,
+    isAuthenticated,
+    isHydrated,
+    plan,
+    tasks.length,
+    tierUsage.tier1,
+    tierUsage.tier2,
+    tierUsage.tier3,
+  ]);
 
   const settingsSections = [
     { href: "#compte", key: "compte", label: "Compte" },
@@ -1743,7 +1787,7 @@ export default function SettingsPage() {
           </div>
           <p className="mt-3 text-sm text-muted-foreground">
             {isHydrated
-              ? `${currentPlanDefinition.limits.messagesPerHour} messages/h • ${currentPlanDefinition.limits.filesPerDay} fichiers/jour • Quiz illimités`
+              ? `${getTierRemaining("tier1", plan, isAuthenticated).limit} Tier 1/j • ${getTierRemaining("tier2", plan, isAuthenticated).limit} Tier 2/j • ${getTierRemaining("tier3", plan, isAuthenticated).limit} Tier 3/j • Quiz illimités`
               : "Chargement du forfait..."}
           </p>
 
@@ -2918,19 +2962,23 @@ export default function SettingsPage() {
       >
         <h2 className="flex items-center gap-2 text-lg font-semibold">
           <Gauge className="size-5" />
-          Consommation & quotas globaux
+          Crédits
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Suivi de toutes les limites avec date de réinitialisation automatique
-          selon la période de quota.
+          Suivi des crédits IA par tier, des tâches et des fichiers.
         </p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {creditMetrics.map((metric) => {
-            const consumed = Math.min(metric.used, metric.limit);
-            const remaining = Math.max(metric.limit - consumed, 0);
+            const isUnlimited = metric.limit < 0;
+            const consumed = isUnlimited
+              ? 0
+              : Math.min(metric.used, metric.limit);
+            const remaining = isUnlimited ? Number.POSITIVE_INFINITY : Math.max(metric.limit - consumed, 0);
             const remainingRatio =
-              metric.limit === 0 ? 0 : remaining / metric.limit;
+              metric.limit <= 0 || !Number.isFinite(remaining)
+                ? 1
+                : remaining / metric.limit;
             const resetDate = formatDateTime(getNextResetDate(metric.period));
 
             return (
@@ -2945,14 +2993,27 @@ export default function SettingsPage() {
                     getCreditBadgeColor(remainingRatio)
                   )}
                 >
-                  {remaining}/{metric.limit}
+                  {isUnlimited ? "Illimité" : `${remaining}/${metric.limit}`}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Consommé: {consumed} • Réinitialisation: {resetDate}
+                  {isUnlimited
+                    ? "Accès sans limite"
+                    : `Consommé: ${consumed} • Réinitialisation: ${resetDate}`}
                 </p>
               </article>
             );
           })}
+        </div>
+
+        <div className="mt-4 rounded-xl border border-border/50 bg-background/60 p-4">
+          <h3 className="text-sm font-semibold">Infos</h3>
+          <p className="mt-2 text-xs leading-6 text-muted-foreground">
+            Les crédits du Tier 1 regroupent les modèles GPT-5.4, GPT-5.2,
+            Mistral Large 3 tandis que le Tier 2 comporte GPT-5.1, GPT-5,
+            Claude Sonnet 4.6, Claude Sonnet 4, DeepSeek 3.2, Kimi K2.5 et que
+            le Tier 3 ont les modèles les moins performants, GPT-5.4 Mini,
+            GPT-5.4 Nano, Claude Haïku 4.5.
+          </p>
         </div>
       </section>
 

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
+import { getTierQuota } from "@/lib/ai/credits";
 import { type PlanKey, planDefinitions } from "@/lib/subscription";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +27,7 @@ const planPrices: Record<PlanKey, { amount: string; subtitle: string }> = {
 
 const highlightsByPlan: Record<PlanKey, string[]> = {
   free: [
-    "20 messages / heure",
+    "Crédits tiers inclus (quotas / jour)",
     "Idéal pour découvrir mAI",
     "Réflexion: Aucun ou Léger",
     "Quiz illimités",
@@ -34,7 +35,7 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
     "10 recherches web / jour",
   ],
   plus: [
-    "50 messages / heure",
+    "Crédits tiers étendus (quotas / jour)",
     "IA plus confortable au quotidien",
     "Réflexion: Aucun ou Léger",
     "10 fichiers / jour",
@@ -42,7 +43,7 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
     "20 recherches web / jour",
   ],
   pro: [
-    "75 messages / heure",
+    "Crédits tiers pro (quotas / jour)",
     "Pour usage intensif et projets multi-modules",
     "Réflexion: Aucun, Léger, Moyen",
     "20 fichiers / jour",
@@ -50,7 +51,7 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
     "35 recherches web / jour",
   ],
   max: [
-    "100 messages / heure",
+    "Crédits tiers max (quotas / jour)",
     "Pour équipes et usages professionnels continus",
     "Réflexion: Aucun, Léger, Moyen, Approfondi",
     "50 fichiers / jour",
@@ -156,8 +157,11 @@ export default function PricingPage() {
 
               <div className="mt-4 grid grid-cols-1 gap-1 rounded-xl border border-border/50 bg-background/60 p-3 text-xs text-muted-foreground">
                 <p className="flex items-center gap-1">
-                  <MessageCircle className="size-3.5" /> {planItem.limits.messagesPerHour}/h
+                  <MessageCircle className="size-3.5" /> Tier 1:{" "}
+                  {getTierQuota("tier1", planItem.key, true)}/jour
                 </p>
+                <p>Tier 2: {getTierQuota("tier2", planItem.key, true)}/jour</p>
+                <p>Tier 3: {getTierQuota("tier3", planItem.key, true)}/jour</p>
                 <p className="flex items-center gap-1">
                   <Brain className="size-3.5" /> Mémoire: {planItem.limits.memoryUnits}
                 </p>

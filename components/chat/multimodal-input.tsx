@@ -21,6 +21,7 @@ import {
   StarIcon,
   Square,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
@@ -78,6 +79,15 @@ import { pluginRegistry } from "@/lib/plugins/registry";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import { consumeUsage } from "@/lib/usage-limits";
 import { cn, fetcher } from "@/lib/utils";
+import {
+  areAllTierCreditsExhausted,
+  getFallbackTier,
+  getFirstModelForTier,
+  getTierForModelId,
+  getTierLabel,
+  getTierRemaining,
+} from "@/lib/ai/credits";
+import { createNotification } from "@/lib/notifications";
 import {
   PromptInput,
   PromptInputFooter,
@@ -231,6 +241,11 @@ function PureMultimodalInput({
 }) {
   const router = useRouter();
   const { setTheme, resolvedTheme } = useTheme();
+  const { plan, isHydrated } = useSubscriptionPlan();
+  const { status: sessionStatus } = useSession();
+  const isAuthenticated = sessionStatus === "authenticated";
+  const allModelIds = useMemo(() => chatModels.map((model) => model.id), []);
+  const lastCreditRedirectKeyRef = useRef<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
   const hasAutoFocused = useRef(false);
@@ -260,6 +275,56 @@ function PureMultimodalInput({
   useEffect(() => {
     setLocalStorageInput(input);
   }, [input, setLocalStorageInput]);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    const currentTier = getTierForModelId(selectedModelId);
+    const currentRemaining = getTierRemaining(
+      currentTier,
+      plan,
+      isAuthenticated
+    ).remaining;
+
+    if (currentRemaining > 0) {
+      return;
+    }
+
+    const fallbackTier = getFallbackTier(currentTier, plan, isAuthenticated);
+    const fallbackModelId = fallbackTier
+      ? getFirstModelForTier(fallbackTier, allModelIds)
+      : null;
+
+    if (!fallbackTier || !fallbackModelId) {
+      return;
+    }
+
+    const redirectKey = `${selectedModelId}->${fallbackModelId}`;
+    if (lastCreditRedirectKeyRef.current === redirectKey) {
+      return;
+    }
+
+    lastCreditRedirectKeyRef.current = redirectKey;
+    onModelChange?.(fallbackModelId);
+    setCookie("chat-model", fallbackModelId);
+    const message = `${getTierLabel(currentTier)} épuisé. Modèle basculé vers ${getTierLabel(fallbackTier)}.`;
+    toast.warning(message);
+    createNotification({
+      level: "warning",
+      message,
+      source: "system",
+      title: "Crédits IA",
+    });
+  }, [
+    allModelIds,
+    isAuthenticated,
+    isHydrated,
+    onModelChange,
+    plan,
+    selectedModelId,
+  ]);
 
   useEffect(() => {
     const pendingKey = "mai.chat.pending-library-attachments";
@@ -647,6 +712,49 @@ function PureMultimodalInput({
         return;
       }
 
+      const currentTier = getTierForModelId(selectedModelId);
+      const tierCreditState = getTierRemaining(currentTier, plan, isAuthenticated);
+      if (tierCreditState.remaining <= 0) {
+        const fallbackTier = getFallbackTier(currentTier, plan, isAuthenticated);
+        if (fallbackTier) {
+          const fallbackModelId = getFirstModelForTier(fallbackTier, allModelIds);
+          if (fallbackModelId) {
+            onModelChange?.(fallbackModelId);
+            setCookie("chat-model", fallbackModelId);
+            const message = `${getTierLabel(currentTier)} épuisé. Bascule automatique vers ${getTierLabel(fallbackTier)}.`;
+            toast.warning(message);
+            createNotification({
+              level: "warning",
+              message,
+              source: "system",
+              title: "Crédits IA",
+            });
+            return;
+          }
+        } else if (areAllTierCreditsExhausted(plan, isAuthenticated)) {
+          const message =
+            "Tous vos quotas IA sont épuisés pour aujourd'hui. Revenez après la réinitialisation des crédits.";
+          toast.error(message);
+          createNotification({
+            level: "error",
+            message,
+            source: "system",
+            title: "Crédits IA",
+          });
+          return;
+        } else {
+          const message = `${getTierLabel(currentTier)} épuisé pour aujourd'hui. Choisissez un autre modèle.`;
+          toast.error(message);
+          createNotification({
+            level: "error",
+            message,
+            source: "system",
+            title: "Crédits IA",
+          });
+          return;
+        }
+      }
+
       if (status !== "ready" && status !== "error") {
         toast.error("Veuillez attendre la fin de la réponse du modèle.");
         return;
@@ -792,12 +900,17 @@ ${extractedFileContext}`
       }, 250);
     },
     [
+      allModelIds,
       chatId,
       extractedFiles,
       geolocationPos,
+      isAuthenticated,
+      onModelChange,
+      plan,
       sendMessage,
       setAttachments,
       status,
+      selectedModelId,
       setInput,
       setLocalStorageInput,
       uploadSource,
@@ -905,6 +1018,9 @@ ${extractedFileContext}`
         const successfullyUploadedAttachments = uploadedAttachments.filter(
           (attachment) => attachment !== undefined
         );
+        for (let index = 0; index < successfullyUploadedAttachments.length; index += 1) {
+          consumeUsage("files", "day");
+        }
 
         setAttachments((currentAttachments) => [
           ...currentAttachments,
@@ -959,6 +1075,9 @@ ${extractedFileContext}`
             attachment.url !== undefined &&
             attachment.contentType !== undefined
         );
+        for (let index = 0; index < successfullyUploadedAttachments.length; index += 1) {
+          consumeUsage("files", "day");
+        }
 
         setAttachments((curr) => [
           ...curr,
@@ -2045,6 +2164,9 @@ function PureModelSelectorCompact({
   onModelChange?: (modelId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { plan } = useSubscriptionPlan();
+  const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
   const { data: modelsData } = useSWR(
     `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/models`,
     (url: string) => fetch(url).then((r) => r.json()),
@@ -2156,16 +2278,36 @@ function PureModelSelectorCompact({
                       )
                       .map(({ model, curated }) => {
                         const logoProvider = resolveModelLogoProvider(model);
+                        const tier = getTierForModelId(model.id);
+                        const tierState = getTierRemaining(
+                          tier,
+                          plan,
+                          isAuthenticated
+                        );
+                        const isExhausted = tierState.remaining <= 0;
                         return (
                           <ModelSelectorItem
                             className={cn(
                               "flex w-full",
                               model.id === selectedModel.id && "bg-muted/50",
-                              !curated && "opacity-40 cursor-default"
+                              (!curated || isExhausted) &&
+                                "cursor-not-allowed opacity-40"
                             )}
+                            disabled={!curated || isExhausted}
                             key={model.id}
                             onSelect={() => {
                               if (!curated) {
+                                return;
+                              }
+                              if (isExhausted) {
+                                const message = `${getTierLabel(tier)} épuisé : choisissez un modèle d'un tier inférieur.`;
+                                toast.error(message);
+                                createNotification({
+                                  level: "warning",
+                                  message,
+                                  source: "system",
+                                  title: "Crédits IA",
+                                });
                                 return;
                               }
                               onModelChange?.(model.id);
@@ -2186,6 +2328,11 @@ function PureModelSelectorCompact({
                             <div className="ml-auto flex items-center gap-2 text-foreground/70">
                               {!curated && (
                                 <LockIcon className="size-3 text-muted-foreground/50" />
+                              )}
+                              {isExhausted && curated && (
+                                <span className="rounded border border-border/50 px-1 py-0.5 text-[10px] text-muted-foreground">
+                                  Quota épuisé
+                                </span>
                               )}
                             </div>
                           </ModelSelectorItem>
