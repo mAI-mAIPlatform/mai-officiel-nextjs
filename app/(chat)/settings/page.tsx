@@ -34,13 +34,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 import { APP_VERSION } from "@/lib/app-version";
-import { LANGUAGE_STORAGE_KEY, resolveLanguage, setLanguageInStorage } from "@/lib/i18n";
 import {
   CHAT_TAGS_STORAGE_KEY,
   TAG_DEFINITIONS_STORAGE_KEY,
   TAG_PALETTE,
   type TagDefinition,
 } from "@/lib/chat-preferences";
+import {
+  LANGUAGE_STORAGE_KEY,
+  resolveLanguage,
+  setLanguageInStorage,
+} from "@/lib/i18n";
 import { createNotification } from "@/lib/notifications";
 import {
   defaultSecuritySettings,
@@ -297,8 +301,7 @@ function sanitizeScheduledTasks(input: unknown): ScheduledTask[] {
     )
     .map((task) => ({
       ...task,
-      isEnabled:
-        typeof task.isEnabled === "boolean" ? task.isEnabled : true,
+      isEnabled: typeof task.isEnabled === "boolean" ? task.isEnabled : true,
       notes: typeof task.notes === "string" ? task.notes.trim() : "",
       title: task.title.trim(),
     }))
@@ -449,8 +452,9 @@ export default function SettingsPage() {
   const [webSearchUsage, setWebSearchUsage] = useState(0);
   const [deferredPwaPrompt, setDeferredPwaPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
-  const [securitySettings, setSecuritySettings] =
-    useState<SecuritySettings>(defaultSecuritySettings);
+  const [securitySettings, setSecuritySettings] = useState<SecuritySettings>(
+    defaultSecuritySettings
+  );
   const [securityPinDraft, setSecurityPinDraft] = useState("");
   const [securityPinConfirmDraft, setSecurityPinConfirmDraft] = useState("");
   const [securityFeedback, setSecurityFeedback] = useState<{
@@ -493,7 +497,10 @@ export default function SettingsPage() {
     };
     refreshWebSearchUsage();
     window.addEventListener("storage", refreshWebSearchUsage);
-    window.addEventListener("mai:websearch-usage-updated", refreshWebSearchUsage);
+    window.addEventListener(
+      "mai:websearch-usage-updated",
+      refreshWebSearchUsage
+    );
     return () => {
       window.removeEventListener("storage", refreshWebSearchUsage);
       window.removeEventListener(
@@ -1435,38 +1442,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSortSettings = () => {
-    setMemorySortMode((prevMode) => {
-      if (prevMode === "manual") {
-        manualMemoryOrderRef.current = [...memoryEntryIds];
-        const indexed = aiMemoryEntries.map((entry, index) => ({
-          entry,
-          id: memoryEntryIds[index] ?? `memory-${index}`,
-        }));
-        indexed.sort((left, right) =>
-          left.entry.localeCompare(right.entry, "fr")
-        );
-        setAiMemoryEntries(indexed.map((item) => item.entry));
-        setMemoryEntryIds(indexed.map((item) => item.id));
-        return "alpha";
-      }
-
-      if (manualMemoryOrderRef.current.length > 0) {
-        const entryById = new Map(
-          memoryEntryIds.map((id, index) => [id, aiMemoryEntries[index] ?? ""])
-        );
-        setMemoryEntryIds(manualMemoryOrderRef.current);
-        setAiMemoryEntries(
-          manualMemoryOrderRef.current
-            .map((id) => entryById.get(id) ?? "")
-            .filter(Boolean)
-        );
-      }
-
-      return "manual";
-    });
-  };
-
   const creditMetrics = useMemo<CreditMetric[]>(() => {
     if (!isHydrated) {
       return [];
@@ -1540,7 +1515,9 @@ export default function SettingsPage() {
     ) &&
     !isParentalSessionUnlocked;
   const isDataAccessRestricted =
-    isAdvancedAccessRestricted || isUsageLimitReached || isBedtimeRestrictionActive;
+    isAdvancedAccessRestricted ||
+    isUsageLimitReached ||
+    isBedtimeRestrictionActive;
 
   const handleSetLockCode = () => {
     const normalizedNewCode = newLockCode.trim();
@@ -1603,7 +1580,6 @@ export default function SettingsPage() {
       type: "success",
     });
   };
-
 
   const handleSaveSecurityPin = () => {
     const nextPin = securityPinDraft.trim();
@@ -1860,7 +1836,7 @@ export default function SettingsPage() {
               onClick={() => handleWordCounterVisibility(false)}
               size="sm"
               type="button"
-              variant={!showWordCounter ? "default" : "outline"}
+              variant={showWordCounter ? "outline" : "default"}
             >
               Masquer
             </Button>
@@ -1937,16 +1913,6 @@ export default function SettingsPage() {
             <UserCircle2 className="size-4 text-primary" />
             Personnalisation
           </h2>
-          <Button
-            className="rounded-full"
-            onClick={handleSortSettings}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <ListPlus className="mr-1 size-4" />
-            Trier les paramètres
-          </Button>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
           Personnalisez l&apos;IA et vos informations pour adapter ses réponses.
@@ -2472,7 +2438,8 @@ export default function SettingsPage() {
             Sécurité de session
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Protégez votre session sans vous reconnecter : vérification au chargement, PIN de reprise et déconnexion régulière.
+            Protégez votre session sans vous reconnecter : vérification au
+            chargement, PIN de reprise et déconnexion régulière.
           </p>
 
           <div className="mt-3 grid gap-2 md:grid-cols-2">
@@ -2510,7 +2477,9 @@ export default function SettingsPage() {
               inputMode="numeric"
               maxLength={8}
               onChange={(event) =>
-                setSecurityPinDraft(event.target.value.replace(/\D+/g, "").slice(0, 8))
+                setSecurityPinDraft(
+                  event.target.value.replace(/\D+/g, "").slice(0, 8)
+                )
               }
               placeholder="Nouveau PIN (4-8)"
               type="password"
@@ -2520,13 +2489,19 @@ export default function SettingsPage() {
               inputMode="numeric"
               maxLength={8}
               onChange={(event) =>
-                setSecurityPinConfirmDraft(event.target.value.replace(/\D+/g, "").slice(0, 8))
+                setSecurityPinConfirmDraft(
+                  event.target.value.replace(/\D+/g, "").slice(0, 8)
+                )
               }
               placeholder="Confirmer PIN"
               type="password"
               value={securityPinConfirmDraft}
             />
-            <Button onClick={handleSaveSecurityPin} type="button" variant="outline">
+            <Button
+              onClick={handleSaveSecurityPin}
+              type="button"
+              variant="outline"
+            >
               Enregistrer PIN
             </Button>
           </div>
@@ -2550,7 +2525,11 @@ export default function SettingsPage() {
                 value={securitySettings.autoLogoutMinutes}
               />
             </label>
-            <Button onClick={handleDisableSecurityPin} type="button" variant="ghost">
+            <Button
+              onClick={handleDisableSecurityPin}
+              type="button"
+              variant="ghost"
+            >
               Désactiver PIN
             </Button>
           </div>
@@ -2570,7 +2549,9 @@ export default function SettingsPage() {
         </div>
 
         <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-background/60 p-4">
-          <h3 className="text-sm font-semibold">Compteur de tokens (hors chat fantôme)</h3>
+          <h3 className="text-sm font-semibold">
+            Compteur de tokens (hors chat fantôme)
+          </h3>
           <p className="mt-1 text-xs text-muted-foreground">
             Compte cumulatif de tous les échanges non fantômes (entrée/sortie).
           </p>
@@ -2590,7 +2571,9 @@ export default function SettingsPage() {
             <div className="rounded-lg border border-border/50 bg-card/70 p-3">
               <p className="text-xs text-muted-foreground">Total</p>
               <p className="text-lg font-semibold tabular-nums">
-                {(tokenUsage.inputTokens + tokenUsage.outputTokens).toLocaleString("fr-FR")}
+                {(
+                  tokenUsage.inputTokens + tokenUsage.outputTokens
+                ).toLocaleString("fr-FR")}
               </p>
             </div>
           </div>
@@ -3001,7 +2984,9 @@ export default function SettingsPage() {
                     Statut : {task.isEnabled ? "Actif" : "En pause"}
                   </p>
                   {task.notes ? (
-                    <p className="text-xs text-muted-foreground">{task.notes}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {task.notes}
+                    </p>
                   ) : null}
                   {task.lastRunAt ? (
                     <p className="text-xs text-muted-foreground">

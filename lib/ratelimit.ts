@@ -19,6 +19,24 @@ function getClient() {
   return client;
 }
 
+export async function checkUserOpusRateLimit(userId: string) {
+  const redis = getClient();
+  if (!redis?.isReady) {
+    return;
+  }
+  try {
+    const key = `opus-rate-limit:${userId}`;
+    const [count] = await redis.multi().incr(key).expire(key, 24 * 60 * 60, "NX").exec();
+    if (typeof count === "number" && count > 1) {
+      throw new ChatbotError("rate_limit:chat");
+    }
+  } catch (error) {
+    if (error instanceof ChatbotError) {
+      throw error;
+    }
+  }
+}
+
 export async function checkIpRateLimit(ip: string | undefined) {
   if (!isProductionEnvironment || !ip) {
     return;

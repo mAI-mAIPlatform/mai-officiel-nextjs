@@ -4,7 +4,6 @@ import {
   BadgeCheck,
   Bot,
   Brain,
-  FlaskConical,
   Languages,
   Palette,
   Shield,
@@ -25,9 +24,9 @@ import { Input } from "@/components/ui/input";
 import {
   defaultShortcuts,
   SHORTCUTS_STORAGE_KEY,
+  type ShortcutConfig,
   TAG_DEFINITIONS_STORAGE_KEY,
   TAG_PALETTE,
-  type ShortcutConfig,
   type TagDefinition,
 } from "@/lib/chat-preferences";
 import { setClientPreferenceCookie } from "@/lib/client-preferences";
@@ -49,25 +48,6 @@ type ProfileSettings = {
 };
 
 const PROFILE_SETTINGS_STORAGE_KEY = "mai.profile.settings.v2";
-
-type VoiceSettings = {
-  captionsEnabled: boolean;
-  interfaceMode: "liquid" | "minimal";
-  pitch: number;
-  rate: number;
-  voiceURI: string;
-};
-
-const VOICE_SETTINGS_STORAGE_KEY = "mai.voice.settings.v1";
-
-const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
-  captionsEnabled: true,
-  interfaceMode: "liquid",
-  pitch: 1,
-  rate: 1,
-  voiceURI: "",
-};
-
 
 const AVATAR_PRESETS = [
   {
@@ -210,7 +190,10 @@ export function useProfileSettings({
 
     const serializedSettings = JSON.stringify(nextProfileSettings);
 
-    window.localStorage.setItem(PROFILE_SETTINGS_STORAGE_KEY, serializedSettings);
+    window.localStorage.setItem(
+      PROFILE_SETTINGS_STORAGE_KEY,
+      serializedSettings
+    );
     setClientPreferenceCookie("mai_profile", serializedSettings);
   }, [
     aiMemory,
@@ -328,39 +311,7 @@ export function UserSettingsDialog({
     LANGUAGE_STORAGE_KEY,
     "fr"
   );
-  const [voiceSettings, setVoiceSettings] = useLocalStorage<VoiceSettings>(
-    VOICE_SETTINGS_STORAGE_KEY,
-    DEFAULT_VOICE_SETTINGS
-  );
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>(
-    []
-  );
 
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      return;
-    }
-
-    const loadVoices = () => {
-      setAvailableVoices(window.speechSynthesis.getVoices());
-    };
-
-    loadVoices();
-    window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
-
-    return () => {
-      window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
-    };
-  }, []);
-
-  useEffect(() => {
-    window.dispatchEvent(
-      new CustomEvent("mai:voice-settings-updated", {
-        detail: voiceSettings,
-      })
-    );
-  }, [voiceSettings]);
 
   useEffect(() => {
     window.dispatchEvent(
@@ -581,7 +532,8 @@ export function UserSettingsDialog({
             <section className="rounded-2xl border border-border/60 bg-background/40 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl">
               <h3 className="text-sm font-semibold">Tags de conversations</h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Maximum 20 tags, 20 caractères par nom, et 3 tags par conversation.
+                Maximum 20 tags, 20 caractères par nom, et 3 tags par
+                conversation.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {tagDefinitions.map((tag) => (
@@ -589,7 +541,10 @@ export function UserSettingsDialog({
                     className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-xs"
                     key={tag.id}
                   >
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: tag.color }}
+                    />
                     {tag.name}
                   </span>
                 ))}
@@ -604,7 +559,9 @@ export function UserSettingsDialog({
                 <button
                   className="rounded-xl border border-border/60 px-3 text-xs"
                   onClick={() => {
-                    if (!nextTagName.trim() || tagDefinitions.length >= 20) return;
+                    if (!nextTagName.trim() || tagDefinitions.length >= 20) {
+                      return;
+                    }
                     setTagDefinitions((current) => [
                       ...current,
                       {
@@ -636,133 +593,14 @@ export function UserSettingsDialog({
               </div>
             </section>
 
-
-            <section className="rounded-2xl border border-border/60 bg-background/40 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl">
-              <div className="flex items-center gap-2">
-                <Volume2 className="size-4 text-cyan-400" />
-                <h3 className="text-sm font-semibold">Voix</h3>
-                <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-300">
-                  <FlaskConical className="size-3" /> Expérimental
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                mAI Voice utilise la Web Speech API du navigateur (dictée + synthèse vocale).
-              </p>
-
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <label className="text-xs">
-                  <span className="mb-1 block text-muted-foreground">Voix de synthèse</span>
-                  <select
-                    className="h-9 w-full rounded-xl border border-border/60 bg-background/70 px-2 text-xs"
-                    onChange={(event) =>
-                      setVoiceSettings((current) => ({
-                        ...current,
-                        voiceURI: event.target.value,
-                      }))
-                    }
-                    value={voiceSettings.voiceURI}
-                  >
-                    <option value="">Voix système (auto)</option>
-                    {availableVoices.map((voice) => (
-                      <option key={voice.voiceURI} value={voice.voiceURI}>
-                        {voice.name} — {voice.lang}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="text-xs">
-                  <span className="mb-1 block text-muted-foreground">Style d'interface</span>
-                  <select
-                    className="h-9 w-full rounded-xl border border-border/60 bg-background/70 px-2 text-xs"
-                    onChange={(event) =>
-                      setVoiceSettings((current) => ({
-                        ...current,
-                        interfaceMode:
-                          event.target.value === "minimal" ? "minimal" : "liquid",
-                      }))
-                    }
-                    value={voiceSettings.interfaceMode}
-                  >
-                    <option value="liquid">Liquid Glass</option>
-                    <option value="minimal">Minimal</option>
-                  </select>
-                </label>
-              </div>
-
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <label className="text-xs">
-                  <span className="mb-1 block text-muted-foreground">Vitesse ({voiceSettings.rate.toFixed(1)}x)</span>
-                  <input
-                    className="w-full accent-cyan-500"
-                    max={2}
-                    min={0.6}
-                    onChange={(event) =>
-                      setVoiceSettings((current) => ({
-                        ...current,
-                        rate: Number(event.target.value),
-                      }))
-                    }
-                    step={0.1}
-                    type="range"
-                    value={voiceSettings.rate}
-                  />
-                </label>
-
-                <label className="text-xs">
-                  <span className="mb-1 block text-muted-foreground">Hauteur ({voiceSettings.pitch.toFixed(1)})</span>
-                  <input
-                    className="w-full accent-cyan-500"
-                    max={2}
-                    min={0.5}
-                    onChange={(event) =>
-                      setVoiceSettings((current) => ({
-                        ...current,
-                        pitch: Number(event.target.value),
-                      }))
-                    }
-                    step={0.1}
-                    type="range"
-                    value={voiceSettings.pitch}
-                  />
-                </label>
-              </div>
-
-              <label className="mt-3 flex items-center gap-2 text-xs">
-                <input
-                  checked={voiceSettings.captionsEnabled}
-                  onChange={(event) =>
-                    setVoiceSettings((current) => ({
-                      ...current,
-                      captionsEnabled: event.target.checked,
-                    }))
-                  }
-                  type="checkbox"
-                />
-                Activer les sous-titres dans mAI Voice
-              </label>
-
-              <button
-                className="mt-3 inline-flex h-9 items-center justify-center rounded-xl border border-border/60 bg-background/70 px-3 text-xs"
-                onClick={async () => {
-                  if (!("Notification" in window)) {
-                    return;
-                  }
-
-                  await Notification.requestPermission();
-                }}
-                type="button"
-              >
-                Autoriser les notifications PWA (iPhone/Android)
-              </button>
-            </section>
-
             <section className="rounded-2xl border border-border/60 bg-background/40 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl">
               <h3 className="flex items-center gap-2 text-sm font-semibold">
-                <Languages className="size-4 text-violet-400" /> Langue de l'interface
+                <Languages className="size-4 text-violet-400" /> Langue de
+                l'interface
               </h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Le changement s'applique immédiatement aux zones déjà internationalisées.
+                Le changement s'applique immédiatement aux zones déjà
+                internationalisées.
               </p>
               <select
                 className="mt-3 h-9 w-full rounded-xl border border-border/60 bg-background/70 px-2 text-xs md:w-72"
@@ -780,7 +618,8 @@ export function UserSettingsDialog({
             <section className="rounded-2xl border border-border/60 bg-background/40 p-4 shadow-[var(--shadow-card)] backdrop-blur-xl">
               <h3 className="text-sm font-semibold">Raccourcis clavier</h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Cliquez dans un champ puis tapez votre combinaison. Les conflits sont bloqués.
+                Cliquez dans un champ puis tapez votre combinaison. Les conflits
+                sont bloqués.
               </p>
               <div className="mt-3 grid gap-2 md:grid-cols-2">
                 {[
@@ -790,7 +629,9 @@ export function UserSettingsDialog({
                   { key: "copyMessage", label: "Copier message" },
                 ].map((item) => (
                   <label className="text-xs" key={item.key}>
-                    <span className="mb-1 block text-muted-foreground">{item.label}</span>
+                    <span className="mb-1 block text-muted-foreground">
+                      {item.label}
+                    </span>
                     <Input
                       onKeyDown={(event) =>
                         registerShortcut(

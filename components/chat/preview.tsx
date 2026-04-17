@@ -44,7 +44,7 @@ export function Preview() {
         />
         <span className="text-[13px] text-muted-foreground">mAI</span>
         <button
-          className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition ${
+          className={`ml-auto inline-flex items-center justify-center rounded-full border size-8 transition ${
             isGhostModeEnabled
               ? "border-purple-500/40 bg-purple-500/20 text-purple-200 shadow-[0_0_0_3px_rgba(168,85,247,0.15)]"
               : "border-border/40 bg-card/40 text-muted-foreground hover:border-border/70"
@@ -54,10 +54,11 @@ export function Preview() {
             setIsGhostModeEnabled(nextValue);
             localStorage.setItem("mai.ghost-mode", String(nextValue));
           }}
+          title={isGhostModeEnabled ? "Mode Fantôme actif" : "Mode Fantôme"}
           type="button"
         >
-          <Ghost className="size-3.5" />
-          {isGhostModeEnabled ? "Mode Fantôme actif" : "Mode Fantôme"}
+          <Ghost className="size-4" />
+
         </button>
       </div>
 
@@ -70,9 +71,12 @@ export function Preview() {
             Posez une question, écrivez du code, ou explorez des idées.
           </p>
           {isGhostModeEnabled && (
-            <p className="mt-2 text-xs text-purple-300">
-              Le prochain message ne sera pas enregistré dans l'historique.
-            </p>
+            <>
+  <p className="mt-2 text-sm font-medium text-purple-300">Mode Fantôme</p>
+  <p className="mt-1 text-xs text-purple-300/80">
+    Le prochain message ne sera pas enregistré dans l'historique.
+  </p>
+</>
           )}
         </div>
 
@@ -82,6 +86,7 @@ export function Preview() {
               className="liquid-glass rounded-xl px-3 py-2.5 text-left text-[11px] leading-relaxed text-muted-foreground/70 transition-all duration-200 hover:-translate-y-0.5 hover:text-foreground"
               key={suggestion}
               onClick={() => handleAction(suggestion)}
+          title={isGhostModeEnabled ? "Mode Fantôme actif" : "Mode Fantôme"}
               type="button"
             >
               {suggestion}
@@ -94,6 +99,7 @@ export function Preview() {
         <button
           className="flex w-full items-center rounded-2xl border border-border/30 bg-card/30 px-4 py-3 text-left text-[13px] text-muted-foreground/40 transition-colors hover:border-border/50 hover:text-muted-foreground/60"
           onClick={() => handleAction()}
+          title={isGhostModeEnabled ? "Mode Fantôme actif" : "Mode Fantôme"}
           type="button"
         >
           Écrivez votre message...

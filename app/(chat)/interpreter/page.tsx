@@ -155,15 +155,17 @@ export default function InterpreterPage() {
 
       const payload = (await response.json()) as ExecutionResponse;
       setResult(payload);
-      setHistory([
-        {
-          createdAt: new Date().toISOString(),
-          output: payload,
-          runtime,
-          sourceCode: code,
-        },
-        ...history,
-      ].slice(0, 20));
+      setHistory(
+        [
+          {
+            createdAt: new Date().toISOString(),
+            output: payload,
+            runtime,
+            sourceCode: code,
+          },
+          ...history,
+        ].slice(0, 20)
+      );
     } catch (error) {
       const errorPayload = {
         error:
@@ -173,15 +175,17 @@ export default function InterpreterPage() {
         success: false,
       } satisfies ExecutionResponse;
       setResult(errorPayload);
-      setHistory([
-        {
-          createdAt: new Date().toISOString(),
-          output: errorPayload,
-          runtime,
-          sourceCode: code,
-        },
-        ...history,
-      ].slice(0, 20));
+      setHistory(
+        [
+          {
+            createdAt: new Date().toISOString(),
+            output: errorPayload,
+            runtime,
+            sourceCode: code,
+          },
+          ...history,
+        ].slice(0, 20)
+      );
     } finally {
       setIsRunning(false);
     }
@@ -220,7 +224,9 @@ export default function InterpreterPage() {
             Thème
             <select
               className="ml-2 rounded-lg border border-border/50 bg-background px-2 py-1"
-              onChange={(event) => setEditorTheme(event.target.value as EditorTheme)}
+              onChange={(event) =>
+                setEditorTheme(event.target.value as EditorTheme)
+              }
               value={editorTheme}
             >
               <option value="monokai">Monokai</option>
@@ -292,7 +298,9 @@ export default function InterpreterPage() {
               accept=".csv,.xlsx,.xls,.txt,.json"
               className="hidden"
               multiple
-              onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
+              onChange={(event) =>
+                setFiles(Array.from(event.target.files ?? []))
+              }
               type="file"
             />
           </label>
@@ -318,19 +326,36 @@ export default function InterpreterPage() {
           <h2 className="mb-2 text-sm font-medium">Output</h2>
           <div className="space-y-2 text-xs">
             {result?.logs?.length ? (
-              <pre className="rounded-xl bg-background/80 p-2">{result.logs.join("\n")}</pre>
+              <pre className="rounded-xl bg-background/80 p-2">
+                {result.logs.join("\n")}
+              </pre>
             ) : null}
-            {result?.output ? <pre className="rounded-xl bg-emerald-500/10 p-2">{result.output}</pre> : null}
+            {result?.output ? (
+              <pre className="rounded-xl bg-emerald-500/10 p-2">
+                {result.output}
+              </pre>
+            ) : null}
             {result?.error ? (
-              <pre className="rounded-xl bg-red-500/10 p-2 text-red-700">{result.error}</pre>
+              <pre className="rounded-xl bg-red-500/10 p-2 text-red-700">
+                {result.error}
+              </pre>
             ) : null}
-            {typeof result?.exitCode !== "undefined" ? <p>Code retour: {String(result.exitCode)}</p> : null}
-            {result ? null : <p className="text-muted-foreground">Aucun résultat pour le moment.</p>}
+            {typeof result?.exitCode === "undefined" ? null : (
+              <p>Code retour: {String(result.exitCode)}</p>
+            )}
+            {result ? null : (
+              <p className="text-muted-foreground">
+                Aucun résultat pour le moment.
+              </p>
+            )}
           </div>
 
           <div className="mt-4 grid gap-2">
             {features.map((item) => (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground" key={item.label}>
+              <div
+                className="flex items-center gap-2 text-xs text-muted-foreground"
+                key={item.label}
+              >
                 <item.icon className="size-3.5" />
                 <span>{item.label}</span>
               </div>
@@ -372,7 +397,8 @@ export default function InterpreterPage() {
                   }}
                   type="button"
                 >
-                  {runtimeLabels[entry.runtime]} · {new Date(entry.createdAt).toLocaleTimeString("fr-FR")}
+                  {runtimeLabels[entry.runtime]} ·{" "}
+                  {new Date(entry.createdAt).toLocaleTimeString("fr-FR")}
                 </button>
               ))}
             </div>

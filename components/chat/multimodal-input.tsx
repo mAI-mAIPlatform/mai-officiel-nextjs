@@ -19,8 +19,8 @@ import {
   Puzzle,
   SearchIcon,
   SparklesIcon,
-  StarIcon,
   Square,
+  StarIcon,
   ZapIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -291,30 +291,6 @@ function PureMultimodalInput({
     }
   }, [setAttachments]);
 
-
-  useEffect(() => {
-    const voiceSubmitHandler = (event: Event) => {
-      const customEvent = event as CustomEvent<{ chatId?: string; text?: string }>;
-      const text = customEvent.detail?.text?.trim();
-      if (!text || status !== "ready") {
-        return;
-      }
-
-      setInput(text);
-      void (sendMessage as UseChatHelpers<ChatMessage>["sendMessage"])({
-        role: "user",
-        parts: [{ type: "text", text }],
-      });
-    };
-
-    window.addEventListener("mai:voice-submit", voiceSubmitHandler as EventListener);
-    return () =>
-      window.removeEventListener(
-        "mai:voice-submit",
-        voiceSubmitHandler as EventListener
-      );
-  }, [sendMessage, setInput, status]);
-
   const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = event.target.value;
     setInput(val);
@@ -428,9 +404,7 @@ function PureMultimodalInput({
         break;
       case "template":
         setInput((current) =>
-          current.trim()
-            ? `${current}\n/${cmd.name}`
-            : `/${cmd.name} `
+          current.trim() ? `${current}\n/${cmd.name}` : `/${cmd.name} `
         );
         break;
       default:
@@ -457,9 +431,8 @@ function PureMultimodalInput({
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
   const [slashIndex, setSlashIndex] = useState(0);
-  const [availableSlashCommands, setAvailableSlashCommands] = useState<
-    SlashCommand[]
-  >(defaultSlashCommands);
+  const [availableSlashCommands, setAvailableSlashCommands] =
+    useState<SlashCommand[]>(defaultSlashCommands);
   const filteredSlashCommands = useMemo(
     () => filterSlashCommands(availableSlashCommands, slashQuery),
     [availableSlashCommands, slashQuery]
@@ -710,13 +683,13 @@ function PureMultimodalInput({
           ? "none"
           : (localStorage.getItem(PLUGIN_MODE_STORAGE_KEY) ?? "none");
       const pluginContextBlock =
-        pluginMode !== "none"
-          ? [
+        pluginMode === "none"
+          ? ""
+          : [
               "[Plugin activé via menu +]",
               `- ${pluginMode}`,
               "Applique uniquement ce plugin à cette requête.",
-            ].join("\n")
-          : "";
+            ].join("\n");
       const forcedWebSearchBlock = forceWebSearchEnabled
         ? [
             "[RECHERCHE WEB OBLIGATOIRE]",
@@ -1230,17 +1203,17 @@ ${extractedFileContext}`
         <PromptInputFooter className="px-2.5 pb-2.5 sm:px-3 sm:pb-3">
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <PromptInputTools>
-            <ContextualActionsMenu
-              fileInputRef={fileInputRef}
-              hasVision={true}
-              onInsertTemplate={handleInsertTemplate}
-              setAttachments={setAttachments}
-              status={status}
-            />
-            <ModelSelectorCompact
-              onModelChange={onModelChange}
-              selectedModelId={selectedModelId}
-            />
+              <ContextualActionsMenu
+                fileInputRef={fileInputRef}
+                hasVision={true}
+                onInsertTemplate={handleInsertTemplate}
+                setAttachments={setAttachments}
+                status={status}
+              />
+              <ModelSelectorCompact
+                onModelChange={onModelChange}
+                selectedModelId={selectedModelId}
+              />
             </PromptInputTools>
             {showWordCounter ? (
               <p className="text-[10px] text-muted-foreground">
@@ -1451,7 +1424,9 @@ function PureContextualActionsMenu({
   const canUseVeryDeepReflection = plan === "max";
 
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated) {
+      return;
+    }
 
     // Bugfix: évite de conserver un niveau non autorisé après un downgrade de forfait.
     if (reasoningLevel === "very-deep" && !canUseVeryDeepReflection) {
@@ -1526,7 +1501,9 @@ function PureContextualActionsMenu({
   const displayedPlugins = sortedPlugins
     .filter((plugin) => {
       const query = pluginSearch.trim().toLowerCase();
-      if (!query) return true;
+      if (!query) {
+        return true;
+      }
       const haystack =
         `${plugin.name} ${plugin.command} ${plugin.category} ${plugin.description}`.toLowerCase();
       return haystack.includes(query);
@@ -1544,12 +1521,16 @@ function PureContextualActionsMenu({
       const pinScore =
         Number(pinnedPluginIds.includes(b.id)) -
         Number(pinnedPluginIds.includes(a.id));
-      if (pinScore !== 0) return pinScore;
+      if (pinScore !== 0) {
+        return pinScore;
+      }
 
       const favoriteScore =
         Number(favoritePluginIds.includes(b.id)) -
         Number(favoritePluginIds.includes(a.id));
-      if (favoriteScore !== 0) return favoriteScore;
+      if (favoriteScore !== 0) {
+        return favoriteScore;
+      }
 
       return a.name.localeCompare(b.name, "fr", { sensitivity: "base" });
     });
@@ -1785,9 +1766,7 @@ function PureContextualActionsMenu({
         <Button
           className="flex h-8 w-full items-center justify-start gap-2 text-xs font-normal"
           onClick={() => {
-            onInsertTemplate(
-              "Ouvre un canevas structuré pour ce travail."
-            );
+            onInsertTemplate("Ouvre un canevas structuré pour ce travail.");
             setOpen(false);
           }}
           variant="ghost"

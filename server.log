@@ -1,0 +1,93 @@
+
+> mai@0.9.8 start /app
+> next start
+
+▲ Next.js 16.2.0
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 206ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at /app/.next/server/chunks/_0y3hvex._.js:1:6507
+    at rY (/app/.next/server/chunks/_0y3hvex._.js:368:51704)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async r7 (/app/.next/server/chunks/_0y3hvex._.js:368:57729)
+    at async rz.do (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:5:21393)
+    at async rz.handle (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:5:26101)
+    at async l (/app/.next/server/chunks/[root-of-the-server]__0hiaxbo._.js:1:10680)
+    at async rz.handleResponse (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:1:119077)
+    at async o (/app/.next/server/chunks/[root-of-the-server]__0hiaxbo._.js:1:11721)
+    at async Module.k [as handler] (/app/.next/server/chunks/[root-of-the-server]__0hiaxbo._.js:1:12791)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at /app/.next/server/chunks/_0y3hvex._.js:1:6507
+    at rY (/app/.next/server/chunks/_0y3hvex._.js:368:51704)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async rz.do (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:5:21393)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at /app/.next/server/chunks/_0y3hvex._.js:1:6507
+    at rY (/app/.next/server/chunks/_0y3hvex._.js:368:51704)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async rz.do (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:5:21393)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at /app/.next/server/chunks/_0y3hvex._.js:1:6507
+    at rY (/app/.next/server/chunks/_0y3hvex._.js:368:51704)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async r7 (/app/.next/server/chunks/_0y3hvex._.js:368:57729)
+    at async rz.do (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:5:21393)
+    at async rz.handle (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:5:26101)
+    at async l (/app/.next/server/chunks/[root-of-the-server]__0hiaxbo._.js:1:10680)
+    at async rz.handleResponse (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:1:119077)
+    at async o (/app/.next/server/chunks/[root-of-the-server]__0hiaxbo._.js:1:11721)
+    at async Module.k [as handler] (/app/.next/server/chunks/[root-of-the-server]__0hiaxbo._.js:1:12791)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at /app/.next/server/chunks/_0y3hvex._.js:1:6507
+    at rY (/app/.next/server/chunks/_0y3hvex._.js:368:51704)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async rz.do (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:5:21393)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at /app/.next/server/chunks/_0y3hvex._.js:1:6507
+    at rY (/app/.next/server/chunks/_0y3hvex._.js:368:51704)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async r7 (/app/.next/server/chunks/_0y3hvex._.js:368:57729)
+    at async rz.do (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:5:21393)
+    at async rz.handle (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:5:26101)
+    at async l (/app/.next/server/chunks/[root-of-the-server]__0hiaxbo._.js:1:10680)
+    at async rz.handleResponse (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:1:119077)
+    at async o (/app/.next/server/chunks/[root-of-the-server]__0hiaxbo._.js:1:11721)
+    at async Module.k [as handler] (/app/.next/server/chunks/[root-of-the-server]__0hiaxbo._.js:1:12791)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at /app/.next/server/chunks/_0y3hvex._.js:1:6507
+    at rY (/app/.next/server/chunks/_0y3hvex._.js:368:51704)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async rz.do (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:5:21393)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at /app/.next/server/chunks/_0y3hvex._.js:1:6507
+    at rY (/app/.next/server/chunks/_0y3hvex._.js:368:51704)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async r7 (/app/.next/server/chunks/_0y3hvex._.js:368:57729)
+    at async rz.do (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:5:21393)
+    at async rz.handle (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:5:26101)
+    at async l (/app/.next/server/chunks/[root-of-the-server]__0hiaxbo._.js:1:10680)
+    at async rz.handleResponse (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:1:119077)
+    at async o (/app/.next/server/chunks/[root-of-the-server]__0hiaxbo._.js:1:11721)
+    at async Module.k [as handler] (/app/.next/server/chunks/[root-of-the-server]__0hiaxbo._.js:1:12791)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at /app/.next/server/chunks/_0y3hvex._.js:1:6507
+    at rY (/app/.next/server/chunks/_0y3hvex._.js:368:51704)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async rz.do (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:5:21393)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at /app/.next/server/chunks/_0y3hvex._.js:1:6507
+    at rY (/app/.next/server/chunks/_0y3hvex._.js:368:51704)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async r7 (/app/.next/server/chunks/_0y3hvex._.js:368:57729)
+    at async rz.do (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:5:21393)
+    at async rz.handle (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:5:26101)
+    at async l (/app/.next/server/chunks/[root-of-the-server]__0hiaxbo._.js:1:10680)
+    at async rz.handleResponse (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:1:119077)
+    at async o (/app/.next/server/chunks/[root-of-the-server]__0hiaxbo._.js:1:11721)
+    at async Module.k [as handler] (/app/.next/server/chunks/[root-of-the-server]__0hiaxbo._.js:1:12791)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at /app/.next/server/chunks/_0y3hvex._.js:1:6507
+    at rY (/app/.next/server/chunks/_0y3hvex._.js:368:51704)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async rz.do (/app/node_modules/.pnpm/next@16.2.0_@opentelemetry+api@1.9.1_@playwright+test@1.59.1_babel-plugin-react-compile_a17beb814882873d1615aa837a7931c8/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.prod.js:5:21393)

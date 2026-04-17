@@ -4,8 +4,8 @@ import {
   BookOpenIcon,
   BotIcon,
   CreditCardIcon,
-  FolderIcon,
   FingerprintIcon,
+  FolderIcon,
   LanguagesIcon,
   PanelsTopLeftIcon,
   PenSquareIcon,
@@ -260,10 +260,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     >
                       {APPLICATION_LINKS.map((item) => (
                         <DropdownMenuItem asChild key={`app-${item.href}`}>
-                          <Link
-                            href={item.href}
-                            onClick={closeMobileSidebar}
-                          >
+                          <Link href={item.href} onClick={closeMobileSidebar}>
                             <item.icon className="mr-2 size-3.5" />
                             {item.label}
                           </Link>

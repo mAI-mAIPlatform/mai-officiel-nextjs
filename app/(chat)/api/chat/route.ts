@@ -12,7 +12,6 @@ import { after } from "next/server";
 import { createResumableStreamContext } from "resumable-stream";
 import { auth, type UserType } from "@/app/(auth)/auth";
 import { entitlementsByUserType } from "@/lib/ai/entitlements";
-import { normalizePromptInput, validatePromptSafety } from "@/lib/ai/safety";
 import {
   isExternalTextModel,
   runExternalTextModel,
@@ -25,6 +24,7 @@ import {
 } from "@/lib/ai/models";
 import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
 import { getLanguageModel } from "@/lib/ai/providers";
+import { normalizePromptInput, validatePromptSafety } from "@/lib/ai/safety";
 import { audioAssistant } from "@/lib/ai/tools/audio-assistant";
 import { createDocument } from "@/lib/ai/tools/create-document";
 import { createMaiTool } from "@/lib/ai/tools/create-mai";
@@ -52,7 +52,7 @@ import {
 } from "@/lib/db/queries";
 import type { DBMessage } from "@/lib/db/schema";
 import { ChatbotError } from "@/lib/errors";
-import { checkIpRateLimit } from "@/lib/ratelimit";
+import { checkIpRateLimit, checkUserOpusRateLimit } from "@/lib/ratelimit";
 import type { ChatMessage } from "@/lib/types";
 import { convertToUIMessages, generateUUID } from "@/lib/utils";
 import { generateTitleFromUserMessage } from "../../actions";
@@ -108,6 +108,10 @@ export async function POST(request: Request) {
       !allowedModelIds.has(selectedChatModel)
         ? DEFAULT_CHAT_MODEL
         : selectedChatModel;
+
+    if (chatModel === "anthropic/claude-opus-4-7") {
+      await checkUserOpusRateLimit(session.user.id);
+    }
 
     await checkIpRateLimit(ipAddress(request));
 
