@@ -70,9 +70,14 @@ export function Preview() {
             Posez une question, écrivez du code, ou explorez des idées.
           </p>
           {isGhostModeEnabled && (
-            <p className="mt-2 text-xs text-purple-300">
-              Le prochain message ne sera pas enregistré dans l'historique.
-            </p>
+            <>
+              <p className="mt-2 text-xs font-medium text-purple-300">
+                ✅ Mode Fantôme activé.
+              </p>
+              <p className="mt-1 text-xs text-purple-300">
+                Le prochain message ne sera pas enregistré dans l&apos;historique.
+              </p>
+            </>
           )}
         </div>
 

@@ -122,7 +122,7 @@ type ProfileSettingsShape = {
   stylisticDirectives: string;
 };
 
-type MemorySortMode = "manual" | "alpha";
+type ReasoningPreference = "none" | "light" | "medium" | "high";
 
 type PersistedMemoryEntry = {
   content: string;
@@ -196,6 +196,15 @@ const defaultProfileSettings: ProfileSettingsShape = {
   projectIconColor: "#60a5fa",
   projectTitle: "",
   stylisticDirectives: "",
+};
+
+const reasoningLevelByPreference: Record<
+  Exclude<ReasoningPreference, "none">,
+  "light" | "moderate" | "deep"
+> = {
+  light: "light",
+  medium: "moderate",
+  high: "deep",
 };
 
 function clampPercentage(value: number): number {
@@ -410,6 +419,8 @@ export default function SettingsPage() {
   });
   const [aiPersonality, setAiPersonality] = useState("");
   const [personalContext, setPersonalContext] = useState("");
+  const [reasoningPreference, setReasoningPreference] =
+    useState<ReasoningPreference>("none");
   const [aiMemoryEntries, setAiMemoryEntries] = useState<string[]>([]);
   const [memoryEntryIds, setMemoryEntryIds] = useState<string[]>([]);
   const [isMemoryLoading, setIsMemoryLoading] = useState(false);
@@ -419,9 +430,6 @@ export default function SettingsPage() {
     null
   );
   const [isMemoryModalOpen, setIsMemoryModalOpen] = useState(false);
-  const [memorySortMode, setMemorySortMode] =
-    useState<MemorySortMode>("manual");
-  const manualMemoryOrderRef = useRef<string[]>([]);
   const [aiName, setAiName] = useState("mAI");
   const [activeSettingsSection, setActiveSettingsSection] = useState("compte");
   const [positionEnabled, setPositionEnabled] = useState(false);
@@ -461,6 +469,15 @@ export default function SettingsPage() {
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
   const maxMemoryEntries = getMemoryEntriesLimitForPlan(plan);
   const isAuthenticated = status === "authenticated" && Boolean(data?.user?.id);
+  const allowedReasoningPreferences = useMemo<ReasoningPreference[]>(() => {
+    if (plan === "max") {
+      return ["none", "light", "medium", "high"];
+    }
+    if (plan === "pro") {
+      return ["none", "light", "medium"];
+    }
+    return ["none", "light"];
+  }, [plan]);
 
   useEffect(() => {
     try {
@@ -1071,6 +1088,26 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    const enabled = window.localStorage.getItem("mai-reasoning-enabled");
+    const level = window.localStorage.getItem("mai-reasoning-level");
+
+    if (enabled !== "true") {
+      setReasoningPreference("none");
+      return;
+    }
+
+    if (level === "deep") {
+      setReasoningPreference("high");
+      return;
+    }
+    if (level === "moderate") {
+      setReasoningPreference("medium");
+      return;
+    }
+    setReasoningPreference("light");
+  }, []);
+
+  useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       setDeferredPwaPrompt(event as BeforeInstallPromptEvent);
@@ -1079,6 +1116,27 @@ export default function SettingsPage() {
     return () =>
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
   }, []);
+
+  useEffect(() => {
+    if (!allowedReasoningPreferences.includes(reasoningPreference)) {
+      setReasoningPreference(
+        allowedReasoningPreferences[allowedReasoningPreferences.length - 1] ??
+          "none"
+      );
+      return;
+    }
+
+    if (reasoningPreference === "none") {
+      window.localStorage.setItem("mai-reasoning-enabled", "false");
+      return;
+    }
+
+    window.localStorage.setItem("mai-reasoning-enabled", "true");
+    window.localStorage.setItem(
+      "mai-reasoning-level",
+      reasoningLevelByPreference[reasoningPreference]
+    );
+  }, [allowedReasoningPreferences, reasoningPreference]);
 
   useEffect(() => {
     // Évite d'écraser le stockage avant la première lecture locale.
@@ -1433,38 +1491,6 @@ export default function SettingsPage() {
     } else if (memoryEditingIndex !== null && memoryEditingIndex > index) {
       setMemoryEditingIndex(memoryEditingIndex - 1);
     }
-  };
-
-  const handleSortSettings = () => {
-    setMemorySortMode((prevMode) => {
-      if (prevMode === "manual") {
-        manualMemoryOrderRef.current = [...memoryEntryIds];
-        const indexed = aiMemoryEntries.map((entry, index) => ({
-          entry,
-          id: memoryEntryIds[index] ?? `memory-${index}`,
-        }));
-        indexed.sort((left, right) =>
-          left.entry.localeCompare(right.entry, "fr")
-        );
-        setAiMemoryEntries(indexed.map((item) => item.entry));
-        setMemoryEntryIds(indexed.map((item) => item.id));
-        return "alpha";
-      }
-
-      if (manualMemoryOrderRef.current.length > 0) {
-        const entryById = new Map(
-          memoryEntryIds.map((id, index) => [id, aiMemoryEntries[index] ?? ""])
-        );
-        setMemoryEntryIds(manualMemoryOrderRef.current);
-        setAiMemoryEntries(
-          manualMemoryOrderRef.current
-            .map((id) => entryById.get(id) ?? "")
-            .filter(Boolean)
-        );
-      }
-
-      return "manual";
-    });
   };
 
   const creditMetrics = useMemo<CreditMetric[]>(() => {
@@ -1937,16 +1963,6 @@ export default function SettingsPage() {
             <UserCircle2 className="size-4 text-primary" />
             Personnalisation
           </h2>
-          <Button
-            className="rounded-full"
-            onClick={handleSortSettings}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <ListPlus className="mr-1 size-4" />
-            Trier les paramètres
-          </Button>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
           Personnalisez l&apos;IA et vos informations pour adapter ses réponses.
@@ -1978,6 +1994,66 @@ export default function SettingsPage() {
               placeholder="Ex: Ton rassurant, structuré, orienté solution et pédagogie."
               value={aiPersonality}
             />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <p className="text-xs text-muted-foreground">Réflexion</p>
+            <div className="rounded-xl border border-border/60 bg-background/50 p-3">
+              <p className="text-xs text-muted-foreground">
+                Disponible selon votre forfait : Free/Plus (Aucun, Léger), Pro
+                (+ Moyen), Max (+ Approfondi).
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  {
+                    id: "none" as const,
+                    label: "Aucun",
+                    helper: "Par défaut",
+                  },
+                  {
+                    id: "light" as const,
+                    label: "Léger",
+                    helper: "Forfaits Free et +",
+                  },
+                  {
+                    id: "medium" as const,
+                    label: "Moyen",
+                    helper: "Forfaits Pro et Max",
+                  },
+                  {
+                    id: "high" as const,
+                    label: "Approfondi",
+                    helper: "Forfait Max",
+                  },
+                ].map((option) => {
+                  const isActive = reasoningPreference === option.id;
+                  const disabled = !allowedReasoningPreferences.includes(
+                    option.id
+                  );
+
+                  return (
+                    <button
+                      className={cn(
+                        "rounded-lg border px-3 py-2 text-left text-xs transition",
+                        isActive
+                          ? "border-primary/40 bg-primary/10 text-primary"
+                          : "border-border/50 bg-background/60",
+                        disabled &&
+                          "cursor-not-allowed border-dashed opacity-60"
+                      )}
+                      disabled={disabled}
+                      key={option.id}
+                      onClick={() => setReasoningPreference(option.id)}
+                      type="button"
+                    >
+                      <p className="font-medium">{option.label}</p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        {option.helper}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
           <div className="liquid-glass space-y-4 rounded-2xl border border-border/60 bg-background/70 p-4 md:col-span-2">
             <h3 className="text-base font-semibold">
@@ -2067,9 +2143,6 @@ export default function SettingsPage() {
                   <ListPlus className="mr-1 size-4" />
                   Ouvrir la mémoire
                 </Button>
-                <Badge variant="secondary">
-                  Tri : {memorySortMode === "alpha" ? "A-Z" : "Manuel"}
-                </Badge>
               </div>
             </div>
           </div>

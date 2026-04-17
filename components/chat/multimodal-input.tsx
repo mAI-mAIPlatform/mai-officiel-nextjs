@@ -5,7 +5,6 @@ import type { UIMessage } from "ai";
 import equal from "fast-deep-equal";
 import {
   ArrowUpIcon,
-  BrainIcon,
   CircleHelpIcon,
   FilePenLineIcon,
   Ghost,
@@ -21,7 +20,6 @@ import {
   SparklesIcon,
   StarIcon,
   Square,
-  ZapIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -1360,10 +1358,7 @@ function PureContextualActionsMenu({
 
   // States to hold the toggled options (to pass to chat logic later)
   // For the moment, we just expose them or keep them in sync with local storage/context
-  const [isReasoningEnabled, setIsReasoningEnabled] = useLocalStorage(
-    "mai-reasoning-enabled",
-    false
-  );
+  const [isReasoningEnabled] = useLocalStorage("mai-reasoning-enabled", false);
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useLocalStorage(
     "mai-websearch-enabled",
     false
@@ -1422,15 +1417,6 @@ function PureContextualActionsMenu({
     []
   );
 
-  if (isReasoningEnabled) {
-    const reflectionLabel: Record<ReflectionLevel, string> = {
-      light: "Rapide",
-      moderate: "Standard",
-      deep: "Approfondi",
-      "very-deep": "Extrême",
-    };
-    selectedActions.push(`Réflexion: ${reflectionLabel[reasoningLevel]}`);
-  }
   if (isWebSearchEnabled) {
     selectedActions.push("Recherche");
   }
@@ -1447,24 +1433,30 @@ function PureContextualActionsMenu({
     selectedActions.push(`Plugin: ${pluginLabel}`);
   }
 
-  const canUseDeepReflection = plan === "pro" || plan === "max";
-  const canUseVeryDeepReflection = plan === "max";
+  const canUseDeepReflection = plan === "max";
+  const canUseVeryDeepReflection = false;
 
   useEffect(() => {
     if (!isHydrated) return;
 
     // Bugfix: évite de conserver un niveau non autorisé après un downgrade de forfait.
     if (reasoningLevel === "very-deep" && !canUseVeryDeepReflection) {
-      setReasoningLevel(canUseDeepReflection ? "deep" : "moderate");
+      setReasoningLevel(canUseDeepReflection ? "deep" : "light");
       return;
     }
 
     if (reasoningLevel === "deep" && !canUseDeepReflection) {
-      setReasoningLevel("moderate");
+      setReasoningLevel(plan === "pro" ? "moderate" : "light");
+      return;
+    }
+
+    if (reasoningLevel === "moderate" && plan !== "pro" && plan !== "max") {
+      setReasoningLevel("light");
     }
   }, [
     canUseDeepReflection,
     canUseVeryDeepReflection,
+    plan,
     reasoningLevel,
     setReasoningLevel,
     isHydrated,
@@ -1636,99 +1628,6 @@ function PureContextualActionsMenu({
         </DropdownMenu>
 
         <div className="h-[1px] bg-border my-1 mx-2" />
-
-        <Button
-          className={cn(
-            "flex h-8 w-full items-center justify-start gap-2 text-xs font-normal",
-            isReasoningEnabled &&
-              "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
-          )}
-          onClick={() => setIsReasoningEnabled(!isReasoningEnabled)}
-          variant="ghost"
-        >
-          <BrainIcon
-            className={
-              isReasoningEnabled ? "text-primary" : "text-muted-foreground"
-            }
-            size={16}
-          />
-          Réflexion
-        </Button>
-
-        {isReasoningEnabled && (
-          <div className="rounded-lg border border-border/50 bg-background/60 p-2">
-            <p className="mb-2 text-[11px] font-medium text-muted-foreground">
-              Intensité de réflexion
-            </p>
-            <div className="grid gap-1">
-              {[
-                {
-                  id: "light",
-                  label: "Rapide",
-                  icon: <ZapIcon className="size-3.5" />,
-                },
-                {
-                  id: "moderate",
-                  label: "Standard",
-                  icon: <BrainIcon className="size-3.5" />,
-                },
-                {
-                  id: "deep",
-                  label: "Approfondi",
-                  icon: <SparklesIcon className="size-3.5" />,
-                  helper: "Inclus avec le forfait Pro",
-                  disabled: !canUseDeepReflection,
-                },
-                {
-                  id: "very-deep",
-                  label: "Extrême",
-                  icon: <BrainIcon className="size-3.5" />,
-                  helper: "Inclus avec le forfait Max",
-                  disabled: !canUseVeryDeepReflection,
-                },
-              ].map((option) => {
-                const isActive = reasoningLevel === option.id;
-                const isDisabled = option.disabled === true;
-
-                return (
-                  <button
-                    className={cn(
-                      "flex items-center justify-between rounded-md border px-2 py-1.5 text-left text-[11px] transition",
-                      isActive
-                        ? "border-primary/40 bg-primary/10 text-primary"
-                        : "border-border/60 text-foreground/90 hover:border-foreground/25",
-                      isDisabled &&
-                        "cursor-not-allowed border-dashed opacity-60 hover:border-border/60"
-                    )}
-                    disabled={isDisabled}
-                    key={option.id}
-                    onClick={() =>
-                      setReasoningLevel(option.id as ReflectionLevel)
-                    }
-                    type="button"
-                  >
-                    <span className="inline-flex items-center gap-1.5">
-                      <span
-                        className={cn(
-                          "rounded-md border border-border/60 bg-background/80 p-1",
-                          isActive && "border-primary/45 bg-primary/10"
-                        )}
-                      >
-                        {option.icon}
-                      </span>
-                      {option.label}
-                    </span>
-                    {option.helper ? (
-                      <span className="text-[10px] text-muted-foreground">
-                        {option.helper}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         <Button
           className={cn(
