@@ -37,7 +37,12 @@ import {
   type ModelTier,
 } from "@/lib/ai/credits";
 import { APP_VERSION } from "@/lib/app-version";
-import { LANGUAGE_STORAGE_KEY, resolveLanguage, setLanguageInStorage } from "@/lib/i18n";
+import {
+  type AppLanguage,
+  LANGUAGE_STORAGE_KEY,
+  resolveLanguage,
+  setLanguageInStorage,
+} from "@/lib/i18n";
 import {
   CHAT_TAGS_STORAGE_KEY,
   TAG_DEFINITIONS_STORAGE_KEY,
@@ -87,6 +92,45 @@ const schedulerFrequencies = [
   "mensuelle",
   "ponctuelle",
 ] as const;
+
+const settingsLabels = {
+  en: {
+    about: "About",
+    account: "Account",
+    credits: "Credits",
+    data: "Data",
+    navigation: "Settings navigation",
+    notifications: "Notifications",
+    parental: "Parental control",
+    personalization: "AI customization",
+    settings: "Settings",
+    tasks: "Tasks",
+  },
+  es: {
+    about: "Acerca de",
+    account: "Cuenta",
+    credits: "Créditos",
+    data: "Datos",
+    navigation: "Navegación de ajustes",
+    notifications: "Notificaciones",
+    parental: "Control parental",
+    personalization: "Personalización IA",
+    settings: "Ajustes",
+    tasks: "Tareas",
+  },
+  fr: {
+    about: "À propos",
+    account: "Compte",
+    credits: "Crédits",
+    data: "Données",
+    navigation: "Navigation des paramètres",
+    notifications: "Notifications",
+    parental: "Contrôle parental",
+    personalization: "Personnalisation IA",
+    settings: "Paramètres",
+    tasks: "Tâches",
+  },
+} as const;
 
 type ScheduledTask = {
   createdAt: string;
@@ -433,7 +477,7 @@ export default function SettingsPage() {
     "compact" | "standard" | "large"
   >("compact");
   const [showWordCounter, setShowWordCounter] = useState(false);
-  const [interfaceLanguage, setInterfaceLanguage] = useState("fr");
+  const [interfaceLanguage, setInterfaceLanguage] = useState<AppLanguage>("fr");
   const [profileName, setProfileName] = useState("");
   const [profileLogoDataUrl, setProfileLogoDataUrl] = useState<
     string | undefined
@@ -508,6 +552,7 @@ export default function SettingsPage() {
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
   const maxMemoryEntries = getMemoryEntriesLimitForPlan(plan);
   const isAuthenticated = status === "authenticated" && Boolean(data?.user?.id);
+  const uiLabels = settingsLabels[interfaceLanguage];
   const allowedReasoningPreferences = useMemo<ReasoningPreference[]>(() => {
     if (plan === "max") {
       return ["none", "light", "medium", "high"];
@@ -1640,18 +1685,18 @@ export default function SettingsPage() {
   ]);
 
   const settingsSections = [
-    { href: "#compte", key: "compte", label: "Compte" },
-    { href: "#notifications", key: "notifications", label: "Notifications" },
+    { href: "#compte", key: "compte", label: uiLabels.account },
+    { href: "#notifications", key: "notifications", label: uiLabels.notifications },
     {
       href: "#personnalisation",
       key: "personnalisation",
-      label: "Personnalisation IA",
+      label: uiLabels.personalization,
     },
-    { href: "#parental", key: "parental", label: "Contrôle parental" },
-    { href: "#donnees", key: "donnees", label: "Données" },
-    { href: "#credits", key: "credits", label: "Crédits" },
-    { href: "#taches", key: "taches", label: "Tâches" },
-    { href: "#apropos", key: "apropos", label: "À propos" },
+    { href: "#parental", key: "parental", label: uiLabels.parental },
+    { href: "#donnees", key: "donnees", label: uiLabels.data },
+    { href: "#credits", key: "credits", label: uiLabels.credits },
+    { href: "#taches", key: "taches", label: uiLabels.tasks },
+    { href: "#apropos", key: "apropos", label: uiLabels.about },
   ] as const;
   const sectionVisibility = (key: (typeof settingsSections)[number]["key"]) =>
     activeSettingsSection === key ? "block" : "hidden";
@@ -1837,12 +1882,12 @@ export default function SettingsPage() {
     <div className="liquid-glass flex h-full w-full flex-col gap-6 overflow-y-auto p-6 md:p-10">
       <div className="flex items-center gap-3">
         <Settings2 className="size-8 text-primary" />
-        <h1 className="text-3xl font-bold">Paramètres</h1>
+        <h1 className="text-3xl font-bold">{uiLabels.settings}</h1>
       </div>
 
       <section className="rounded-2xl border border-border/50 bg-card/70 p-4 backdrop-blur-xl">
         <p className="text-xs uppercase tracking-wider text-muted-foreground">
-          Navigation des paramètres
+          {uiLabels.navigation}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {settingsSections.map((item) => (
@@ -1861,11 +1906,6 @@ export default function SettingsPage() {
             </a>
           ))}
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Mode contextuel : la section active adapte les droits d&apos;accès.
-          Pendant la consultation des notifications, les actions sensibles sur
-          les données sont limitées.
-        </p>
       </section>
 
       <CompteSection className={sectionVisibility("compte")}>
@@ -3231,6 +3271,7 @@ export default function SettingsPage() {
       <AproposSection
         className={sectionVisibility("apropos")}
         interfaceLanguage={interfaceLanguage}
+        language={interfaceLanguage}
         onLanguageChange={(value) => {
           const nextLanguage = resolveLanguage(value);
           setInterfaceLanguage(nextLanguage);

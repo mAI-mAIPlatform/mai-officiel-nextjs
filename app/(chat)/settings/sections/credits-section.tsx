@@ -80,10 +80,10 @@ export function CreditsSection({
         <h3 className="text-sm font-semibold">Infos</h3>
         <p className="mt-2 text-xs leading-6 text-muted-foreground">
           Les crédits du Tier 1 regroupent les modèles GPT-5.4, GPT-5.2,
-          Mistral Large 3 tandis que le Tier 2 comporte GPT-5.1, GPT-5,
-          Claude Sonnet 4.6, Claude Sonnet 4, DeepSeek 3.2, Kimi K2.5 et que
-          le Tier 3 ont les modèles les moins performants, GPT-5.4 Mini,
-          GPT-5.4 Nano, Claude Haïku 4.5.
+          Claude Opus 4.6, Claude Opus 4.7 et Mistral Large 3 tandis que le
+          Tier 2 comporte GPT-5.1, GPT-5, Claude Sonnet 4.6, Claude Sonnet 4,
+          DeepSeek 3.2, Kimi K2.5 et que le Tier 3 ont les modèles les moins
+          performants, GPT-5.4 Mini, GPT-5.4 Nano, Claude Haïku 4.5.
         </p>
       </div>
     </section>
