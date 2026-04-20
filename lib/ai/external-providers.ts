@@ -126,32 +126,38 @@ export function extractTextFromResponsesPayload(payload: unknown): string {
   }
 
   if (Array.isArray(payload)) {
-    return payload
+    const parsedEvents = payload
       .map((entry) => {
-        const parsedEntry =
-          typeof entry === "string"
-            ? (() => {
-                try {
-                  return JSON.parse(entry) as ResponseTextDeltaEvent;
-                } catch {
-                  return null;
-                }
-              })()
-            : (entry as ResponseTextDeltaEvent);
-
-        if (
-          parsedEntry?.type === "response.output_text.delta" &&
-          typeof parsedEntry.delta === "string"
-        ) {
-          return parsedEntry.delta;
+        if (typeof entry === "string") {
+          try {
+            return JSON.parse(entry) as ResponseTextDeltaEvent;
+          } catch {
+            return null;
+          }
         }
-        if (
-          parsedEntry?.type === "response.output_text.done" &&
-          typeof parsedEntry.text === "string"
-        ) {
-          return parsedEntry.text;
-        }
+        return entry as ResponseTextDeltaEvent;
+      })
+      .filter((event): event is ResponseTextDeltaEvent => event !== null);
 
+    const completedText = parsedEvents
+      .filter(
+        (event) =>
+          event.type === "response.output_text.done" && typeof event.text === "string"
+      )
+      .at(-1)?.text;
+
+    if (completedText) {
+      return completedText.trim();
+    }
+
+    return parsedEvents
+      .map((event) => {
+        if (
+          event.type === "response.output_text.delta" &&
+          typeof event.delta === "string"
+        ) {
+          return event.delta;
+        }
         return "";
       })
       .join("")
@@ -257,6 +263,7 @@ export async function generateResponse(input: {
     const response = (await fsClient.responses.create({
       model: input.model,
       input: normalizedMessages,
+      stream: false,
     })) as ResponsesApiResponse;
     text = extractTextFromResponsesPayload(response);
   } catch (error) {

@@ -54,3 +54,19 @@ test("extractTextFromResponsesPayload - fallback output_text.done si pas de delt
 
   assert.equal(extractTextFromResponsesPayload(streamEvents), "Salut final");
 });
+
+test("extractTextFromResponsesPayload - préfère output_text.done à la concat des deltas", () => {
+  const streamEvents = [
+    { type: "response.output_text.delta", delta: "Salut" },
+    { type: "response.output_text.delta", delta: " !" },
+    {
+      type: "response.output_text.done",
+      text: "Salut ! Comment puis-je t’aider ?",
+    },
+  ];
+
+  assert.equal(
+    extractTextFromResponsesPayload(streamEvents),
+    "Salut ! Comment puis-je t’aider ?"
+  );
+});
