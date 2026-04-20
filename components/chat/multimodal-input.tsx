@@ -18,11 +18,11 @@ import {
   Puzzle,
   SearchIcon,
   SparklesIcon,
-  StarIcon,
   Square,
+  StarIcon,
 } from "lucide-react";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
 import {
   type ChangeEvent,
@@ -68,17 +68,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
-import { resolveModelLogoProvider } from "@/lib/ai/model-brand";
-import {
-  type ChatModel,
-  chatModels,
-  DEFAULT_CHAT_MODEL,
-} from "@/lib/ai/models";
-import { parseFileForAi, validateFileBeforeUpload } from "@/lib/file-parser";
-import { pluginRegistry } from "@/lib/plugins/registry";
-import type { Attachment, ChatMessage } from "@/lib/types";
-import { consumeUsage } from "@/lib/usage-limits";
-import { cn, fetcher } from "@/lib/utils";
 import {
   areAllTierCreditsExhausted,
   getFallbackTier,
@@ -87,7 +76,18 @@ import {
   getTierLabel,
   getTierRemaining,
 } from "@/lib/ai/credits";
+import { resolveModelLogoProvider } from "@/lib/ai/model-brand";
+import {
+  type ChatModel,
+  chatModels,
+  DEFAULT_CHAT_MODEL,
+} from "@/lib/ai/models";
+import { parseFileForAi, validateFileBeforeUpload } from "@/lib/file-parser";
 import { createNotification } from "@/lib/notifications";
+import { pluginRegistry } from "@/lib/plugins/registry";
+import type { Attachment, ChatMessage } from "@/lib/types";
+import { consumeUsage } from "@/lib/usage-limits";
+import { cn, fetcher } from "@/lib/utils";
 import {
   PromptInput,
   PromptInputFooter,
@@ -174,7 +174,6 @@ function getPersistentMemoryFromLocalStorage(): string | undefined {
   }
 }
 
-
 function getCustomSystemPromptFromLocalStorage(): string | undefined {
   if (typeof window === "undefined") {
     return undefined;
@@ -220,7 +219,9 @@ function getCustomSystemPromptFromLocalStorage(): string | undefined {
     const blocks = [
       aiName ? `Nom de l'assistant: ${aiName}` : "",
       aiPersonality ? `Personnalité souhaitée: ${aiPersonality}` : "",
-      personalContext ? `Contexte personnel utilisateur: ${personalContext}` : "",
+      personalContext
+        ? `Contexte personnel utilisateur: ${personalContext}`
+        : "",
       profession ? `Profession utilisateur: ${profession}` : "",
       stylisticDirectives
         ? `Directives stylistiques: ${stylisticDirectives}`
@@ -423,10 +424,12 @@ function PureMultimodalInput({
     }
   }, [setAttachments]);
 
-
   useEffect(() => {
     const voiceSubmitHandler = (event: Event) => {
-      const customEvent = event as CustomEvent<{ chatId?: string; text?: string }>;
+      const customEvent = event as CustomEvent<{
+        chatId?: string;
+        text?: string;
+      }>;
       const text = customEvent.detail?.text?.trim();
       if (!text || status !== "ready") {
         return;
@@ -439,7 +442,10 @@ function PureMultimodalInput({
       });
     };
 
-    window.addEventListener("mai:voice-submit", voiceSubmitHandler as EventListener);
+    window.addEventListener(
+      "mai:voice-submit",
+      voiceSubmitHandler as EventListener
+    );
     return () =>
       window.removeEventListener(
         "mai:voice-submit",
@@ -560,9 +566,7 @@ function PureMultimodalInput({
         break;
       case "template":
         setInput((current) =>
-          current.trim()
-            ? `${current}\n/${cmd.name}`
-            : `/${cmd.name} `
+          current.trim() ? `${current}\n/${cmd.name}` : `/${cmd.name} `
         );
         break;
       default:
@@ -589,9 +593,8 @@ function PureMultimodalInput({
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
   const [slashIndex, setSlashIndex] = useState(0);
-  const [availableSlashCommands, setAvailableSlashCommands] = useState<
-    SlashCommand[]
-  >(defaultSlashCommands);
+  const [availableSlashCommands, setAvailableSlashCommands] =
+    useState<SlashCommand[]>(defaultSlashCommands);
   const filteredSlashCommands = useMemo(
     () => filterSlashCommands(availableSlashCommands, slashQuery),
     [availableSlashCommands, slashQuery]
@@ -653,7 +656,9 @@ function PureMultimodalInput({
     }
 
     const syncGhostState = () => {
-      setIsGhostModeArmed(localStorage.getItem(GHOST_MODE_STORAGE_KEY) === "true");
+      setIsGhostModeArmed(
+        localStorage.getItem(GHOST_MODE_STORAGE_KEY) === "true"
+      );
       setIsGhostConversation(
         sessionStorage.getItem(GHOST_CHAT_ID_STORAGE_KEY) === chatId
       );
@@ -784,11 +789,22 @@ function PureMultimodalInput({
       }
 
       const currentTier = getTierForModelId(selectedModelId);
-      const tierCreditState = getTierRemaining(currentTier, plan, isAuthenticated);
+      const tierCreditState = getTierRemaining(
+        currentTier,
+        plan,
+        isAuthenticated
+      );
       if (tierCreditState.remaining <= 0) {
-        const fallbackTier = getFallbackTier(currentTier, plan, isAuthenticated);
+        const fallbackTier = getFallbackTier(
+          currentTier,
+          plan,
+          isAuthenticated
+        );
         if (fallbackTier) {
-          const fallbackModelId = getFirstModelForTier(fallbackTier, allModelIds);
+          const fallbackModelId = getFirstModelForTier(
+            fallbackTier,
+            allModelIds
+          );
           if (fallbackModelId) {
             onModelChange?.(fallbackModelId);
             setCookie("chat-model", fallbackModelId);
@@ -888,13 +904,13 @@ function PureMultimodalInput({
           ? "none"
           : (localStorage.getItem(PLUGIN_MODE_STORAGE_KEY) ?? "none");
       const pluginContextBlock =
-        pluginMode !== "none"
-          ? [
+        pluginMode === "none"
+          ? ""
+          : [
               "[Plugin activé via menu +]",
               `- ${pluginMode}`,
               "Applique uniquement ce plugin à cette requête.",
-            ].join("\n")
-          : "";
+            ].join("\n");
       const forcedWebSearchBlock = forceWebSearchEnabled
         ? [
             "[RECHERCHE WEB OBLIGATOIRE]",
@@ -1092,7 +1108,11 @@ ${extractedFileContext}`
         const successfullyUploadedAttachments = uploadedAttachments.filter(
           (attachment) => attachment !== undefined
         );
-        for (let index = 0; index < successfullyUploadedAttachments.length; index += 1) {
+        for (
+          let index = 0;
+          index < successfullyUploadedAttachments.length;
+          index += 1
+        ) {
           consumeUsage("files", "day");
         }
 
@@ -1149,7 +1169,11 @@ ${extractedFileContext}`
             attachment.url !== undefined &&
             attachment.contentType !== undefined
         );
-        for (let index = 0; index < successfullyUploadedAttachments.length; index += 1) {
+        for (
+          let index = 0;
+          index < successfullyUploadedAttachments.length;
+          index += 1
+        ) {
           consumeUsage("files", "day");
         }
 
@@ -1421,17 +1445,17 @@ ${extractedFileContext}`
         <PromptInputFooter className="px-2.5 pb-2.5 sm:px-3 sm:pb-3">
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <PromptInputTools>
-            <ContextualActionsMenu
-              fileInputRef={fileInputRef}
-              hasVision={true}
-              onInsertTemplate={handleInsertTemplate}
-              setAttachments={setAttachments}
-              status={status}
-            />
-            <ModelSelectorCompact
-              onModelChange={onModelChange}
-              selectedModelId={selectedModelId}
-            />
+              <ContextualActionsMenu
+                fileInputRef={fileInputRef}
+                hasVision={true}
+                onInsertTemplate={handleInsertTemplate}
+                setAttachments={setAttachments}
+                status={status}
+              />
+              <ModelSelectorCompact
+                onModelChange={onModelChange}
+                selectedModelId={selectedModelId}
+              />
             </PromptInputTools>
             {showWordCounter ? (
               <p className="text-[10px] text-muted-foreground">
@@ -1630,7 +1654,9 @@ function PureContextualActionsMenu({
   const canUseVeryDeepReflection = false;
 
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated) {
+      return;
+    }
 
     // Bugfix: évite de conserver un niveau non autorisé après un downgrade de forfait.
     if (reasoningLevel === "very-deep" && !canUseVeryDeepReflection) {
@@ -1713,7 +1739,9 @@ function PureContextualActionsMenu({
   const displayedPlugins = sortedPlugins
     .filter((plugin) => {
       const query = pluginSearch.trim().toLowerCase();
-      if (!query) return true;
+      if (!query) {
+        return true;
+      }
       const haystack =
         `${plugin.name} ${plugin.command} ${plugin.category} ${plugin.description}`.toLowerCase();
       return haystack.includes(query);
@@ -1731,12 +1759,16 @@ function PureContextualActionsMenu({
       const pinScore =
         Number(pinnedPluginIds.includes(b.id)) -
         Number(pinnedPluginIds.includes(a.id));
-      if (pinScore !== 0) return pinScore;
+      if (pinScore !== 0) {
+        return pinScore;
+      }
 
       const favoriteScore =
         Number(favoritePluginIds.includes(b.id)) -
         Number(favoritePluginIds.includes(a.id));
-      if (favoriteScore !== 0) return favoriteScore;
+      if (favoriteScore !== 0) {
+        return favoriteScore;
+      }
 
       return a.name.localeCompare(b.name, "fr", { sensitivity: "base" });
     });
@@ -1879,9 +1911,7 @@ function PureContextualActionsMenu({
         <Button
           className="flex h-8 w-full items-center justify-start gap-2 text-xs font-normal"
           onClick={() => {
-            onInsertTemplate(
-              "Ouvre un canevas structuré pour ce travail."
-            );
+            onInsertTemplate("Ouvre un canevas structuré pour ce travail.");
             setOpen(false);
           }}
           variant="ghost"

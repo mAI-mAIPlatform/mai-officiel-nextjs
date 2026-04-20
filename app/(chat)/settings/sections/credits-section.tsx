@@ -43,9 +43,12 @@ export function CreditsSection({
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {creditMetrics.map((metric) => {
           const isUnlimited = metric.limit < 0;
-          const consumed = isUnlimited ? 0 : Math.min(metric.used, metric.limit);
-          const remaining =
-            isUnlimited ? Number.POSITIVE_INFINITY : Math.max(metric.limit - consumed, 0);
+          const consumed = isUnlimited
+            ? 0
+            : Math.min(metric.used, metric.limit);
+          const remaining = isUnlimited
+            ? Number.POSITIVE_INFINITY
+            : Math.max(metric.limit - consumed, 0);
           const remainingRatio =
             metric.limit <= 0 || !Number.isFinite(remaining)
               ? 1
@@ -79,11 +82,11 @@ export function CreditsSection({
       <div className="mt-4 rounded-xl border border-border/50 bg-background/60 p-4">
         <h3 className="text-sm font-semibold">Infos</h3>
         <p className="mt-2 text-xs leading-6 text-muted-foreground">
-          Les crédits du Tier 1 regroupent les modèles GPT-5.4, GPT-5.2,
-          Claude Opus 4.6, Claude Opus 4.7 et Mistral Large 3 tandis que le
-          Tier 2 comporte GPT-5.1, GPT-5, Claude Sonnet 4.6, Claude Sonnet 4,
-          DeepSeek 3.2, Kimi K2.5 et que le Tier 3 ont les modèles les moins
-          performants, GPT-5.4 Mini, GPT-5.4 Nano, Claude Haïku 4.5.
+          Les crédits du Tier 1 regroupent les modèles GPT-5.4, GPT-5.2, Claude
+          Opus 4.6, Claude Opus 4.7 et Mistral Large 3 tandis que le Tier 2
+          comporte GPT-5.1, GPT-5, Claude Sonnet 4.6, Claude Sonnet 4, DeepSeek
+          3.2, Kimi K2.5 et que le Tier 3 ont les modèles les moins performants,
+          GPT-5.4 Mini, GPT-5.4 Nano, Claude Haïku 4.5.
         </p>
       </div>
     </section>

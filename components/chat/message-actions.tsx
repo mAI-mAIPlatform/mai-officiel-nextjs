@@ -1,4 +1,5 @@
 import equal from "fast-deep-equal";
+import { Flag, Pause, Pin, Play, Square } from "lucide-react";
 import { memo } from "react";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
@@ -6,17 +7,16 @@ import { useCopyToClipboard } from "usehooks-ts";
 import type { Vote } from "@/lib/db/schema";
 import type { ChatMessage } from "@/lib/types";
 import {
+  MessageAction as Action,
+  MessageActions as Actions,
+} from "../ai-elements/message";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import {
-  MessageAction as Action,
-  MessageActions as Actions,
-} from "../ai-elements/message";
 import { CopyIcon, PencilEditIcon, ThumbDownIcon, ThumbUpIcon } from "./icons";
-import { Flag, Pause, Pin, Play, Square } from "lucide-react";
 
 const parseLocalStorageArray = (key: string) => {
   try {
@@ -85,7 +85,6 @@ export function PureMessageActions({
     }
     toast.success("Message épinglé");
   };
-
 
   const speakText = () => {
     if (!textFromParts || typeof window === "undefined") {

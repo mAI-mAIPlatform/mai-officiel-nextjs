@@ -1,5 +1,5 @@
-import OpenAI from "openai";
 import type { ModelMessage } from "ai";
+import OpenAI from "openai";
 
 const FS_API_BASE_URL =
   process.env.FS_API_BASE_URL ?? "https://api.francestudent.org/v1/";
@@ -66,19 +66,19 @@ interface ChatCompletionResponse {
 }
 
 interface ResponsesApiResponse {
-  output_text?: string;
   output?: Array<{
     content?: Array<{
       type?: string;
       text?: string;
     }>;
   }>;
+  output_text?: string;
 }
 
 interface ResponseTextDeltaEvent {
-  type?: string;
   delta?: string;
   text?: string;
+  type?: string;
 }
 
 function extractTextFromChatCompletion(
@@ -103,7 +103,10 @@ function extractTextFromChatCompletion(
 function extractTextFromResponsesOutput(
   data: ResponsesApiResponse | undefined | null
 ): string {
-  if (typeof data?.output_text === "string" && data.output_text.trim().length > 0) {
+  if (
+    typeof data?.output_text === "string" &&
+    data.output_text.trim().length > 0
+  ) {
     return data.output_text.trim();
   }
 
@@ -111,7 +114,8 @@ function extractTextFromResponsesOutput(
     data?.output
       ?.flatMap((outputItem) => outputItem.content ?? [])
       .map((contentItem) =>
-        contentItem.type === "output_text" && typeof contentItem.text === "string"
+        contentItem.type === "output_text" &&
+        typeof contentItem.text === "string"
           ? contentItem.text
           : ""
       )
@@ -142,7 +146,8 @@ export function extractTextFromResponsesPayload(payload: unknown): string {
     const completedText = parsedEvents
       .filter(
         (event) =>
-          event.type === "response.output_text.done" && typeof event.text === "string"
+          event.type === "response.output_text.done" &&
+          typeof event.text === "string"
       )
       .at(-1)?.text;
 
@@ -203,13 +208,13 @@ function extractJsonObjectsFromStream(raw: string): unknown[] {
         continue;
       }
 
-      if (currentCharacter === "\"") {
+      if (currentCharacter === '"') {
         isInsideString = false;
       }
       continue;
     }
 
-    if (currentCharacter === "\"") {
+    if (currentCharacter === '"') {
       isInsideString = true;
       continue;
     }
@@ -241,13 +246,18 @@ function extractJsonObjectsFromStream(raw: string): unknown[] {
 
 export async function generateResponse(input: {
   model: string;
-  messages: Array<{ role: "user" | "assistant" | "developer"; content: string }>;
+  messages: Array<{
+    role: "user" | "assistant" | "developer";
+    content: string;
+  }>;
   systemInstruction?: string;
 }): Promise<{ provider: string; text: string }> {
   const fsClient = getFsClient();
 
   if (!fsClient) {
-    throw new Error("FranceStudent provider non initialisé (FS_API_KEY manquante)");
+    throw new Error(
+      "FranceStudent provider non initialisé (FS_API_KEY manquante)"
+    );
   }
 
   const normalizedMessages = [
@@ -344,8 +354,12 @@ export async function runExternalTextModel(
       return { role, content };
     })
     .filter(
-      (message): message is { role: "user" | "assistant" | "developer"; content: string } =>
-        message !== null
+      (
+        message
+      ): message is {
+        role: "user" | "assistant" | "developer";
+        content: string;
+      } => message !== null
     );
 
   if (messages.length === 0) {

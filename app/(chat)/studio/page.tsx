@@ -3,13 +3,20 @@
 import { ImagePlus, Upload, WandSparkles } from "lucide-react";
 import { type ChangeEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 import { affordableImageModels } from "@/lib/ai/affordable-models";
+import {
+  canConsumeUsage,
+  consumeUsage,
+  getUsageCount,
+} from "@/lib/usage-limits";
 
 const imageModels = affordableImageModels;
 
 type StudioMode = "generate-image" | "edit-image";
 
 export default function StudioPage() {
+  const { currentPlanDefinition } = useSubscriptionPlan();
   const [mode, setMode] = useState<StudioMode>("generate-image");
   const [prompt, setPrompt] = useState("");
   const [imageInput, setImageInput] = useState("");
@@ -55,6 +62,18 @@ export default function StudioPage() {
     setError("");
     setResultImage("");
 
+    if (
+      !canConsumeUsage(
+        "studio",
+        "day",
+        currentPlanDefinition.limits.studioImagesPerDay
+      )
+    ) {
+      setError("Limite journalière de studio atteinte pour votre forfait.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch("/api/studio", {
         method: "POST",
@@ -74,6 +93,44 @@ export default function StudioPage() {
       }
 
       setResultProvider(payload.provider ?? "provider inconnu");
+
+      if (payload.pending && payload.id) {
+        // AI Horde polling logic
+        consumeUsage("studio", "day");
+
+        let attempts = 0;
+        const poll = setInterval(async () => {
+          attempts++;
+          if (attempts > 120) {
+            clearInterval(poll);
+            setError("Génération longue, veuillez réessayer plus tard.");
+            setIsLoading(false);
+            return;
+          }
+
+          try {
+            const statusRes = await fetch(`/api/studio/result/${payload.id}`);
+            if (!statusRes.ok) {
+              throw new Error("Erreur lors de la vérification du statut");
+            }
+            const statusPayload = await statusRes.json();
+
+            if (statusPayload.finished) {
+              clearInterval(poll);
+              if (statusPayload.error) {
+                setError(statusPayload.error);
+              } else if (statusPayload.imageUrl) {
+                setResultImage(statusPayload.imageUrl);
+              }
+              setIsLoading(false);
+            }
+          } catch (pollError) {
+            console.error(pollError);
+          }
+        }, 5000);
+        return; // loading continues until interval finishes
+      }
+      consumeUsage("studio", "day");
 
       if (payload.type === "image") {
         if (payload.imageUrl) {
@@ -122,6 +179,10 @@ export default function StudioPage() {
         </div>
       </header>
 
+      <div className="text-xs text-black/60 mb-2">
+        Utilisation quotidienne : {getUsageCount("studio", "day")} /{" "}
+        {currentPlanDefinition?.limits?.studioImagesPerDay || 0}
+      </div>
       <section className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
         <div className="liquid-glass rounded-2xl border border-black/20 bg-white/80 p-4">
           <label
@@ -244,7 +305,14 @@ export default function StudioPage() {
 
           <Button
             className="mt-4 w-full border border-black/20 bg-cyan-200 text-black hover:bg-cyan-300"
-            disabled={isLoading}
+            disabled={
+              isLoading ||
+              !canConsumeUsage(
+                "studio",
+                "day",
+                currentPlanDefinition?.limits?.studioImagesPerDay || 0
+              )
+            }
             onClick={runStudio}
           >
             {isLoading ? "Traitement..." : "Lancer la génération"}
@@ -259,6 +327,7 @@ export default function StudioPage() {
           </p>
 
           {resultImage ? (
+            /* biome-ignore lint/performance/noImgElement: local image generated from API */
             <img
               alt="Résultat généré"
               className="mt-3 w-full rounded-2xl border border-border/40 object-cover"

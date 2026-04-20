@@ -63,8 +63,12 @@ const usageFeatureByTier: Record<ModelTier, "tier1" | "tier2" | "tier3"> = {
 };
 
 export function getTierForModelId(modelId: string): ModelTier {
-  if (modelIdsByTier.tier1.includes(modelId)) return "tier1";
-  if (modelIdsByTier.tier2.includes(modelId)) return "tier2";
+  if (modelIdsByTier.tier1.includes(modelId)) {
+    return "tier1";
+  }
+  if (modelIdsByTier.tier2.includes(modelId)) {
+    return "tier2";
+  }
   return "tier3";
 }
 
@@ -114,7 +118,9 @@ export function getFallbackTier(
 
   for (let index = startIndex + 1; index < tierOrder.length; index += 1) {
     const candidate = tierOrder[index];
-    if (!candidate) continue;
+    if (!candidate) {
+      continue;
+    }
     if (getTierRemaining(candidate, plan, isAuthenticated).remaining > 0) {
       return candidate;
     }
@@ -146,7 +152,11 @@ export function areAllTierCreditsExhausted(
 }
 
 export function getTierLabel(tier: ModelTier): string {
-  if (tier === "tier1") return "Tier 1";
-  if (tier === "tier2") return "Tier 2";
+  if (tier === "tier1") {
+    return "Tier 1";
+  }
+  if (tier === "tier2") {
+    return "Tier 2";
+  }
   return "Tier 3";
 }

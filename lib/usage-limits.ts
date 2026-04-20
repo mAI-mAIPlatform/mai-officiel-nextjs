@@ -4,6 +4,7 @@ export type UsageFeature =
   | "meals"
   | "websearch"
   | "files"
+  | "studio"
   | "tier1"
   | "tier2"
   | "tier3";

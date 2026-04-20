@@ -1,5 +1,5 @@
-import { customProvider } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
+import { customProvider } from "ai";
 import { isTestEnvironment } from "../constants";
 import { titleModel } from "./models";
 
@@ -18,7 +18,7 @@ const fsModelAliases: Record<string, string> = {
 function normalizeModelId(modelId: string): string {
   const slashIndex = modelId.indexOf("/");
   const normalizedModelId =
-    slashIndex !== -1 ? modelId.slice(slashIndex + 1) : modelId;
+    slashIndex === -1 ? modelId : modelId.slice(slashIndex + 1);
 
   return fsModelAliases[normalizedModelId] ?? normalizedModelId;
 }
@@ -27,14 +27,8 @@ function normalizeBaseUrl(baseURL: string): string {
   return baseURL.endsWith("/") ? baseURL.slice(0, -1) : baseURL;
 }
 
-let cachedFsProvider:
-  | ReturnType<typeof createOpenAI>
-  | null
-  | undefined;
-let cachedGatewayProvider:
-  | ReturnType<typeof createOpenAI>
-  | null
-  | undefined;
+let cachedFsProvider: ReturnType<typeof createOpenAI> | null | undefined;
+let cachedGatewayProvider: ReturnType<typeof createOpenAI> | null | undefined;
 
 function getFsProvider(): ReturnType<typeof createOpenAI> | null {
   if (cachedFsProvider !== undefined) {

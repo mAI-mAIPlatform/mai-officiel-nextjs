@@ -93,7 +93,8 @@ export function Preview() {
                 ✅ Mode Fantôme activé.
               </p>
               <p className="mt-1 text-xs text-purple-300">
-                Le prochain message ne sera pas enregistré dans l&apos;historique.
+                Le prochain message ne sera pas enregistré dans
+                l&apos;historique.
               </p>
             </>
           )}

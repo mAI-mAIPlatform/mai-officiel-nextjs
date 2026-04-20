@@ -4,7 +4,8 @@ export const titleModel = {
   id: "openai/gpt-5.4",
   name: "GPT-5.4",
   provider: "openai",
-  description: "Modèle de pointe de dernière génération, spécifiquement optimisé pour la programmation avancée et la gestion de systèmes d'agents autonomes.",
+  description:
+    "Modèle de pointe de dernière génération, spécifiquement optimisé pour la programmation avancée et la gestion de systèmes d'agents autonomes.",
   gatewayOrder: ["openai"],
 };
 
@@ -31,7 +32,8 @@ export const chatModels: ChatModel[] = [
     id: "openai/gpt-5.4",
     name: "GPT-5.4",
     provider: "openai",
-    description: "Modèle de pointe de dernière génération, spécifiquement optimisé pour la programmation avancée et la gestion de systèmes d'agents autonomes.",
+    description:
+      "Modèle de pointe de dernière génération, spécifiquement optimisé pour la programmation avancée et la gestion de systèmes d'agents autonomes.",
     reasoningEffort: "high",
     capabilities: { tools: true, vision: true, reasoning: true },
   },
@@ -39,7 +41,8 @@ export const chatModels: ChatModel[] = [
     id: "openai/gpt-5.4-mini",
     name: "GPT-5.4 Mini",
     provider: "openai",
-    description: "Déclinaison compacte du modèle de pointe, conçue pour les processus autonomes et le développement logiciel avec une empreinte opérationnelle réduite.",
+    description:
+      "Déclinaison compacte du modèle de pointe, conçue pour les processus autonomes et le développement logiciel avec une empreinte opérationnelle réduite.",
     reasoningEffort: "medium",
     capabilities: { tools: true, vision: true, reasoning: true },
   },
@@ -65,7 +68,8 @@ export const chatModels: ChatModel[] = [
     id: "openai/gpt-5.1",
     name: "GPT-5.1",
     provider: "openai",
-    description: "Modèle doté d'une base de connaissances exhaustive, couplée à de solides capacités de raisonnement cognitif général.",
+    description:
+      "Modèle doté d'une base de connaissances exhaustive, couplée à de solides capacités de raisonnement cognitif général.",
     reasoningEffort: "medium",
     capabilities: { tools: true, vision: true, reasoning: true },
   },
@@ -73,7 +77,8 @@ export const chatModels: ChatModel[] = [
     id: "openai/gpt-5",
     name: "GPT-5",
     provider: "openai",
-    description: "Modèle fondamental disposant d'une vaste base de connaissances et de capacités d'analyse logique robustes.",
+    description:
+      "Modèle fondamental disposant d'une vaste base de connaissances et de capacités d'analyse logique robustes.",
     reasoningEffort: "medium",
     capabilities: { tools: true, vision: true, reasoning: true },
   },
@@ -193,24 +198,20 @@ function buildLocalCapabilities(): Record<string, ModelCapabilities> {
         tools: m.capabilities?.tools ?? true,
         vision:
           m.capabilities?.vision ??
-          (
-          m.id.includes("vision") ||
-          m.id.includes("flash") ||
-          m.id.includes("4o") ||
-          m.id.includes("gpt-5") ||
-          m.id.includes("gemini") ||
-          m.id.includes("claude-opus") ||
-          m.id.includes("claude-sonnet")
-          ),
+          (m.id.includes("vision") ||
+            m.id.includes("flash") ||
+            m.id.includes("4o") ||
+            m.id.includes("gpt-5") ||
+            m.id.includes("gemini") ||
+            m.id.includes("claude-opus") ||
+            m.id.includes("claude-sonnet")),
         reasoning:
           m.capabilities?.reasoning ??
-          (
-          m.id.includes("oss") ||
-          m.id.includes("reasoning") ||
-          m.id.includes("r1") ||
-          m.id.includes("gpt-5") ||
-          m.id.includes("claude-opus")
-          ),
+          (m.id.includes("oss") ||
+            m.id.includes("reasoning") ||
+            m.id.includes("r1") ||
+            m.id.includes("gpt-5") ||
+            m.id.includes("claude-opus")),
       },
     ])
   );
