@@ -67,6 +67,17 @@ interface ChatCompletionResponse {
 
 interface ResponsesApiResponse {
   output_text?: string;
+  output?: Array<{
+    content?: Array<{
+      type?: string;
+      text?: string;
+    }>;
+  }>;
+}
+
+interface ResponseTextDeltaEvent {
+  type?: string;
+  delta?: string;
 }
 
 function extractTextFromChatCompletion(
@@ -86,6 +97,70 @@ function extractTextFromChatCompletion(
   }
 
   return (data?.output_text ?? "").trim();
+}
+
+function extractTextFromResponsesOutput(
+  data: ResponsesApiResponse | undefined | null
+): string {
+  if (typeof data?.output_text === "string" && data.output_text.trim().length > 0) {
+    return data.output_text.trim();
+  }
+
+  const fromStructuredOutput =
+    data?.output
+      ?.flatMap((outputItem) => outputItem.content ?? [])
+      .map((contentItem) =>
+        contentItem.type === "output_text" && typeof contentItem.text === "string"
+          ? contentItem.text
+          : ""
+      )
+      .join("") ?? "";
+
+  return fromStructuredOutput.trim();
+}
+
+export function extractTextFromResponsesPayload(payload: unknown): string {
+  if (!payload) {
+    return "";
+  }
+
+  if (Array.isArray(payload)) {
+    return payload
+      .map((entry) => {
+        const parsedEntry =
+          typeof entry === "string"
+            ? (() => {
+                try {
+                  return JSON.parse(entry) as ResponseTextDeltaEvent;
+                } catch {
+                  return null;
+                }
+              })()
+            : (entry as ResponseTextDeltaEvent);
+
+        if (
+          parsedEntry?.type === "response.output_text.delta" &&
+          typeof parsedEntry.delta === "string"
+        ) {
+          return parsedEntry.delta;
+        }
+
+        return "";
+      })
+      .join("")
+      .trim();
+  }
+
+  if (typeof payload === "string") {
+    try {
+      const parsed = JSON.parse(payload) as unknown;
+      return extractTextFromResponsesPayload(parsed);
+    } catch {
+      return payload.trim();
+    }
+  }
+
+  return extractTextFromResponsesOutput(payload as ResponsesApiResponse);
 }
 
 export async function generateResponse(input: {
@@ -113,7 +188,7 @@ export async function generateResponse(input: {
       model: input.model,
       input: normalizedMessages,
     })) as ResponsesApiResponse;
-    text = (response.output_text ?? "").trim();
+    text = extractTextFromResponsesPayload(response);
   } catch (error) {
     const isNotFoundError =
       typeof error === "object" &&
