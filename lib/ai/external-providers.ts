@@ -67,6 +67,18 @@ interface ChatCompletionResponse {
 
 interface ResponsesApiResponse {
   output_text?: string;
+  output?: Array<{
+    content?: Array<{
+      type?: string;
+      text?: string;
+    }>;
+  }>;
+}
+
+interface ResponseTextDeltaEvent {
+  type?: string;
+  delta?: string;
+  text?: string;
 }
 
 function extractTextFromChatCompletion(
@@ -86,6 +98,139 @@ function extractTextFromChatCompletion(
   }
 
   return (data?.output_text ?? "").trim();
+}
+
+function extractTextFromResponsesOutput(
+  data: ResponsesApiResponse | undefined | null
+): string {
+  if (typeof data?.output_text === "string" && data.output_text.trim().length > 0) {
+    return data.output_text.trim();
+  }
+
+  const fromStructuredOutput =
+    data?.output
+      ?.flatMap((outputItem) => outputItem.content ?? [])
+      .map((contentItem) =>
+        contentItem.type === "output_text" && typeof contentItem.text === "string"
+          ? contentItem.text
+          : ""
+      )
+      .join("") ?? "";
+
+  return fromStructuredOutput.trim();
+}
+
+export function extractTextFromResponsesPayload(payload: unknown): string {
+  if (!payload) {
+    return "";
+  }
+
+  if (Array.isArray(payload)) {
+    return payload
+      .map((entry) => {
+        const parsedEntry =
+          typeof entry === "string"
+            ? (() => {
+                try {
+                  return JSON.parse(entry) as ResponseTextDeltaEvent;
+                } catch {
+                  return null;
+                }
+              })()
+            : (entry as ResponseTextDeltaEvent);
+
+        if (
+          parsedEntry?.type === "response.output_text.delta" &&
+          typeof parsedEntry.delta === "string"
+        ) {
+          return parsedEntry.delta;
+        }
+        if (
+          parsedEntry?.type === "response.output_text.done" &&
+          typeof parsedEntry.text === "string"
+        ) {
+          return parsedEntry.text;
+        }
+
+        return "";
+      })
+      .join("")
+      .trim();
+  }
+
+  if (typeof payload === "string") {
+    const trimmedPayload = payload.trim();
+
+    try {
+      const parsed = JSON.parse(trimmedPayload) as unknown;
+      return extractTextFromResponsesPayload(parsed);
+    } catch {
+      const streamEvents = extractJsonObjectsFromStream(trimmedPayload);
+      if (streamEvents.length > 0) {
+        return extractTextFromResponsesPayload(streamEvents);
+      }
+      return "";
+    }
+  }
+
+  return extractTextFromResponsesOutput(payload as ResponsesApiResponse);
+}
+
+function extractJsonObjectsFromStream(raw: string): unknown[] {
+  const events: unknown[] = [];
+  let depth = 0;
+  let startIndex = -1;
+  let isInsideString = false;
+  let isEscaped = false;
+
+  for (let i = 0; i < raw.length; i++) {
+    const currentCharacter = raw[i];
+
+    if (isInsideString) {
+      if (isEscaped) {
+        isEscaped = false;
+        continue;
+      }
+
+      if (currentCharacter === "\\") {
+        isEscaped = true;
+        continue;
+      }
+
+      if (currentCharacter === "\"") {
+        isInsideString = false;
+      }
+      continue;
+    }
+
+    if (currentCharacter === "\"") {
+      isInsideString = true;
+      continue;
+    }
+
+    if (currentCharacter === "{") {
+      if (depth === 0) {
+        startIndex = i;
+      }
+      depth += 1;
+      continue;
+    }
+
+    if (currentCharacter === "}") {
+      depth -= 1;
+      if (depth === 0 && startIndex >= 0) {
+        const eventAsString = raw.slice(startIndex, i + 1);
+        try {
+          events.push(JSON.parse(eventAsString) as unknown);
+        } catch {
+          // Ignore malformed chunks and continue parsing the stream.
+        }
+        startIndex = -1;
+      }
+    }
+  }
+
+  return events;
 }
 
 export async function generateResponse(input: {
@@ -113,7 +258,7 @@ export async function generateResponse(input: {
       model: input.model,
       input: normalizedMessages,
     })) as ResponsesApiResponse;
-    text = (response.output_text ?? "").trim();
+    text = extractTextFromResponsesPayload(response);
   } catch (error) {
     const isNotFoundError =
       typeof error === "object" &&
