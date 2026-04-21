@@ -1,6 +1,12 @@
 "use client";
 
-import { BadgeCheck, Brain, CheckCircle2, MessageCircle } from "lucide-react";
+import {
+  BadgeCheck,
+  Brain,
+  CheckCircle2,
+  MessageCircle,
+  Music2Icon,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +38,8 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
     "Réflexion: Aucun ou Léger",
     "Quiz illimités",
     "Jusqu'à 5 fichiers / jour",
+    "7 images Studio / jour",
+    "2 générations Wave / semaine",
     "10 recherches web / jour",
   ],
   plus: [
@@ -39,6 +47,8 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
     "IA plus confortable au quotidien",
     "Réflexion: Aucun ou Léger",
     "10 fichiers / jour",
+    "15 images Studio / jour",
+    "5 générations Wave / semaine",
     "Tâches planifiées avancées",
     "20 recherches web / jour",
   ],
@@ -47,6 +57,8 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
     "Pour usage intensif et projets multi-modules",
     "Réflexion: Aucun, Léger, Moyen",
     "20 fichiers / jour",
+    "30 images Studio / jour",
+    "10 générations Wave / semaine",
     "Mémoire IA renforcée",
     "35 recherches web / jour",
   ],
@@ -55,6 +67,8 @@ const highlightsByPlan: Record<PlanKey, string[]> = {
     "Pour équipes et usages professionnels continus",
     "Réflexion: Aucun, Léger, Moyen, Approfondi",
     "50 fichiers / jour",
+    "75 images Studio / jour",
+    "20 générations Wave / semaine",
     "Capacité maximale mAI",
     "50 recherches web / jour",
   ],
@@ -183,6 +197,11 @@ export default function PricingPage() {
                   {planItem.limits.memoryUnits}
                 </p>
                 <p>Fichiers: {planItem.limits.filesPerDay}/jour</p>
+                <p>Images Studio: {planItem.limits.studioImagesPerDay}/jour</p>
+                <p className="flex items-center gap-1">
+                  <Music2Icon className="size-3.5" /> Wave:{" "}
+                  {planItem.limits.musicGenerationsPerWeek}/semaine
+                </p>
                 <p>Tâches planifiées: {planItem.limits.taskSchedules}</p>
                 <p>Recherche web: {planItem.limits.webSearchesPerDay}/jour</p>
               </div>
@@ -201,7 +220,9 @@ export default function PricingPage() {
                     }}
                   >
                     {planItem.key === "plus"
-                      ? "Passer à mAI Plus"
+                      ? "Passer à Plus"
+                      : planItem.key === "pro"
+                        ? "Passer à Pro"
                       : `Passer à ${planItem.label}`}
                   </Button>
                 ) : (

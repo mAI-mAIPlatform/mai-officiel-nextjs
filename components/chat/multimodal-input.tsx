@@ -10,8 +10,10 @@ import {
   Ghost,
   Globe2Icon,
   GraduationCapIcon,
+  ImageIcon,
   LockIcon,
   MicIcon,
+  Music2Icon,
   Paperclip,
   PinIcon,
   PlusIcon,
@@ -42,6 +44,7 @@ import {
   ModelSelector,
   ModelSelectorContent,
   ModelSelectorGroup,
+  ModelSelectorInput,
   ModelSelectorItem,
   ModelSelectorList,
   ModelSelectorLogo,
@@ -86,6 +89,7 @@ import { parseFileForAi, validateFileBeforeUpload } from "@/lib/file-parser";
 import { createNotification } from "@/lib/notifications";
 import { pluginRegistry } from "@/lib/plugins/registry";
 import type { Attachment, ChatMessage } from "@/lib/types";
+import { triggerHaptic } from "@/lib/haptics";
 import { consumeUsage } from "@/lib/usage-limits";
 import { cn, fetcher } from "@/lib/utils";
 import {
@@ -127,6 +131,8 @@ const MAX_PERSISTENT_MEMORY_CHARS = 4000;
 const TOKEN_USAGE_STORAGE_KEY = "mai.token-usage.v1";
 const PLUGIN_MODE_STORAGE_KEY = "mai.plugin-mode";
 const PLUGIN_ENABLED_STORAGE_KEY = "mai.plugins.enabled.v1";
+const IMAGE_CREATION_MODE_STORAGE_KEY = "mai.image-creation-mode.enabled";
+const MUSIC_CREATION_MODE_STORAGE_KEY = "mai.music-creation-mode.enabled";
 const reflectionLevels: ReflectionLevel[] = [
   "light",
   "moderate",
@@ -903,6 +909,14 @@ function PureMultimodalInput({
         typeof window === "undefined"
           ? "none"
           : (localStorage.getItem(PLUGIN_MODE_STORAGE_KEY) ?? "none");
+      const isImageCreationModeEnabled =
+        typeof window === "undefined"
+          ? false
+          : localStorage.getItem(IMAGE_CREATION_MODE_STORAGE_KEY) === "true";
+      const isMusicCreationModeEnabled =
+        typeof window === "undefined"
+          ? false
+          : localStorage.getItem(MUSIC_CREATION_MODE_STORAGE_KEY) === "true";
       const pluginContextBlock =
         pluginMode === "none"
           ? ""
@@ -918,6 +932,35 @@ function PureMultimodalInput({
             "Base ta réponse principale sur les résultats web retournés.",
           ].join("\n")
         : "";
+      const imageCreationBlock = isImageCreationModeEnabled
+        ? [
+            "[MODE CRÉATION D'IMAGES]",
+            "L'utilisateur veut générer des images.",
+            "Avant de proposer la génération, demande d'abord:",
+            "1) le modèle image à utiliser,",
+            "2) le nombre d'images (1 à 4),",
+            "3) la taille souhaitée (ex: 1024x1024).",
+            "Attends la réponse utilisateur avant d'aller plus loin.",
+          ].join("\n")
+        : "";
+      const musicCreationBlock = isMusicCreationModeEnabled
+        ? [
+            "[MODE CRÉATION DE MUSIQUE]",
+            "L'utilisateur veut créer une musique (Wave).",
+            "Avant de proposer la génération, pose un mini-formulaire:",
+            "1) style/genre musical,",
+            "2) instrumental ou chanté,",
+            "3) modèle Wave (V5_5, V5, V4_5PLUS, V4_5ALL, V4_5, V4),",
+            "4) durée/structure souhaitée.",
+            "Attends les réponses avant d'aller plus loin.",
+          ].join("\n")
+        : "";
+      if (isMusicCreationModeEnabled && typeof window !== "undefined") {
+        const key = "mai.wave.prefill.prompts.v1";
+        const raw = localStorage.getItem(key);
+        const current = raw ? (JSON.parse(raw) as string[]) : [];
+        localStorage.setItem(key, JSON.stringify([prompt, ...current].slice(0, 20)));
+      }
 
       sendMessage({
         role: "user",
@@ -932,12 +975,20 @@ function PureMultimodalInput({
             type: "text",
             text: extractedFileContext
               ? `${forcedWebSearchBlock ? `${forcedWebSearchBlock}\n\n` : ""}${
+                  imageCreationBlock ? `${imageCreationBlock}\n\n` : ""
+                }${
+                  musicCreationBlock ? `${musicCreationBlock}\n\n` : ""
+                }${
                   pluginContextBlock ? `${pluginContextBlock}\n\n` : ""
                 }${prompt}
 
 [Contexte extrait des fichiers]
 ${extractedFileContext}`
               : `${forcedWebSearchBlock ? `${forcedWebSearchBlock}\n\n` : ""}${
+                  imageCreationBlock ? `${imageCreationBlock}\n\n` : ""
+                }${
+                  musicCreationBlock ? `${musicCreationBlock}\n\n` : ""
+                }${
                   pluginContextBlock ? `${pluginContextBlock}\n\n` : ""
                 }${prompt}`,
           },
@@ -950,6 +1001,7 @@ ${extractedFileContext}`
             isWebSearchEnabled,
             forceWebSearchEnabled,
             isLearningEnabled,
+            isImageCreationModeEnabled,
           },
           clientGeolocation: geolocationPos,
           ghostMode: isGhostModeEnabled,
@@ -958,6 +1010,7 @@ ${extractedFileContext}`
           customSystemPrompt,
         },
       });
+      triggerHaptic(14);
 
       if (isWebSearchEnabled || forceWebSearchEnabled) {
         consumeUsage("websearch", "day");
@@ -1075,6 +1128,13 @@ ${extractedFileContext}`
 
   const processFiles = useCallback(
     async (files: File[]) => {
+      if (areAllTierCreditsExhausted(plan, isAuthenticated)) {
+        toast.error(
+          "Crédits IA épuisés: ajout de fichiers bloqué jusqu'à réinitialisation."
+        );
+        return;
+      }
+
       const rejectedFiles = files
         .map((file) => validateFileBeforeUpload(file))
         .filter((error): error is string => Boolean(error));
@@ -1120,13 +1180,14 @@ ${extractedFileContext}`
           ...currentAttachments,
           ...successfullyUploadedAttachments,
         ]);
+        triggerHaptic(10);
       } catch (_error) {
         toast.error("Échec de l'envoi des fichiers.");
       } finally {
         setUploadQueue([]);
       }
     },
-    [setAttachments, uploadFile]
+    [isAuthenticated, plan, setAttachments, uploadFile]
   );
 
   const handleFileChange = useCallback(
@@ -1139,6 +1200,13 @@ ${extractedFileContext}`
 
   const handlePaste = useCallback(
     async (event: ClipboardEvent) => {
+      if (areAllTierCreditsExhausted(plan, isAuthenticated)) {
+        toast.error(
+          "Crédits IA épuisés: ajout d'image bloqué jusqu'à réinitialisation."
+        );
+        return;
+      }
+
       const items = event.clipboardData?.items;
       if (!items) {
         return;
@@ -1181,13 +1249,14 @@ ${extractedFileContext}`
           ...curr,
           ...(successfullyUploadedAttachments as Attachment[]),
         ]);
+        triggerHaptic(10);
       } catch (_error) {
         toast.error("Échec de l'envoi de l'image collée.");
       } finally {
         setUploadQueue([]);
       }
     },
-    [setAttachments, uploadFile]
+    [isAuthenticated, plan, setAttachments, uploadFile]
   );
 
   useEffect(() => {
@@ -1201,7 +1270,7 @@ ${extractedFileContext}`
   }, [handlePaste]);
 
   return (
-    <div className={cn("relative flex w-full flex-col gap-4", className)}>
+    <div className={cn("relative flex w-full flex-col gap-2", className)}>
       {editingMessage && onCancelEdit && (
         <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
           <span>Modification du message</span>
@@ -1588,6 +1657,10 @@ function PureContextualActionsMenu({
     "mai-learning-enabled",
     false
   );
+  const [isImageCreationModeEnabled, setIsImageCreationModeEnabled] =
+    useLocalStorage(IMAGE_CREATION_MODE_STORAGE_KEY, false);
+  const [isMusicCreationModeEnabled, setIsMusicCreationModeEnabled] =
+    useLocalStorage(MUSIC_CREATION_MODE_STORAGE_KEY, false);
   const [selectedPlugin, setSelectedPlugin] = useLocalStorage<string>(
     PLUGIN_MODE_STORAGE_KEY,
     "none"
@@ -1634,21 +1707,67 @@ function PureContextualActionsMenu({
     []
   );
 
-  if (isWebSearchEnabled) {
-    selectedActions.push("Recherche");
-  }
   if (forceWebSearchEnabled) {
     selectedActions.push("Web forcée");
-  }
-  if (isLearningEnabled) {
+  } else if (isWebSearchEnabled) {
+    selectedActions.push("Recherche");
+  } else if (isLearningEnabled) {
     selectedActions.push("Apprentissage");
-  }
-  if (selectedPlugin !== "none") {
+  } else if (isImageCreationModeEnabled) {
+    selectedActions.push("Création d'images");
+  } else if (isMusicCreationModeEnabled) {
+    selectedActions.push("Créer de la musique");
+  } else if (selectedPlugin !== "none") {
     const pluginLabel =
       pluginRegistry.find((plugin) => plugin.id === selectedPlugin)?.name ??
       selectedPlugin;
     selectedActions.push(`Plugin: ${pluginLabel}`);
   }
+
+  const resetPlusModes = () => {
+    setIsWebSearchEnabled(false);
+    setForceWebSearchEnabled(false);
+    setIsLearningEnabled(false);
+    setIsImageCreationModeEnabled(false);
+    setIsMusicCreationModeEnabled(false);
+    setSelectedPlugin("none");
+  };
+
+  const toggleSinglePlusMode = (
+    mode: "web" | "web-force" | "learning" | "image" | "music"
+  ) => {
+    const isAlreadyEnabled =
+      (mode === "web" && isWebSearchEnabled && !forceWebSearchEnabled) ||
+      (mode === "web-force" && forceWebSearchEnabled) ||
+      (mode === "learning" && isLearningEnabled) ||
+      (mode === "image" && isImageCreationModeEnabled) ||
+      (mode === "music" && isMusicCreationModeEnabled);
+
+    if (isAlreadyEnabled) {
+      resetPlusModes();
+      return;
+    }
+
+    resetPlusModes();
+    if (mode === "web") {
+      setIsWebSearchEnabled(true);
+      return;
+    }
+    if (mode === "web-force") {
+      setIsWebSearchEnabled(true);
+      setForceWebSearchEnabled(true);
+      return;
+    }
+    if (mode === "learning") {
+      setIsLearningEnabled(true);
+      return;
+    }
+    if (mode === "image") {
+      setIsImageCreationModeEnabled(true);
+      return;
+    }
+    setIsMusicCreationModeEnabled(true);
+  };
 
   const canUseDeepReflection = plan === "max";
   const canUseVeryDeepReflection = false;
@@ -1862,7 +1981,7 @@ function PureContextualActionsMenu({
             isWebSearchEnabled &&
               "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
           )}
-          onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+          onClick={() => toggleSinglePlusMode("web")}
           variant="ghost"
         >
           <SearchIcon
@@ -1879,12 +1998,7 @@ function PureContextualActionsMenu({
             forceWebSearchEnabled &&
               "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
           )}
-          onClick={() => {
-            if (!isWebSearchEnabled) {
-              setIsWebSearchEnabled(true);
-            }
-            setForceWebSearchEnabled(!forceWebSearchEnabled);
-          }}
+          onClick={() => toggleSinglePlusMode("web-force")}
           variant="ghost"
         >
           <Globe2Icon
@@ -1894,6 +2008,45 @@ function PureContextualActionsMenu({
             size={16}
           />
           Recherche sur le web
+        </Button>
+
+        <Button
+          className={cn(
+            "flex h-8 w-full items-center justify-start gap-2 text-xs font-normal",
+            isImageCreationModeEnabled &&
+              "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+          )}
+          onClick={() => toggleSinglePlusMode("image")}
+          variant="ghost"
+        >
+          <ImageIcon
+            className={
+              isImageCreationModeEnabled
+                ? "text-primary"
+                : "text-muted-foreground"
+            }
+            size={16}
+          />
+          Création d'images
+        </Button>
+        <Button
+          className={cn(
+            "flex h-8 w-full items-center justify-start gap-2 text-xs font-normal",
+            isMusicCreationModeEnabled &&
+              "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+          )}
+          onClick={() => toggleSinglePlusMode("music")}
+          variant="ghost"
+        >
+          <Music2Icon
+            className={
+              isMusicCreationModeEnabled
+                ? "text-primary"
+                : "text-muted-foreground"
+            }
+            size={16}
+          />
+          Créer de la musique
         </Button>
 
         <Button
@@ -1926,7 +2079,7 @@ function PureContextualActionsMenu({
             isLearningEnabled &&
               "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
           )}
-          onClick={() => setIsLearningEnabled(!isLearningEnabled)}
+          onClick={() => toggleSinglePlusMode("learning")}
           variant="ghost"
         >
           <GraduationCapIcon
@@ -1995,7 +2148,9 @@ function PureContextualActionsMenu({
                     ? "border-primary/45 bg-primary/10 text-primary"
                     : "border-border/60 hover:border-primary/35 hover:bg-primary/5"
                 )}
-                onClick={() => setSelectedPlugin("none")}
+                      onClick={() => {
+                        resetPlusModes();
+                      }}
                 type="button"
               >
                 Aucun plugin actif
@@ -2031,7 +2186,14 @@ function PureContextualActionsMenu({
                           : "border-border/60 hover:border-primary/35"
                       )}
                       disabled={!enabledPluginsSet.has(plugin.id)}
-                      onClick={() => setSelectedPlugin(plugin.id)}
+                      onClick={() => {
+                        if (selectedPlugin === plugin.id) {
+                          resetPlusModes();
+                          return;
+                        }
+                        resetPlusModes();
+                        setSelectedPlugin(plugin.id);
+                      }}
                       type="button"
                     >
                       Utiliser
@@ -2303,6 +2465,7 @@ function PureModelSelectorCompact({
         </Button>
       </ModelSelectorTrigger>
       <ModelSelectorContent>
+        <ModelSelectorInput placeholder="Rechercher un modèle texte..." />
         <ModelSelectorList>
           {(() => {
             const curatedIds = new Set(chatModels.map((m) => m.id));

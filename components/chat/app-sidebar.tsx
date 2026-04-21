@@ -12,6 +12,7 @@ import {
   PenSquareIcon,
   SearchIcon,
   Settings2Icon,
+  AudioWaveformIcon,
   TerminalSquareIcon,
   TrashIcon,
   Volume2Icon,
@@ -62,7 +63,6 @@ import { BrandStarLogoIcon } from "./icons";
 
 const QUICK_LINKS = [
   { href: "/", key: "discussion", icon: PenSquareIcon },
-  { href: "/studio", key: "studio", icon: ImagePlusIcon },
   { href: "/library", key: "library", icon: BookOpenIcon },
   { href: "/projects", key: "projects", icon: FolderIcon },
   { href: "/settings", key: "settings", icon: Settings2Icon },
@@ -70,6 +70,8 @@ const QUICK_LINKS = [
 ] as const;
 
 const APPLICATION_LINKS = [
+  { href: "/studio", key: "studio", icon: ImagePlusIcon },
+  { href: "/wave", key: "wave", icon: AudioWaveformIcon },
   { href: "/mais", key: "mais", icon: BotIcon },
   { href: "/translation", key: "translation", icon: LanguagesIcon },
   { href: "/interpreter", key: "code", icon: TerminalSquareIcon },
@@ -93,6 +95,7 @@ const sidebarI18n = {
     library: "Library",
     pricing: "Pricing",
     studio: "Studio",
+    wave: "Wave",
     projects: "Projects",
     settings: "Settings",
     translation: "Translation",
@@ -120,6 +123,7 @@ const sidebarI18n = {
     library: "Biblioteca",
     pricing: "Precios",
     studio: "Estudio",
+    wave: "Wave",
     projects: "Proyectos",
     settings: "Ajustes",
     translation: "Traducción",
@@ -147,6 +151,7 @@ const sidebarI18n = {
     library: "Bibliothèque",
     pricing: "Tarifs",
     studio: "Studio",
+    wave: "Wave",
     projects: "Projets",
     settings: "Paramètres",
     translation: "Traduction",
