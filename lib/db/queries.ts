@@ -723,6 +723,7 @@ import {
   type Project,
   project,
   type Subtask,
+  subscription,
   subtask,
   type Task,
   task,
@@ -1084,5 +1085,18 @@ export async function deleteMemoryEntryByUser(id: string, userId: string) {
   } catch (error) {
     console.error("Failed to delete memory entry:", error);
     throw new Error("Failed to delete memory entry");
+  }
+}
+
+export async function getSubscriptionPlan(userId: string) {
+  try {
+    const [record] = await db
+      .select()
+      .from(subscription)
+      .where(eq(subscription.userId, userId));
+    return record?.plan ?? "free";
+  } catch (error) {
+    console.error("Failed to get subscription plan:", error);
+    return "free";
   }
 }

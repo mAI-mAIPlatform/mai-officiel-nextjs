@@ -7,5 +7,5 @@ export function setClientPreferenceCookie(name: string, value: string): void {
 
   const safeName = name.replace(/[^a-zA-Z0-9_.-]/g, "");
   const safeValue = encodeURIComponent(value.slice(0, 512));
-  document.cookie = `${safeName}=${safeValue}; path=/; max-age=${ONE_YEAR_SECONDS}; samesite=lax`;
+  document.cookie = `${safeName}=${safeValue}; path=/; max-age=${ONE_YEAR_SECONDS}; samesite=lax; secure`;
 }

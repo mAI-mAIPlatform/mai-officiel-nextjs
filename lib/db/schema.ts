@@ -230,3 +230,12 @@ export const memoryEntry = pgTable("Memory", {
 });
 
 export type MemoryEntry = InferSelectModel<typeof memoryEntry>;
+
+export const subscription = pgTable("Subscription", {
+  userId: uuid("userId")
+    .primaryKey()
+    .references(() => user.id),
+  plan: varchar("plan", { length: 32 }).notNull().default("free"),
+});
+
+export type Subscription = InferSelectModel<typeof subscription>;

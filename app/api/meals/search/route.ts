@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/app/(auth)/auth";
+import { getSubscriptionPlan } from "@/lib/db/queries";
+import { checkServerUsageLimit } from "@/lib/server-usage";
+import { parsePlanKey, planDefinitions } from "@/lib/subscription";
 
 interface SearchResultItem {
   link?: string;
@@ -9,6 +13,29 @@ interface SearchResultItem {
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const planKey = await getSubscriptionPlan(session.user.id);
+    const plan = parsePlanKey(planKey);
+    const maxSearches = planDefinitions[plan].limits.mealsSearchesPerDay;
+
+    const canSearch = await checkServerUsageLimit(
+      session.user.id,
+      "meals",
+      "day",
+      maxSearches
+    );
+
+    if (!canSearch) {
+      return NextResponse.json(
+        { error: "Limite de recherches atteinte pour aujourd'hui" },
+        { status: 429 }
+      );
+    }
+
     const { query, fileContext } = (await request.json()) as {
       fileContext?: string;
       query?: string;
