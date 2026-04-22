@@ -8,7 +8,7 @@ const TTL_SECONDS = 60 * 60;
 let client: ReturnType<typeof createClient> | null = null;
 let clientConnectionPromise: Promise<void> | null = null;
 
-async function getClient() {
+export async function getClient() {
   if (!client && process.env.REDIS_URL) {
     client = createClient({ url: process.env.REDIS_URL });
     client.on("error", () => undefined);
@@ -43,11 +43,17 @@ export async function checkIpRateLimit(
 
   try {
     const key = `ip-rate-limit:${ip}`;
-    const [count] = await redis
-      .multi()
-      .incr(key)
-      .expire(key, TTL_SECONDS, "NX")
-      .exec();
+    const luaScript = `
+local current = redis.call('INCR', KEYS[1])
+if current == 1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return current;
+`;
+    const count = await redis.eval(luaScript, {
+      keys: [key],
+      arguments: [TTL_SECONDS.toString()],
+    });
 
     if (typeof count === "number" && count > maxMessages) {
       throw new ChatbotError("rate_limit:chat");

@@ -41,6 +41,7 @@ import {
   getMessageCountByUserId,
   getMessagesByChatId,
   getProjectById,
+  getSubscriptionPlan,
   saveChat,
   saveMessages,
   updateChatTitleById,
@@ -49,11 +50,8 @@ import {
 import type { DBMessage } from "@/lib/db/schema";
 import { ChatbotError } from "@/lib/errors";
 import { checkIpRateLimit } from "@/lib/ratelimit";
-import {
-  type PlanKey,
-  parsePlanKey,
-  planDefinitions,
-} from "@/lib/subscription";
+import { checkServerUsageLimit } from "@/lib/server-usage";
+import { parsePlanKey, planDefinitions } from "@/lib/subscription";
 import type { ChatMessage } from "@/lib/types";
 import { convertToUIMessages, generateUUID } from "@/lib/utils";
 import { generateTitleFromUserMessage } from "../../actions";
@@ -90,27 +88,6 @@ function getStreamContext() {
 }
 
 export { getStreamContext };
-
-function getPlanFromRequest(request: Request): PlanKey {
-  const url = new URL(request.url);
-  const fromQuery = parsePlanKey(url.searchParams.get("plan"));
-  if (fromQuery !== "free") {
-    return fromQuery;
-  }
-
-  const fromHeader = parsePlanKey(request.headers.get("x-mai-plan"));
-  if (fromHeader !== "free") {
-    return fromHeader;
-  }
-
-  const cookieHeader = request.headers.get("cookie") ?? "";
-  const cookieMatch = cookieHeader.match(/(?:^|;\s*)mai_plan=([^;]+)/);
-  if (cookieMatch?.[1]) {
-    return parsePlanKey(decodeURIComponent(cookieMatch[1]));
-  }
-
-  return "free";
-}
 
 export async function POST(request: Request) {
   let requestBody: PostRequestBody;
@@ -153,7 +130,8 @@ export async function POST(request: Request) {
         ? DEFAULT_CHAT_MODEL
         : selectedChatModel;
 
-    const plan = getPlanFromRequest(request);
+    const dbPlanKey = await getSubscriptionPlan(session.user.id);
+    const plan = parsePlanKey(dbPlanKey);
     const planMessageLimit = planDefinitions[plan].limits.messagesPerHour;
     await checkIpRateLimit(ipAddress(request), planMessageLimit);
 
@@ -352,7 +330,18 @@ export async function POST(request: Request) {
     const forceWebSearch = contextualActions?.forceWebSearchEnabled === true;
 
     // Add web search tool if contextual action is enabled
-    if (contextualActions?.isWebSearchEnabled || forceWebSearch) {
+
+    const canWebSearch = await checkServerUsageLimit(
+      session.user.id,
+      "websearch",
+      "day",
+      planDefinitions[plan].limits.webSearchesPerDay
+    );
+
+    if (
+      (contextualActions?.isWebSearchEnabled || forceWebSearch) &&
+      canWebSearch
+    ) {
       activeTools.push("webSearch");
     }
 

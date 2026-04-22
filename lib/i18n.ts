@@ -23,6 +23,33 @@ export const dictionary = {
     voiceTranscript: "Transcript",
     voiceSend: "Send to chat",
     voiceCaptions: "Subtitles",
+    "errors.database": "An error occurred while executing a database query.",
+    "errors.badRequestApi":
+      "The request couldn't be processed. Please check your input and try again.",
+    "errors.gateway":
+      "AI Gateway requires a valid credit card on file to service requests.",
+    "errors.authRequired": "You need to sign in before continuing.",
+    "errors.authForbidden":
+      "Your account does not have access to this feature.",
+    "errors.rateLimit":
+      "You've reached the message limit. Come back in 1 hour to continue chatting.",
+    "errors.chatNotFound":
+      "The requested chat was not found. Please check the chat ID and try again.",
+    "errors.chatForbidden":
+      "This chat belongs to another user. Please check the chat ID and try again.",
+    "errors.chatUnauthorized":
+      "You need to sign in to view this chat. Please sign in and try again.",
+    "errors.offline":
+      "We're having trouble sending your message. Please check your internet connection and try again.",
+    "errors.documentNotFound":
+      "The requested document was not found. Please check the document ID and try again.",
+    "errors.documentForbidden":
+      "This document belongs to another user. Please check the document ID and try again.",
+    "errors.documentUnauthorized":
+      "You need to sign in to view this document. Please sign in and try again.",
+    "errors.documentBadRequest":
+      "The request to create or update the document was invalid. Please check your input and try again.",
+    "errors.default": "Something went wrong. Please try again later.",
   },
   es: {
     notifications: "Notificaciones",
@@ -38,6 +65,34 @@ export const dictionary = {
     voiceTranscript: "Transcripción",
     voiceSend: "Enviar al chat",
     voiceCaptions: "Subtítulos",
+    "errors.database":
+      "Se ha producido un error al ejecutar una consulta en la base de datos.",
+    "errors.badRequestApi":
+      "No se ha podido procesar la solicitud. Por favor, comprueba tu entrada e inténtalo de nuevo.",
+    "errors.gateway":
+      "AI Gateway requiere una tarjeta de crédito válida para procesar solicitudes.",
+    "errors.authRequired": "Debes iniciar sesión antes de continuar.",
+    "errors.authForbidden": "Tu cuenta no tiene acceso a esta función.",
+    "errors.rateLimit":
+      "Has alcanzado el límite de mensajes. Vuelve en 1 hora para seguir chateando.",
+    "errors.chatNotFound":
+      "No se ha encontrado el chat solicitado. Por favor, comprueba el ID del chat e inténtalo de nuevo.",
+    "errors.chatForbidden":
+      "Este chat pertenece a otro usuario. Por favor, comprueba el ID del chat e inténtalo de nuevo.",
+    "errors.chatUnauthorized":
+      "Debes iniciar sesión para ver este chat. Por favor, inicia sesión e inténtalo de nuevo.",
+    "errors.offline":
+      "Tenemos problemas para enviar tu mensaje. Por favor, comprueba tu conexión a internet e inténtalo de nuevo.",
+    "errors.documentNotFound":
+      "No se ha encontrado el documento solicitado. Por favor, comprueba el ID del documento e inténtalo de nuevo.",
+    "errors.documentForbidden":
+      "Este documento pertenece a otro usuario. Por favor, comprueba el ID del documento e inténtalo de nuevo.",
+    "errors.documentUnauthorized":
+      "Debes iniciar sesión para ver este documento. Por favor, inicia sesión e inténtalo de nuevo.",
+    "errors.documentBadRequest":
+      "La solicitud para crear o actualizar el documento no es válida. Por favor, comprueba tu entrada e inténtalo de nuevo.",
+    "errors.default":
+      "Algo ha ido mal. Por favor, inténtalo de nuevo más tarde.",
   },
   fr: {
     notifications: "Notifications",
@@ -53,6 +108,34 @@ export const dictionary = {
     voiceTranscript: "Transcription",
     voiceSend: "Envoyer au chat",
     voiceCaptions: "Sous-titres",
+    "errors.database":
+      "Une erreur est survenue lors de l'exécution d'une requête dans la base de données.",
+    "errors.badRequestApi":
+      "La requête n'a pas pu être traitée. Veuillez vérifier votre saisie et réessayer.",
+    "errors.gateway":
+      "AI Gateway nécessite une carte de crédit valide pour traiter les requêtes.",
+    "errors.authRequired": "Vous devez vous connecter avant de continuer.",
+    "errors.authForbidden":
+      "Votre compte n'a pas accès à cette fonctionnalité.",
+    "errors.rateLimit":
+      "Vous avez atteint la limite de messages. Revenez dans 1 heure pour continuer.",
+    "errors.chatNotFound":
+      "Le chat demandé est introuvable. Veuillez vérifier l'identifiant du chat et réessayer.",
+    "errors.chatForbidden":
+      "Ce chat appartient à un autre utilisateur. Veuillez vérifier l'identifiant du chat et réessayer.",
+    "errors.chatUnauthorized":
+      "Vous devez vous connecter pour voir ce chat. Veuillez vous connecter et réessayer.",
+    "errors.offline":
+      "Nous rencontrons des problèmes pour envoyer votre message. Veuillez vérifier votre connexion Internet et réessayer.",
+    "errors.documentNotFound":
+      "Le document demandé est introuvable. Veuillez vérifier l'identifiant du document et réessayer.",
+    "errors.documentForbidden":
+      "Ce document appartient à un autre utilisateur. Veuillez vérifier l'identifiant du document et réessayer.",
+    "errors.documentUnauthorized":
+      "Vous devez vous connecter pour voir ce document. Veuillez vous connecter et réessayer.",
+    "errors.documentBadRequest":
+      "La requête pour créer ou mettre à jour le document est invalide. Veuillez vérifier votre saisie et réessayer.",
+    "errors.default": "Un problème est survenu. Veuillez réessayer plus tard.",
   },
 } as const;
 
