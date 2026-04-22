@@ -13,8 +13,9 @@ export const guestRegex = /^guest-\d+$/;
 export const DUMMY_PASSWORD = generateDummyPassword();
 
 export const greetingPrompts = [
-  "comment puis-je vous aider aujourd'hui ?",
-  "que voulez-vous construire avec mAI ?",
-  "par quoi commençons-nous aujourd'hui ?",
-  "quelle idée voulez-vous explorer maintenant ?",
+  "Comment puis-je vous aider aujourd'hui ?",
+  "Que voulez-vous construire avec mAI ?",
+  "Par quoi commençons-nous aujourd'hui ?",
+  "Quelle idée voulez-vous explorer maintenant ?",
+  "De quoi voulez-vous parler ?",
 ] as const;
