@@ -59,6 +59,14 @@ export async function POST(request: Request) {
       return Response.json({ error: "Code invalide" }, { status: 401 });
     }
 
+    const { auth } = await import("@/app/(auth)/auth");
+    const { updateUserPlan } = await import("@/lib/db/queries");
+
+    const session = await auth();
+    if (session?.user?.id) {
+      await updateUserPlan(session.user.id, parsePlanKey(plan));
+    }
+
     return Response.json({ plan: parsePlanKey(plan) });
   } catch {
     return Response.json({ error: "Erreur serveur" }, { status: 500 });

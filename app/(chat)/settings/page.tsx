@@ -53,7 +53,6 @@ import { createNotification } from "@/lib/notifications";
 import { HAPTICS_ENABLED_STORAGE_KEY } from "@/lib/haptics";
 import {
   defaultSecuritySettings,
-  hashPinCode,
   parseSecuritySettings,
   SECURITY_LOCKED_FLAG_KEY,
   SECURITY_SETTINGS_STORAGE_KEY,
@@ -1847,7 +1846,7 @@ export default function SettingsPage() {
     });
   };
 
-  const handleSaveSecurityPin = () => {
+  const handleUpdateSecurityPin = async () => {
     const currentPin = currentSecurityPinDraft.trim();
     const nextPin = securityPinDraft.trim();
     const confirmPin = securityPinConfirmDraft.trim();
@@ -1860,7 +1859,20 @@ export default function SettingsPage() {
         });
         return;
       }
-      if (hashPinCode(currentPin) !== securitySettings.pinCodeHash) {
+
+      const verifyRes = await fetch("/api/security/pin/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: currentPin }),
+      });
+
+      if (!verifyRes.ok) {
+        setSecurityFeedback({ type: "error", text: "Erreur serveur." });
+        return;
+      }
+
+      const { isValid } = await verifyRes.json();
+      if (!isValid) {
         setSecurityFeedback({
           type: "error",
           text: "PIN actuel invalide.",
@@ -1885,11 +1897,24 @@ export default function SettingsPage() {
       return;
     }
 
+    const hashRes = await fetch("/api/security/pin/hash", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: nextPin }),
+    });
+
+    if (!hashRes.ok) {
+      setSecurityFeedback({ type: "error", text: "Erreur serveur." });
+      return;
+    }
+
+    const { hash } = await hashRes.json();
+
     setSecuritySettings((current) => ({
       ...current,
       enablePinLock: true,
       lockOnReturn: true,
-      pinCodeHash: hashPinCode(nextPin),
+      pinCodeHash: hash,
     }));
     setCurrentSecurityPinDraft("");
     setSecurityPinDraft("");
@@ -1900,7 +1925,7 @@ export default function SettingsPage() {
     });
   };
 
-  const handleDisableSecurityPin = () => {
+  const handleDisableSecurityPin = async () => {
     const currentPin = currentSecurityPinDraft.trim();
     if (!securitySettings.pinCodeHash) {
       setSecurityFeedback({
@@ -1909,7 +1934,20 @@ export default function SettingsPage() {
       });
       return;
     }
-    if (hashPinCode(currentPin) !== securitySettings.pinCodeHash) {
+
+    const verifyRes = await fetch("/api/security/pin/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: currentPin }),
+    });
+
+    if (!verifyRes.ok) {
+      setSecurityFeedback({ type: "error", text: "Erreur serveur." });
+      return;
+    }
+
+    const { isValid } = await verifyRes.json();
+    if (!isValid) {
       setSecurityFeedback({
         type: "error",
         text: "PIN actuel invalide. Désactivation refusée.",
@@ -2905,7 +2943,7 @@ export default function SettingsPage() {
               value={securityPinConfirmDraft}
             />
             <Button
-              onClick={handleSaveSecurityPin}
+              onClick={handleUpdateSecurityPin}
               type="button"
               variant="outline"
             >

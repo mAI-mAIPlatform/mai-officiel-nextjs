@@ -17,24 +17,33 @@ export function useSubscriptionPlan() {
   const [isActivating, setIsActivating] = useState(false);
 
   useEffect(() => {
-    const storageKeys = [PLAN_STORAGE_KEY, ...LEGACY_PLAN_STORAGE_KEYS];
-    const savedPlan = storageKeys
-      .map((storageKey) => window.localStorage.getItem(storageKey))
-      .find((value) => value !== null);
-    const parsedPlan = parsePlanKey(savedPlan);
+    const fetchPlan = async () => {
+      try {
+        const res = await fetch("/api/subscription");
+        if (res.ok) {
+          const { plan } = await res.json();
+          const parsedPlan = parsePlanKey(plan);
+          setPlan(parsedPlan);
+          window.localStorage.setItem(PLAN_STORAGE_KEY, parsedPlan);
+        } else {
+          // fallback
+          const savedPlan = window.localStorage.getItem(PLAN_STORAGE_KEY);
+          setPlan(parsePlanKey(savedPlan));
+        }
+      } catch {
+        const savedPlan = window.localStorage.getItem(PLAN_STORAGE_KEY);
+        setPlan(parsePlanKey(savedPlan));
+      } finally {
+        setIsHydrated(true);
+      }
+    };
 
-    setPlan(parsedPlan);
-    window.localStorage.setItem(PLAN_STORAGE_KEY, parsedPlan);
-    setIsHydrated(true);
+    fetchPlan();
 
     const onStorage = (event: StorageEvent) => {
-      if (
-        !event.key ||
-        !storageKeys.includes(event.key as (typeof storageKeys)[number])
-      ) {
+      if (event.key !== PLAN_STORAGE_KEY) {
         return;
       }
-
       setPlan(parsePlanKey(event.newValue));
     };
 

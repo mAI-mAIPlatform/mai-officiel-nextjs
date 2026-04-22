@@ -124,6 +124,10 @@ function writeSnapshot(feature: UsageFeature, snapshot: UsageSnapshot) {
   );
 }
 
+export function getUsagePeriodKey(period: UsagePeriod, now = new Date()): string {
+  return getPeriodKey(period, now);
+}
+
 export function getUsageCount(
   feature: UsageFeature,
   period: UsagePeriod

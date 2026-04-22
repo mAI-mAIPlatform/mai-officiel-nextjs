@@ -20,11 +20,34 @@ export const user = pgTable("User", {
   emailVerified: boolean("emailVerified").notNull().default(false),
   image: text("image"),
   isAnonymous: boolean("isAnonymous").notNull().default(false),
+  plan: varchar("plan").notNull().default("free"),
+  pinCodeHash: varchar("pinCodeHash", { length: 255 }),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
 
 export type User = InferSelectModel<typeof user>;
+
+import { unique } from "drizzle-orm/pg-core";
+
+export const usage = pgTable(
+  "Usage",
+  {
+    id: uuid("id").notNull().defaultRandom(),
+    userId: uuid("userId")
+      .notNull()
+      .references(() => user.id),
+    feature: varchar("feature").notNull(),
+    periodKey: varchar("periodKey").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.id] }),
+    unq: unique().on(table.userId, table.feature, table.periodKey),
+  })
+);
+
+export type Usage = InferSelectModel<typeof usage>;
 
 export const chat = pgTable("Chat", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),

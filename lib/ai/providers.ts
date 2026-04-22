@@ -46,7 +46,6 @@ let cachedGatewayProvider: ReturnType<typeof createOpenAI> | null | undefined;
 let cachedOllamaProvider: ReturnType<typeof createOpenAI> | null | undefined;
 let cachedHordeProvider: ReturnType<typeof createOpenAI> | null | undefined;
 let cachedOpenRouterProviders: ReturnType<typeof createOpenAI>[] | undefined;
-let openRouterProviderIndex = 0;
 
 function getFsProvider(): ReturnType<typeof createOpenAI> | null {
   if (cachedFsProvider !== undefined) {
@@ -188,9 +187,8 @@ export function getLanguageModel(modelId: string) {
         "OpenRouter provider non initialisé. Configure OPENROUTER_API_KEY_1/2/3."
       );
     }
-    const provider =
-      openRouterProviders[openRouterProviderIndex % openRouterProviders.length];
-    openRouterProviderIndex += 1;
+    const randomIndex = Math.floor(Math.random() * openRouterProviders.length);
+    const provider = openRouterProviders[randomIndex];
     return provider.chat(modelId.slice("openrouter/".length));
   }
 

@@ -91,25 +91,17 @@ function getStreamContext() {
 
 export { getStreamContext };
 
-function getPlanFromRequest(request: Request): PlanKey {
-  const url = new URL(request.url);
-  const fromQuery = parsePlanKey(url.searchParams.get("plan"));
-  if (fromQuery !== "free") {
-    return fromQuery;
+async function getPlanForUser(userId: string): Promise<PlanKey> {
+  try {
+    const { getUserById } = await import("@/lib/db/queries");
+    const users = await getUserById({ id: userId });
+    if (users.length > 0 && users[0].plan) {
+      return parsePlanKey(users[0].plan);
+    }
+    return "free";
+  } catch {
+    return "free";
   }
-
-  const fromHeader = parsePlanKey(request.headers.get("x-mai-plan"));
-  if (fromHeader !== "free") {
-    return fromHeader;
-  }
-
-  const cookieHeader = request.headers.get("cookie") ?? "";
-  const cookieMatch = cookieHeader.match(/(?:^|;\s*)mai_plan=([^;]+)/);
-  if (cookieMatch?.[1]) {
-    return parsePlanKey(decodeURIComponent(cookieMatch[1]));
-  }
-
-  return "free";
 }
 
 export async function POST(request: Request) {
@@ -153,9 +145,21 @@ export async function POST(request: Request) {
         ? DEFAULT_CHAT_MODEL
         : selectedChatModel;
 
-    const plan = getPlanFromRequest(request);
+    const plan = await getPlanForUser(session.user.id);
     const planMessageLimit = planDefinitions[plan].limits.messagesPerHour;
     await checkIpRateLimit(ipAddress(request), planMessageLimit);
+
+    const { getUsageCountServer, consumeUsageServer } = await import("@/lib/db/queries");
+    const { getUsagePeriodKey } = await import("@/lib/usage-limits");
+
+    const periodKey = getUsagePeriodKey("hour");
+    const currentUsage = await getUsageCountServer(session.user.id, "messages", periodKey);
+
+    if (currentUsage >= planMessageLimit) {
+      return new ChatbotError("rate_limit:chat").toResponse();
+    }
+
+    await consumeUsageServer(session.user.id, "messages", periodKey, 1);
 
     const userType: UserType = session.user.type;
 

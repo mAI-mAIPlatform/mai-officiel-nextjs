@@ -43,11 +43,19 @@ export async function checkIpRateLimit(
 
   try {
     const key = `ip-rate-limit:${ip}`;
-    const [count] = await redis
-      .multi()
-      .incr(key)
-      .expire(key, TTL_SECONDS, "NX")
-      .exec();
+
+    const luaScript = `
+      local current = redis.call('INCR', KEYS[1])
+      if current == 1 then
+        redis.call('EXPIRE', KEYS[1], ARGV[1])
+      end
+      return current
+    `;
+
+    const count = await redis.eval(luaScript, {
+      keys: [key],
+      arguments: [TTL_SECONDS.toString()],
+    });
 
     if (typeof count === "number" && count > maxMessages) {
       throw new ChatbotError("rate_limit:chat");

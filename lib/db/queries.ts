@@ -1086,3 +1086,96 @@ export async function deleteMemoryEntryByUser(id: string, userId: string) {
     throw new Error("Failed to delete memory entry");
   }
 }
+
+export async function updateUserPlan(userId: string, plan: string) {
+  try {
+    return await db
+      .update(user)
+      .set({ plan, updatedAt: new Date() })
+      .where(eq(user.id, userId));
+  } catch (error) {
+    console.error("Failed to update user plan:", error);
+    throw new Error("Failed to update user plan");
+  }
+}
+
+import { usage } from "./schema";
+
+export async function getUsageCountServer(
+  userId: string,
+  feature: string,
+  periodKey: string
+): Promise<number> {
+  try {
+    const [result] = await db
+      .select({ count: usage.count })
+      .from(usage)
+      .where(
+        and(
+          eq(usage.userId, userId),
+          eq(usage.feature, feature),
+          eq(usage.periodKey, periodKey)
+        )
+      );
+
+    return result?.count ?? 0;
+  } catch (error) {
+    console.error("Failed to get usage count:", error);
+    return 0;
+  }
+}
+
+import { sql } from "drizzle-orm";
+
+export async function consumeUsageServer(
+  userId: string,
+  feature: string,
+  periodKey: string,
+  amount = 1
+) {
+  try {
+    const [result] = await db
+      .insert(usage)
+      .values({
+        userId,
+        feature,
+        periodKey,
+        count: amount,
+      })
+      .onConflictDoUpdate({
+        target: [usage.userId, usage.feature, usage.periodKey],
+        set: { count: sql`${usage.count} + ${amount}` },
+      })
+      .returning();
+
+    return result.count;
+  } catch (error) {
+    console.error("Failed to consume usage:", error);
+    throw new Error("Failed to consume usage");
+  }
+}
+
+export async function getUserPinHash(userId: string) {
+  try {
+    const [result] = await db
+      .select({ pinCodeHash: user.pinCodeHash })
+      .from(user)
+      .where(eq(user.id, userId));
+    return result?.pinCodeHash;
+  } catch (error) {
+    console.error("Failed to get user pin hash:", error);
+    return null;
+  }
+}
+
+export async function updateUserPinHash(userId: string, hash: string | null) {
+  try {
+    return await db
+      .update(user)
+      .set({ pinCodeHash: hash, updatedAt: new Date() })
+      .where(eq(user.id, userId));
+  } catch (error) {
+    console.error("Failed to update user pin hash:", error);
+    throw new Error("Failed to update user pin hash");
+  }
+}

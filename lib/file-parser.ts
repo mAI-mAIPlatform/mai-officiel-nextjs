@@ -13,6 +13,9 @@ export const SUPPORTED_FILE_TYPES = new Set([
   "image/gif",
 ]);
 
+import mammoth from "mammoth";
+import pdfParse from "pdf-parse";
+
 export type ParsedFileResult = {
   extractedText: string;
   mediaType: string;
@@ -30,10 +33,38 @@ export async function parseFileForAi(file: File): Promise<ParsedFileResult> {
   }
 
   if (mediaType === "application/pdf") {
-    return {
-      extractedText: `[PDF importé: ${file.name}]\nLe texte complet du PDF n'est pas extrait localement.`,
-      mediaType,
-    };
+    try {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const data = await pdfParse(buffer);
+      return {
+        extractedText: data.text.slice(0, 20_000),
+        mediaType,
+      };
+    } catch {
+      return {
+        extractedText: `[PDF importé: ${file.name}]\nLe texte complet du PDF n'a pas pu être extrait localement.`,
+        mediaType,
+      };
+    }
+  }
+
+  if (
+    mediaType ===
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ) {
+    try {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const { value } = await mammoth.extractRawText({ buffer });
+      return {
+        extractedText: value.slice(0, 20_000),
+        mediaType,
+      };
+    } catch {
+      return {
+        extractedText: `[Document DOCX importé: ${file.name}]\nLe texte complet du DOCX n'a pas pu être extrait localement.`,
+        mediaType,
+      };
+    }
   }
 
   return {

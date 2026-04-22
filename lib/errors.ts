@@ -75,45 +75,49 @@ export class ChatbotError extends Error {
   }
 }
 
+import { t, getLanguageFromStorage } from "./i18n";
+
 export function getMessageByErrorCode(errorCode: ErrorCode): string {
+  const language = typeof window !== "undefined" ? getLanguageFromStorage() : "fr";
+
   if (errorCode.includes("database")) {
-    return "An error occurred while executing a database query.";
+    return t("errors.database", language);
   }
 
   switch (errorCode) {
     case "bad_request:api":
-      return "The request couldn't be processed. Please check your input and try again.";
+      return t("errors.badRequestApi", language);
 
     case "bad_request:activate_gateway":
       return "AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.";
 
     case "unauthorized:auth":
-      return "You need to sign in before continuing.";
+      return t("errors.authRequired", language);
     case "forbidden:auth":
-      return "Your account does not have access to this feature.";
+      return t("errors.authForbidden", language);
 
     case "rate_limit:chat":
-      return "You've reached the message limit. Come back in 1 hour to continue chatting.";
+      return t("errors.chatRateLimit", language);
     case "not_found:chat":
-      return "The requested chat was not found. Please check the chat ID and try again.";
+      return t("errors.chatNotFound", language);
     case "forbidden:chat":
-      return "This chat belongs to another user. Please check the chat ID and try again.";
+      return t("errors.chatForbidden", language);
     case "unauthorized:chat":
-      return "You need to sign in to view this chat. Please sign in and try again.";
+      return t("errors.chatUnauthorized", language);
     case "offline:chat":
-      return "We're having trouble sending your message. Please check your internet connection and try again.";
+      return t("errors.chatOffline", language);
 
     case "not_found:document":
-      return "The requested document was not found. Please check the document ID and try again.";
+      return t("errors.documentNotFound", language);
     case "forbidden:document":
-      return "This document belongs to another user. Please check the document ID and try again.";
+      return t("errors.documentForbidden", language);
     case "unauthorized:document":
-      return "You need to sign in to view this document. Please sign in and try again.";
+      return t("errors.documentUnauthorized", language);
     case "bad_request:document":
-      return "The request to create or update the document was invalid. Please check your input and try again.";
+      return t("errors.documentBadRequest", language);
 
     default:
-      return "Something went wrong. Please try again later.";
+      return t("errors.unknown", language);
   }
 }
 

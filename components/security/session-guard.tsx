@@ -5,7 +5,6 @@ import { signOut, useSession } from "next-auth/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   defaultSecuritySettings,
-  hashPinCode,
   parseSecuritySettings,
   SECURITY_LOCKED_FLAG_KEY,
   SECURITY_SETTINGS_STORAGE_KEY,
@@ -16,6 +15,7 @@ export function SessionGuard() {
   const [isLocked, setIsLocked] = useState(false);
   const [pinValue, setPinValue] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
   const settingsRef = useRef(defaultSecuritySettings);
   const lastActivityAtRef = useRef<number>(0);
 
@@ -153,20 +153,46 @@ export function SessionGuard() {
 
         <button
           className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-xl border border-cyan-400/40 bg-cyan-500/15 text-sm font-medium text-cyan-100"
-          onClick={() => {
-            if (hashPinCode(pinValue) !== settingsRef.current.pinCodeHash) {
-              setErrorMessage("PIN incorrect.");
-              return;
-            }
+          onClick={async () => {
+            if (isVerifying) return;
+            setIsVerifying(true);
+            setErrorMessage(null);
 
-            window.localStorage.removeItem(SECURITY_LOCKED_FLAG_KEY);
-            setPinValue("");
-            setIsLocked(false);
+            try {
+              const response = await fetch("/api/security/pin/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  pin: pinValue,
+                }),
+              });
+
+              if (!response.ok) {
+                setErrorMessage("Erreur serveur.");
+                return;
+              }
+
+              const { isValid } = await response.json();
+
+              if (!isValid) {
+                setErrorMessage("PIN incorrect.");
+                return;
+              }
+
+              window.localStorage.removeItem(SECURITY_LOCKED_FLAG_KEY);
+              setPinValue("");
+              setIsLocked(false);
+            } catch {
+              setErrorMessage("PIN incorrect.");
+            } finally {
+              setIsVerifying(false);
+            }
           }}
           type="button"
+          disabled={isVerifying}
         >
           <ShieldCheck className="mr-2 size-4" />
-          Déverrouiller
+          {isVerifying ? "Vérification..." : "Déverrouiller"}
         </button>
       </div>
     </div>
