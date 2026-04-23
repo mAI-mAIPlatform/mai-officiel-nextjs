@@ -86,3 +86,17 @@ test("extractTextFromResponsesPayload - stream Responses API verbeux -> retourne
     "Salut ! Comment puis-je vous aider ?"
   );
 });
+
+test("extractTextFromResponsesPayload - fallback content_part.done quand output_text.done absent", () => {
+  const rawStream =
+    '{"type":"response.created","response":{"id":"resp_1"}}' +
+    '{"type":"response.output_text.delta","delta":"Bonjour"}' +
+    '{"type":"response.output_text.delta","delta":" !"}' +
+    '{"type":"response.content_part.done","part":{"type":"output_text","text":"Bonjour ! Comment puis-je vous aider ?"}}' +
+    '{"type":"response.completed","response":{"id":"resp_1","status":"completed"}}';
+
+  assert.equal(
+    extractTextFromResponsesPayload(rawStream),
+    "Bonjour ! Comment puis-je vous aider ?"
+  );
+});

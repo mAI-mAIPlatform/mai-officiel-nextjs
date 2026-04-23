@@ -23,6 +23,16 @@ interface ResponseTextDeltaEvent {
   delta?: string;
   text?: string;
   type?: string;
+  part?: {
+    text?: string;
+    type?: string;
+  };
+  item?: {
+    content?: Array<{
+      text?: string;
+      type?: string;
+    }>;
+  };
 }
 
 export function extractTextFromResponsesOutput(
@@ -86,6 +96,37 @@ export function extractTextFromResponsesPayload(payload: unknown): string {
       return completedText.trim();
     }
 
+    const contentPartDoneText = parsedEvents
+      .filter(
+        (event) =>
+          event.type === "response.content_part.done" &&
+          event.part?.type === "output_text" &&
+          typeof event.part?.text === "string"
+      )
+      .at(-1)?.part?.text;
+
+    if (contentPartDoneText) {
+      return contentPartDoneText.trim();
+    }
+
+    const outputItemDoneText = parsedEvents
+      .filter((event) => event.type === "response.output_item.done")
+      .map((event) =>
+        event.item?.content
+          ?.filter(
+            (contentPart) =>
+              contentPart.type === "output_text" &&
+              typeof contentPart.text === "string"
+          )
+          .map((contentPart) => contentPart.text ?? "")
+          .join("") ?? ""
+      )
+      .find((value) => value.trim().length > 0);
+
+    if (outputItemDoneText) {
+      return outputItemDoneText.trim();
+    }
+
     return parsedEvents
       .map((event) => {
         if (
@@ -124,6 +165,14 @@ export function extractTextFromResponsesPayload(payload: unknown): string {
 
     if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
       return event.delta.trim();
+    }
+
+    if (
+      event.type === "response.content_part.done" &&
+      event.part?.type === "output_text" &&
+      typeof event.part?.text === "string"
+    ) {
+      return event.part.text.trim();
     }
   }
 

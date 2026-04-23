@@ -81,6 +81,12 @@ test("sanitizeText", () => {
     sanitizeText('{"type":"note","text":"json normal"}'),
     '{"type":"note","text":"json normal"}'
   );
+  assert.equal(
+    sanitizeText(
+      '{"type":"response.created","response":{"id":"resp_1"}}{"type":"response.content_part.done","part":{"type":"output_text","text":"Bonjour depuis content_part.done"}}'
+    ),
+    "Bonjour depuis content_part.done"
+  );
 });
 
 test("getTextFromMessage", () => {
