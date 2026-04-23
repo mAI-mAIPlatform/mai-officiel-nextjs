@@ -361,6 +361,8 @@ export async function POST(request: Request) {
             ),
           });
 
+          dataStream.write({ type: "start" });
+          dataStream.write({ type: "start-step" });
           const textPartId = generateId();
           dataStream.write({ type: "text-start", id: textPartId });
           dataStream.write({
@@ -369,6 +371,8 @@ export async function POST(request: Request) {
             delta: text,
           });
           dataStream.write({ type: "text-end", id: textPartId });
+          dataStream.write({ type: "finish-step" });
+          dataStream.write({ type: "finish", finishReason: "stop" });
 
           if (titlePromise && !isGhostMode) {
             const generatedTitle = normalizeChatTitle(await titlePromise);
