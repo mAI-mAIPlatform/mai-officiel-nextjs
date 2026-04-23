@@ -70,3 +70,33 @@ test("extractTextFromResponsesPayload - préfère output_text.done à la concat 
     "Salut ! Comment puis-je t’aider ?"
   );
 });
+
+test("extractTextFromResponsesPayload - stream Responses API verbeux -> retourne seulement le texte final", () => {
+  const rawStream =
+    '{"type":"response.created","response":{"id":"resp_1","status":"in_progress","tools":[{"type":"function","name":"createDocument","parameters":{"type":"object","properties":{"title":{"type":"string"}}}}]}}' +
+    '{"type":"response.in_progress","response":{"id":"resp_1","status":"in_progress"}}' +
+    '{"type":"response.output_text.delta","delta":"Salut"}' +
+    '{"type":"response.output_text.delta","delta":" !"}' +
+    '{"type":"response.output_text.delta","delta":" Comment puis-je vous aider ?"}' +
+    '{"type":"response.output_text.done","text":"Salut ! Comment puis-je vous aider ?"}' +
+    '{"type":"response.completed","response":{"id":"resp_1","status":"completed"}}';
+
+  assert.equal(
+    extractTextFromResponsesPayload(rawStream),
+    "Salut ! Comment puis-je vous aider ?"
+  );
+});
+
+test("extractTextFromResponsesPayload - fallback content_part.done quand output_text.done absent", () => {
+  const rawStream =
+    '{"type":"response.created","response":{"id":"resp_1"}}' +
+    '{"type":"response.output_text.delta","delta":"Bonjour"}' +
+    '{"type":"response.output_text.delta","delta":" !"}' +
+    '{"type":"response.content_part.done","part":{"type":"output_text","text":"Bonjour ! Comment puis-je vous aider ?"}}' +
+    '{"type":"response.completed","response":{"id":"resp_1","status":"completed"}}';
+
+  assert.equal(
+    extractTextFromResponsesPayload(rawStream),
+    "Bonjour ! Comment puis-je vous aider ?"
+  );
+});

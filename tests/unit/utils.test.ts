@@ -59,6 +59,40 @@ test("sanitizeText", () => {
     ),
     "Salut final"
   );
+  assert.equal(
+    sanitizeText(
+      '{\n  "type": "response.output_text.done",\n  "text": "Texte final avec espaces JSON"\n}'
+    ),
+    "Texte final avec espaces JSON"
+  );
+  assert.equal(
+    sanitizeText(
+      '{"type":"response.completed","response":{"output_text":"Texte depuis response.output_text"}}'
+    ),
+    "Texte depuis response.output_text"
+  );
+  assert.equal(
+    sanitizeText(
+      '{"type":"response.created","response":{"id":"resp_1","status":"in_progress"}}'
+    ),
+    ""
+  );
+  assert.equal(
+    sanitizeText('{"type":"note","text":"json normal"}'),
+    '{"type":"note","text":"json normal"}'
+  );
+  assert.equal(
+    sanitizeText(
+      '{"type":"response.created","response":{"id":"resp_1"}}{"type":"response.content_part.done","part":{"type":"output_text","text":"Bonjour depuis content_part.done"}}'
+    ),
+    "Bonjour depuis content_part.done"
+  );
+  assert.equal(
+    sanitizeText(
+      '"type":"response.output_text.delta","delta":"Bon" some broken json "type":"response.output_text.delta","delta":"jour"'
+    ),
+    "Bonjour"
+  );
 });
 
 test("getTextFromMessage", () => {
