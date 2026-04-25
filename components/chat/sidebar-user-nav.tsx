@@ -22,6 +22,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 import { setClientPreferenceCookie } from "@/lib/client-preferences";
 import { getGuestDisplayName } from "@/lib/guest-display";
 import { LoaderIcon } from "./icons";
@@ -42,12 +43,9 @@ export function SidebarUserNav({ user }: { user: User }) {
   const { isMobile, setOpenMobile } = useSidebar();
   const { data, status } = useSession();
   const { setTheme, resolvedTheme } = useTheme();
-  const [customDisplayName, setCustomDisplayName] = useState<string | null>(
-    null
-  );
-  const [customAvatarDataUrl, setCustomAvatarDataUrl] = useState<string | null>(
-    null
-  );
+  const { plan } = useSubscriptionPlan();
+  const [customDisplayName, setCustomDisplayName] = useState<string | null>(null);
+  const [customAvatarDataUrl, setCustomAvatarDataUrl] = useState<string | null>(null);
   const [customAvatarId, setCustomAvatarId] = useState<string>("aurora");
 
   useEffect(() => {
@@ -96,6 +94,7 @@ export function SidebarUserNav({ user }: { user: User }) {
     user.name?.trim() ||
     user.email?.split("@")[0] ||
     "Utilisateur";
+
   const avatarBackground = useMemo(() => {
     if (customAvatarDataUrl) {
       return `url(${customAvatarDataUrl})`;
@@ -103,6 +102,7 @@ export function SidebarUserNav({ user }: { user: User }) {
 
     return avatarGradientsById[customAvatarId] ?? avatarGradientsById.aurora;
   }, [customAvatarDataUrl, customAvatarId]);
+
   const closeMobileSidebar = () => {
     if (isMobile) {
       setOpenMobile(false);
@@ -177,23 +177,25 @@ export function SidebarUserNav({ user }: { user: User }) {
             >
               Statistiques
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <button
-                className="w-full cursor-pointer rounded-md bg-blue-600 text-[13px] font-medium text-white hover:bg-blue-500"
-                onClick={() => {
-                  closeMobileSidebar();
-                  router.push("/pricing");
-                }}
-                type="button"
-              >
-                Mettre à niveau
-              </button>
-            </DropdownMenuItem>
+            {plan !== "max" ? (
+              <DropdownMenuItem asChild>
+                <button
+                  className="w-full cursor-pointer rounded-md bg-blue-600 text-[13px] font-medium text-white hover:bg-blue-500"
+                  onClick={() => {
+                    closeMobileSidebar();
+                    router.push("/pricing");
+                  }}
+                  type="button"
+                >
+                  Mettre à niveau
+                </button>
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuSub>
               <DropdownMenuSubTrigger className="text-[13px]">
                 Plus
               </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
+              <DropdownMenuSubContent alignOffset={-4} sideOffset={8}>
                 <DropdownMenuItem asChild>
                   <a
                     className="w-full cursor-pointer text-[13px]"

@@ -12,6 +12,7 @@ const payloadSchema = z.object({
   maxPreparationMinutes: z.number().int().min(5).max(600),
   servings: z.number().int().min(1).max(20),
   thermomixMode: z.boolean().default(false),
+  refinement: z.enum(["none", "simple", "light", "gourmet"]).default("none"),
   modelId: z.string().trim().optional(),
 });
 
@@ -30,13 +31,13 @@ export async function POST(request: Request) {
       ? parsed.data.modelId
       : defaultModelId;
 
-  const { category, description, excludeIngredients, includeIngredients, maxPreparationMinutes, servings, thermomixMode } = parsed.data;
+  const { category, description, excludeIngredients, includeIngredients, maxPreparationMinutes, servings, thermomixMode, refinement } = parsed.data;
 
   try {
     const { text } = await generateText({
       model: getLanguageModel(modelId),
       system:
-        "Tu es Cooker, un chef IA exigeant. Génère une recette fiable, claire, complète, sûre et mesurée. Réponds en français markdown.",
+        "Tu es Cooker, un chef IA exigeant. Génère une recette fiable, claire, complète, sûre et mesurée. Réponds en français markdown. N'ajoute aucune question de suivi.",
       prompt: [
         `Type: ${category}`,
         `Description: ${description}`,
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
         `Temps total maximum: ${maxPreparationMinutes} minutes`,
         `Portions: ${servings}`,
         `Mode Thermomix: ${thermomixMode ? "oui" : "non"}`,
+        `Niveau de simplification: ${refinement}`,
         "Format attendu: titre, résumé, ingrédients détaillés avec quantités, étapes numérotées, timings précis, variantes, conseils de conservation.",
       ].join("\n"),
     });
