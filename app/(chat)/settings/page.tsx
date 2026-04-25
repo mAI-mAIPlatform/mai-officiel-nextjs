@@ -653,7 +653,9 @@ export default function SettingsPage() {
   const maxScheduledTasks = currentPlanDefinition.limits.taskSchedules;
   const maxMemoryEntries = getMemoryEntriesLimitForPlan(plan);
   const isAuthenticated = status === "authenticated" && Boolean(data?.user?.id);
-  const uiLabels = settingsLabels[interfaceLanguage];
+  const uiLabels =
+    settingsLabels[interfaceLanguage as keyof typeof settingsLabels] ??
+    settingsLabels.fr;
   const allowedReasoningPreferences = useMemo<ReasoningPreference[]>(() => {
     if (plan === "max") {
       return ["none", "low", "medium", "high"];
