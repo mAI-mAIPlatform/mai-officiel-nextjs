@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const { topic, difficulty, count, timer } = parsed.data;
 
     const result = await generateObject({
-      model: getLanguageModel("openai/gpt-5.4-nano"),
+      model: getLanguageModel("gpt-5.4-mini"),
       schema: quizSchema,
       system:
         "Tu es un créateur de quiz interactifs. Réponds uniquement avec un JSON valide respectant strictement le schéma demandé.",

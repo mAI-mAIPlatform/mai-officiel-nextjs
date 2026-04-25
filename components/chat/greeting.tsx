@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
@@ -72,6 +73,20 @@ export const Greeting = () => {
       className="pointer-events-auto flex flex-col items-center px-4"
       key="overview"
     >
+      <motion.div
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-4"
+        initial={{ opacity: 0, y: 10 }}
+        transition={{ delay: 0.1, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <Image
+          alt="Logo mAI"
+          className="size-14 object-contain"
+          height={56}
+          src="/images/logo.png"
+          width={56}
+        />
+      </motion.div>
       <motion.div
         animate={{ opacity: 1, y: 0 }}
         className="text-center font-semibold text-2xl tracking-tight text-foreground md:text-3xl"

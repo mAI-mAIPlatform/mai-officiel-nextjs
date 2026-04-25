@@ -4,6 +4,7 @@ import { CheckCircle2, Clock3, RotateCcw, Trophy } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { addStatsEvent } from "@/lib/user-stats";
 
 type QuizQuestion = {
   id: string;
@@ -51,6 +52,7 @@ export default function QuizPage() {
         if (!response.ok) {
           throw new Error("La génération IA du quiz a échoué.");
         }
+        addStatsEvent("api_call", 1);
 
         const payload = (await response.json()) as {
           questions?: Array<{
