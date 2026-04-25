@@ -17,6 +17,7 @@ import {
 
 import { DocumentToolResult } from "./document";
 import { DocumentPreview } from "./document-preview";
+import { BrandStarLogoIcon } from "./icons";
 import { MessageActions } from "./message-actions";
 import { MessageReasoning } from "./message-reasoning";
 import { PreviewAttachment } from "./preview-attachment";
@@ -363,13 +364,7 @@ const PurePreviewMessage = ({
         {isAssistant && (
           <div className="flex h-[calc(13px*1.65)] shrink-0 items-center">
             <div className="flex size-7 items-center justify-center rounded-lg bg-white ring-1 ring-border/50 dark:bg-neutral-100">
-              <Image
-                alt="mAI"
-                className="size-4 object-contain"
-                height={16}
-                src="/images/logo.png"
-                width={16}
-              />
+              <BrandStarLogoIcon size={16} />
             </div>
           </div>
         )}
@@ -418,13 +413,7 @@ export const ThinkingMessage = () => {
       <div className="flex items-start gap-3">
         <div className="flex h-[calc(13px*1.65)] shrink-0 items-center">
           <div className="flex size-7 items-center justify-center rounded-lg bg-white ring-1 ring-border/50 dark:bg-neutral-100">
-            <Image
-              alt="mAI"
-              className="size-4 object-contain"
-              height={16}
-              src="/images/logo.png"
-              width={16}
-            />
+            <BrandStarLogoIcon size={16} />
           </div>
         </div>
 

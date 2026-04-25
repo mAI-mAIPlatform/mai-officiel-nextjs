@@ -1,4 +1,8 @@
+"use client";
+
 import Image from "next/image";
+import { useEffect, useState } from "react";
+import { DEFAULT_APP_LOGO, getAppLogoFromStorage } from "@/lib/app-logo";
 
 export const BotIcon = () => {
   return (
@@ -287,11 +291,27 @@ export const FileIcon = ({ size = 16 }: { size?: number }) => {
 };
 
 export const BrandStarLogoIcon = ({ size = 28 }: { size?: number }) => {
+  const [appLogo, setAppLogo] = useState(DEFAULT_APP_LOGO);
+
+  useEffect(() => {
+    setAppLogo(getAppLogoFromStorage());
+
+    const handleAppLogoChange = (event: Event) => {
+      const customEvent = event as CustomEvent<string>;
+      setAppLogo(customEvent.detail);
+    };
+
+    window.addEventListener("mai-app-logo-changed", handleAppLogoChange);
+    return () => {
+      window.removeEventListener("mai-app-logo-changed", handleAppLogoChange);
+    };
+  }, []);
+
   return (
     <Image
       alt="mAI Logo"
       height={size}
-      src="/images/logo.png"
+      src={appLogo}
       style={{ objectFit: "contain", width: size, height: size }}
       width={size}
     />

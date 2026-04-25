@@ -58,11 +58,13 @@ async function deliverSystemNotification(notification: AppNotification) {
     ?.getRegistration()
     .catch(() => undefined);
 
+  const appLogo = typeof window !== "undefined" ? (window.localStorage.getItem("mai.app.logo.v1") || "/images/logo.png") : "/images/logo.png";
+
   if (registration) {
     await registration.showNotification(notification.title, {
       body,
       data: notification.metadata,
-      icon: "/images/logo.png",
+      icon: appLogo,
       tag: `mai-${notification.level}`,
     });
     return;
@@ -70,7 +72,7 @@ async function deliverSystemNotification(notification: AppNotification) {
 
   new Notification(notification.title, {
     body,
-    icon: "/images/logo.png",
+    icon: appLogo,
   });
 }
 

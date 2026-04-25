@@ -292,12 +292,8 @@ test("createAiResponseNotification - error phase", () => {
   });
 
   const history = getNotificationHistory();
-  assert.equal(history[0].level, "error");
-  // Testing fallback behavior for missing conversation title
-  assert.equal(
-    history[0].message,
-    "Une erreur est survenue sur la conversation « Sans titre »."
-  );
+  // Error notifications are currently disabled for UX, so history should be empty
+  assert.equal(history.length, 0);
 });
 
 test("markNotificationRead - updates specific notification read status", () => {

@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
+import { appLogoOptions, DEFAULT_APP_LOGO, getAppLogoFromStorage, setAppLogoInStorage } from "@/lib/app-logo";
 import {
   getTierRemaining,
   getTierUsage,
@@ -526,6 +527,7 @@ export default function SettingsPage() {
   const [defaultMusicModel, setDefaultMusicModel] = useState(
     FALLBACK_DEFAULT_MUSIC_MODEL
   );
+  const [appLogo, setAppLogo] = useState(DEFAULT_APP_LOGO);
   const [profileLogoDataUrl, setProfileLogoDataUrl] = useState<
     string | undefined
   >();
@@ -712,6 +714,10 @@ export default function SettingsPage() {
 
     window.dispatchEvent(new CustomEvent("mai:tags-updated"));
   }, [conversationTags]);
+
+  useEffect(() => {
+    setAppLogo(getAppLogoFromStorage());
+  }, []);
 
   useEffect(() => {
     const savedProfile = window.localStorage.getItem(
@@ -2143,6 +2149,47 @@ export default function SettingsPage() {
             </div>
           </div>
         ) : null}
+
+        <div className="liquid-panel mt-4 rounded-xl border border-border/60 bg-background/60 p-4">
+          <p className="text-sm font-medium">Logo de l'application</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Choisissez l'icône et le favicon global de mAI. Les logos bleus sont réservés au forfait Max.
+          </p>
+          <div className="mt-3 grid grid-cols-4 gap-4 sm:grid-cols-6 md:grid-cols-8">
+            {appLogoOptions.map((option) => {
+              const isLocked = option.isMaxOnly && plan !== "max";
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  disabled={isLocked}
+                  onClick={() => {
+                    setAppLogo(option.src);
+                    setAppLogoInStorage(option.src);
+                  }}
+                  className={cn(
+                    "group relative flex aspect-square items-center justify-center rounded-xl border-2 transition-all",
+                    appLogo === option.src
+                      ? "border-primary bg-primary/10"
+                      : "border-transparent bg-background hover:bg-muted",
+                    isLocked && "opacity-50 cursor-not-allowed grayscale"
+                  )}
+                  title={isLocked ? `${option.label} (Max uniquement)` : option.label}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={option.src}
+                    alt={option.label}
+                    className="size-8 object-contain transition-transform group-hover:scale-110"
+                  />
+                  {isLocked && (
+                    <Lock className="absolute -bottom-1 -right-1 size-4 rounded-full bg-background p-0.5 text-muted-foreground shadow-sm" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-[auto_1fr]">
           <div className="flex flex-col items-center gap-2">

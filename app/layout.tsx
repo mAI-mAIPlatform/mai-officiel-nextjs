@@ -9,16 +9,24 @@ import { RegisterServiceWorker } from "@/components/pwa/register-sw";
 import { SessionGuard } from "@/components/security/session-guard";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
-export const metadata: Metadata = {
-  metadataBase: new URL("https://mai-officiel.vercel.app"),
-  title: "mAI",
-  description: "Avec mAI, passez à la vitesse supérieure !",
-  icons: {
-    icon: "/images/logo.png",
-    shortcut: "/images/logo.png",
-    apple: "/images/logo.png",
-  },
-};
+import { cookies } from "next/headers";
+import { APP_LOGO_COOKIE_NAME, DEFAULT_APP_LOGO } from "@/lib/app-logo";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const cookieStore = await cookies();
+  const appLogo = cookieStore.get(APP_LOGO_COOKIE_NAME)?.value || DEFAULT_APP_LOGO;
+
+  return {
+    metadataBase: new URL("https://mai-officiel.vercel.app"),
+    title: "mAI",
+    description: "Avec mAI, passez à la vitesse supérieure !",
+    icons: {
+      icon: appLogo,
+      shortcut: appLogo,
+      apple: appLogo,
+    },
+  };
+}
 
 export const viewport = {
   maximumScale: 1,

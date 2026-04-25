@@ -1,6 +1,11 @@
 import type { MetadataRoute } from "next";
+import { cookies } from "next/headers";
+import { APP_LOGO_COOKIE_NAME, DEFAULT_APP_LOGO } from "@/lib/app-logo";
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const cookieStore = await cookies();
+  const appLogo = cookieStore.get(APP_LOGO_COOKIE_NAME)?.value || DEFAULT_APP_LOGO;
+
   return {
     name: "mAI",
     short_name: "mAI",
@@ -12,7 +17,7 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: "fr",
     icons: [
       {
-        src: "/images/logo.png",
+        src: appLogo,
         sizes: "1024x1024",
         type: "image/png",
       },
