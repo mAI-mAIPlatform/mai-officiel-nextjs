@@ -39,6 +39,7 @@ import {
   type ModelTier,
 } from "@/lib/ai/credits";
 import { affordableImageModels } from "@/lib/ai/affordable-models";
+import { chatModels } from "@/lib/ai/models";
 import { APP_VERSION } from "@/lib/app-version";
 import {
   CHAT_TAGS_STORAGE_KEY,
@@ -107,6 +108,22 @@ const schedulerFrequencies = [
   "ponctuelle",
 ] as const;
 const defaultWaveModelOptions = ["V5_5", "V5", "V4_5PLUS", "V4_5ALL", "V4_5", "V4"] as const;
+const availableDefaultTextModelIds = new Set(chatModels.map((model) => model.id));
+
+function normalizeDefaultTextModel(modelId: string): string {
+  if (availableDefaultTextModelIds.has(modelId)) {
+    return modelId;
+  }
+
+  if (modelId.startsWith("openai/")) {
+    const unprefixedModel = modelId.replace(/^openai\//, "");
+    if (availableDefaultTextModelIds.has(unprefixedModel)) {
+      return unprefixedModel;
+    }
+  }
+
+  return FALLBACK_DEFAULT_TEXT_MODEL;
+}
 
 const settingsLabels = {
   en: {
@@ -1047,9 +1064,10 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    const storedTextModel =
+    const storedTextModel = normalizeDefaultTextModel(
       window.localStorage.getItem(DEFAULT_TEXT_MODEL_KEY) ??
-      FALLBACK_DEFAULT_TEXT_MODEL;
+        FALLBACK_DEFAULT_TEXT_MODEL
+    );
     const storedImageModel =
       window.localStorage.getItem(DEFAULT_IMAGE_MODEL_KEY) ??
       FALLBACK_DEFAULT_IMAGE_MODEL;
@@ -2190,9 +2208,11 @@ export default function SettingsPage() {
                 onChange={(event) => setDefaultTextModel(event.target.value)}
                 value={defaultTextModel}
               >
-                <option value="gpt-5.5">GPT-5.5</option>
-                <option value="gpt-5.4">GPT-5.4</option>
-                <option value="gpt-5.4-mini">GPT-5.4 Mini</option>
+                {chatModels.map((modelOption) => (
+                  <option key={modelOption.id} value={modelOption.id}>
+                    {modelOption.name}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="text-xs text-muted-foreground">

@@ -9,9 +9,8 @@ const requestSchema = z.object({
 });
 
 const questionSchema = z.object({
-  correctIndex: z.number().int().min(0).max(3),
-  explanation: z.string().min(1).max(400),
-  options: z.array(z.string().min(1).max(200)).length(4),
+  answerGuide: z.string().min(1).max(500),
+  id: z.string().min(1).max(64),
   question: z.string().min(1).max(300),
 });
 
@@ -38,16 +37,16 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "user",
-          content: `Génère un quiz de ${count} questions sur le sujet "${topic}" avec difficulté "${difficulty}".
+          content: `Génère un quiz à réponse libre de ${count} questions sur le sujet "${topic}" avec difficulté "${difficulty}".
 Le quiz est chronométré sur ${timer} minutes.
 Contraintes:
-- 4 choix par question
-- 1 seule bonne réponse (index 0 à 3)
-- explication courte et utile
+- chaque question doit être formulée clairement pour une réponse manuelle
+- ajoute un guide de correction synthétique (réponse attendue en 1 à 3 phrases)
 - évite les doublons.
+- ne révèle pas les réponses dans l'énoncé de la question.
 
 Réponds UNIQUEMENT en JSON valide au format:
-{"questions":[{"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"..."}]}`,
+{"questions":[{"id":"q1","question":"...","answerGuide":"..."}]}`,
         },
       ],
       systemInstruction:
@@ -55,10 +54,12 @@ Réponds UNIQUEMENT en JSON valide au format:
     });
 
     const trimmed = text.trim();
-    const jsonCandidate =
-      trimmed.startsWith("{") && trimmed.endsWith("}")
+    const fencedMatch = trimmed.match(/```json\s*([\s\S]*?)```/i);
+    const jsonCandidate = fencedMatch?.[1]?.trim()
+      ? fencedMatch[1].trim()
+      : trimmed.startsWith("{") && trimmed.endsWith("}")
         ? trimmed
-        : (trimmed.match(/\{[\s\S]*\}$/)?.[0] ?? "");
+        : (trimmed.match(/\{[\s\S]*\}/)?.[0] ?? "");
 
     if (!jsonCandidate) {
       return Response.json(
@@ -85,10 +86,7 @@ Réponds UNIQUEMENT en JSON valide au format:
       );
     }
 
-    return Response.json({
-      generatedBy: "ai",
-      questions: validatedQuiz.data.questions,
-    });
+    return Response.json({ generatedBy: "ai", questions: validatedQuiz.data.questions });
   } catch {
     return Response.json(
       { error: "Impossible de générer le quiz pour le moment." },
