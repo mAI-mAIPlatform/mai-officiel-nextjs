@@ -568,8 +568,8 @@ function PureMultimodalInput({
         );
         break;
       case "quiz":
-        setInput(
-          "Crée un quiz interactif (5 questions, difficulté moyenne) sur le sujet de notre conversation."
+        router.push(
+          `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/quiz?topic=${encodeURIComponent("culture générale")}&difficulty=moyen&count=5&timer=10`
         );
         break;
       case "template":
@@ -2414,8 +2414,14 @@ function PureContextualActionsMenu({
             </Button>
             <Button
               onClick={() => {
-                onInsertTemplate(
-                  `Crée un quiz interactif de difficulté ${quizDifficulty} sur le sujet « ${quizTopic.trim() || "culture générale"} » avec ${quizQuestionCount} questions. Ajoute un minuteur global de ${quizTimerMinutes} minutes et une estimation du temps recommandé par question. Pour chaque question, propose 4 choix, indique la bonne réponse, puis ajoute une explication courte et un feedback immédiat.`
+                const params = new URLSearchParams({
+                  topic: quizTopic.trim() || "culture générale",
+                  difficulty: quizDifficulty,
+                  count: String(quizQuestionCount),
+                  timer: String(quizTimerMinutes),
+                });
+                window.location.assign(
+                  `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/quiz?${params.toString()}`
                 );
                 setIsQuizDialogOpen(false);
               }}
