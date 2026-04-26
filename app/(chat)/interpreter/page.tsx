@@ -19,6 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { MessageResponse } from "@/components/ai-elements/message";
 import { addStatsEvent } from "@/lib/user-stats";
 import { addInterpreterRun } from "@/lib/user-stats";
 
@@ -66,6 +67,7 @@ type SavedSnippet = {
   sourceCode: string;
 };
 type AssistantMessage = { id: string; role: "user" | "assistant"; content: string; createdAt: string };
+type VirtualCodeFile = { id: string; name: string; content: string };
 
 const runtimeSnippets: Record<Runtime, string> = {
   python: `import statistics\nvalues = [2, 4, 6, 8]\nprint("Mean:", statistics.mean(values))`,
@@ -162,6 +164,9 @@ export default function InterpreterPage() {
     "mai.interpreter.snippets.v1",
     []
   );
+  const [virtualFiles, setVirtualFiles] = useState<VirtualCodeFile[]>([]);
+  const [terminalCommand, setTerminalCommand] = useState("echo 'hello from terminal'");
+  const [terminalOutput, setTerminalOutput] = useState("");
   const [assistantMessages, setAssistantMessages] = useLocalStorage<AssistantMessage[]>(
     "mai.interpreter.ai-messages.v1",
     []
@@ -192,7 +197,14 @@ export default function InterpreterPage() {
     setResult(null);
 
     try {
-      const payloadFiles = await Promise.all(files.map(toRuntimeFile));
+      const uploadedFiles = await Promise.all(files.map(toRuntimeFile));
+      const virtualRuntimeFiles: RuntimeFile[] = virtualFiles
+        .filter((file) => file.name.trim().length > 0 && file.content.trim().length > 0)
+        .map((file) => ({
+          name: file.name.trim(),
+          contentBase64: btoa(unescape(encodeURIComponent(file.content))),
+        }));
+      const payloadFiles = [...uploadedFiles, ...virtualRuntimeFiles].slice(0, 5);
       const response = await fetch("/api/code-interpreter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -236,6 +248,22 @@ export default function InterpreterPage() {
       );
     } finally {
       setIsRunning(false);
+    }
+  };
+
+  const runTerminalCommand = async () => {
+    if (!terminalCommand.trim()) return;
+    setTerminalOutput("Running...");
+    try {
+      const response = await fetch("/api/code-interpreter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ runtime: "bash", code: terminalCommand }),
+      });
+      const payload = (await response.json()) as ExecutionResponse;
+      setTerminalOutput(payload.output || payload.logs?.join("\n") || payload.error || "Command completed.");
+    } catch (error) {
+      setTerminalOutput(error instanceof Error ? error.message : "Terminal error");
     }
   };
 
@@ -348,13 +376,55 @@ export default function InterpreterPage() {
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
-        <section className="liquid-panel space-y-3 rounded-2xl p-4">
+      <div className="grid gap-4 lg:grid-cols-[1fr_1.3fr]">
+        <section className="liquid-panel rounded-2xl p-4 lg:order-2">
           <textarea
             className={`min-h-[360px] w-full rounded-xl border border-border/40 p-3 font-mono text-xs ${editorThemeClass}`}
             onChange={(event) => setCode(event.target.value)}
             value={code}
           />
+          <div className="mt-3 space-y-2 rounded-xl border border-border/40 p-3">
+            <p className="text-xs font-semibold">Fichiers additionnels (multi-fichiers)</p>
+            {virtualFiles.map((file) => (
+              <div key={file.id} className="space-y-1 rounded-md border border-border/40 p-2">
+                <div className="flex gap-2">
+                  <input
+                    className="h-7 flex-1 rounded border border-border/50 px-2 text-xs"
+                    onChange={(event) =>
+                      setVirtualFiles((current) =>
+                        current.map((item) => (item.id === file.id ? { ...item, name: event.target.value } : item))
+                      )
+                    }
+                    placeholder="utils.py"
+                    value={file.name}
+                  />
+                  <button className="rounded border px-2 text-xs" onClick={() => setVirtualFiles((current) => current.filter((item) => item.id !== file.id))} type="button">Suppr.</button>
+                </div>
+                <textarea
+                  className="min-h-16 w-full rounded border border-border/50 p-2 font-mono text-xs"
+                  onChange={(event) =>
+                    setVirtualFiles((current) =>
+                      current.map((item) => (item.id === file.id ? { ...item, content: event.target.value } : item))
+                    )
+                  }
+                  placeholder="Contenu du fichier..."
+                  value={file.content}
+                />
+              </div>
+            ))}
+            <button
+              className="rounded-md border border-border/50 px-2 py-1 text-xs"
+              onClick={() =>
+                setVirtualFiles((current) => [
+                  ...current,
+                  { id: crypto.randomUUID(), name: `file-${current.length + 1}.txt`, content: "" },
+                ])
+              }
+              type="button"
+            >
+              + Ajouter un fichier
+            </button>
+          </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <input
@@ -429,7 +499,7 @@ export default function InterpreterPage() {
           </div>
         </section>
 
-        <section className="liquid-panel rounded-2xl p-4">
+        <section className="liquid-panel rounded-2xl p-4 lg:order-1">
           <h2 className="mb-2 text-sm font-medium">Output</h2>
           <div className="space-y-2 text-xs">
             {result?.logs?.length ? (
@@ -591,10 +661,18 @@ export default function InterpreterPage() {
               {assistantMessages.slice(0, 8).map((message) => (
                 <div className="rounded-md border border-border/40 p-1 text-[11px]" key={message.id}>
                   <p className="font-semibold">{message.role === "assistant" ? "IA" : "Vous"} · {new Date(message.createdAt).toLocaleTimeString("fr-FR")}</p>
-                  <p className="line-clamp-4 whitespace-pre-wrap text-muted-foreground">{message.content}</p>
+                  <MessageResponse className="text-xs text-muted-foreground">{message.content}</MessageResponse>
                 </div>
               ))}
             </div>
+          </div>
+          <div className="mt-4 space-y-2 rounded-xl border border-border/40 p-2">
+            <p className="text-xs font-semibold">Terminal</p>
+            <div className="flex gap-2">
+              <input className="h-8 flex-1 rounded border border-border/50 px-2 text-xs" onChange={(event) => setTerminalCommand(event.target.value)} value={terminalCommand} />
+              <button className="rounded-md bg-black px-2 py-1 text-xs text-white" onClick={runTerminalCommand} type="button">Run</button>
+            </div>
+            <pre className="max-h-28 overflow-auto rounded bg-background/80 p-2 text-[11px]">{terminalOutput || "Aucune commande exécutée."}</pre>
           </div>
         </section>
       </div>
