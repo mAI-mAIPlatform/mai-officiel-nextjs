@@ -52,6 +52,12 @@ export function ProjectTaskCalendar({ projectId }: { projectId: string }) {
     loadTasks();
   }, [projectId]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setMode("week");
+    }
+  }, []);
+
   const dayTasks = useMemo(() => {
     const map = new Map<string, TaskItem[]>();
 
@@ -134,7 +140,7 @@ export function ProjectTaskCalendar({ projectId }: { projectId: string }) {
         </button>
       </div>
 
-      <div className="flex justify-end gap-2">
+      <div className="hidden justify-end gap-2 md:flex">
         <button
           className={`rounded-lg border px-3 py-1 text-xs ${mode === "month" ? "bg-cyan-200/80 border-cyan-400" : "bg-white/80 border-black/15"}`}
           onClick={() => setMode("month")}

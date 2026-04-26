@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BarChart3, BookOpen, MessageSquare, Settings, SquareKanban } from "lucide-react";
 import { useState } from "react";
 import { useLocalStorage } from "usehooks-ts";
 import { Button } from "@/components/ui/button";
@@ -43,9 +44,9 @@ export function ProjectWorkspace({
   projectTags,
   stats,
 }: ProjectWorkspaceProps) {
-  const [activeTab, setActiveTab] = useState<"discussions" | "tasks" | "library">(
-    "tasks"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "dashboard" | "discussions" | "tasks" | "library" | "settings"
+  >("dashboard");
   const [selectedChatId, setSelectedChatId] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -84,8 +85,51 @@ export function ProjectWorkspace({
   };
 
   return (
-    <section className="space-y-4">
-      <ProjectDashboard
+    <section className="space-y-4 pb-20 md:pb-0">
+      <div className="hidden md:block">
+        <ProjectDashboard
+          color={projectColor}
+          completedTasks={stats.completedTasks}
+          completedSubtasks={stats.completedSubtasks}
+          daysRemaining={stats.daysRemaining}
+          endDate={projectEndDate}
+          id={projectId}
+          inProgressTasks={stats.inProgressTasks}
+          name={projectName}
+          progressPercentage={stats.progressPercentage}
+          startDate={projectStartDate}
+          tags={projectTags}
+          todoTasks={stats.todoTasks}
+          totalChats={stats.totalChats}
+          totalSubtasks={stats.totalSubtasks}
+          totalTasks={stats.totalTasks}
+        />
+      </div>
+      <div className="hidden md:inline-flex rounded-2xl border border-white/30 bg-white/75 p-1 backdrop-blur-xl">
+        {[
+          { key: "discussions", label: "Discussions" },
+          { key: "tasks", label: "Tâches" },
+          { key: "library", label: "Bibliothèque" },
+        ].map((tab) => (
+          <button
+            className={`min-h-11 rounded-xl px-3 py-1.5 text-sm transition ${
+              activeTab === tab.key
+                ? "bg-cyan-200/80 text-black"
+                : "text-black/70 hover:bg-white/80"
+            }`}
+            key={tab.key}
+            onClick={() =>
+              setActiveTab(tab.key as "dashboard" | "discussions" | "tasks" | "library")
+            }
+            type="button"
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "dashboard" ? (
+        <ProjectDashboard
         color={projectColor}
         completedTasks={stats.completedTasks}
         completedSubtasks={stats.completedSubtasks}
@@ -101,29 +145,8 @@ export function ProjectWorkspace({
         totalChats={stats.totalChats}
         totalSubtasks={stats.totalSubtasks}
         totalTasks={stats.totalTasks}
-      />
-      <div className="inline-flex rounded-2xl border border-white/30 bg-white/75 p-1 backdrop-blur-xl">
-        {[
-          { key: "discussions", label: "Discussions" },
-          { key: "tasks", label: "Tâches" },
-          { key: "library", label: "Bibliothèque" },
-        ].map((tab) => (
-          <button
-            className={`rounded-xl px-3 py-1.5 text-sm transition ${
-              activeTab === tab.key
-                ? "bg-cyan-200/80 text-black"
-                : "text-black/70 hover:bg-white/80"
-            }`}
-            key={tab.key}
-            onClick={() =>
-              setActiveTab(tab.key as "discussions" | "tasks" | "library")
-            }
-            type="button"
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+        />
+      ) : null}
 
       {activeTab === "discussions" ? (
         <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
@@ -226,6 +249,50 @@ export function ProjectWorkspace({
       {activeTab === "tasks" ? <ProjectTaskViews projectId={projectId} /> : null}
 
       {activeTab === "library" ? <ProjectLibrary projectId={projectId} /> : null}
+
+      {activeTab === "settings" ? (
+        <div className="rounded-2xl border border-white/30 bg-white/85 p-4">
+          <Link
+            className="flex min-h-11 items-center rounded-xl border border-black/20 bg-white px-3"
+            href={`/projects/${projectId}/edit`}
+          >
+            Ouvrir les paramètres du projet
+          </Link>
+        </div>
+      ) : null}
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/30 bg-white/90 p-1 backdrop-blur-xl md:hidden">
+        <div className="grid grid-cols-5 gap-1">
+          {[
+            { key: "dashboard", label: "Dashboard", icon: BarChart3 },
+            { key: "tasks", label: "Tâches", icon: SquareKanban },
+            { key: "library", label: "Bibliothèque", icon: BookOpen },
+            { key: "discussions", label: "Chat", icon: MessageSquare },
+            { key: "settings", label: "Paramètres", icon: Settings },
+          ].map((item) => (
+            <button
+              className={`flex min-h-11 flex-col items-center justify-center rounded-lg text-[11px] ${
+                activeTab === item.key ? "bg-cyan-200/80" : "bg-white/70"
+              }`}
+              key={item.key}
+              onClick={() =>
+                setActiveTab(
+                  item.key as
+                    | "dashboard"
+                    | "discussions"
+                    | "tasks"
+                    | "library"
+                    | "settings"
+                )
+              }
+              type="button"
+            >
+              <item.icon className="size-4" />
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </nav>
     </section>
   );
 }

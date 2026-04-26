@@ -892,6 +892,119 @@ export async function getProjectById(id: string): Promise<Project | undefined> {
   }
 }
 
+export type UrgentTaskWidgetItem = {
+  id: string;
+  title: string;
+  dueDate: Date;
+  projectId: string;
+  projectName: string;
+};
+
+export type RecentActivityWidgetItem = {
+  id: string;
+  projectId: string;
+  projectName: string;
+  type: "task_created" | "comment_added" | "file_uploaded";
+  label: string;
+  createdAt: Date;
+};
+
+export async function getUrgentTasksForUser(
+  userId: string,
+  limit = 5
+): Promise<UrgentTaskWidgetItem[]> {
+  return db.execute(sql<UrgentTaskWidgetItem>`
+    SELECT
+      t.id,
+      t.title,
+      t."dueDate",
+      p.id AS "projectId",
+      p.name AS "projectName"
+    FROM "Task" t
+    INNER JOIN "Project" p ON p.id = t."projectId"
+    LEFT JOIN "ProjectMember" pm
+      ON pm."projectId" = p.id
+      AND pm."userId" = ${userId}
+    WHERE
+      t."dueDate" IS NOT NULL
+      AND t.status <> 'done'
+      AND (p."userId" = ${userId} OR pm."userId" = ${userId})
+    ORDER BY t."dueDate" ASC
+    LIMIT ${limit}
+  `) as unknown as Promise<UrgentTaskWidgetItem[]>;
+}
+
+export async function getGlobalProgressForUser(userId: string): Promise<number> {
+  const [row] = (await db.execute(sql<{ value: number }>`
+    SELECT
+      CASE WHEN COUNT(t.id) = 0 THEN 0
+      ELSE ROUND((COUNT(t.id) FILTER (WHERE t.status = 'done')::numeric / COUNT(t.id)::numeric) * 100)::int
+      END AS value
+    FROM "Task" t
+    INNER JOIN "Project" p ON p.id = t."projectId"
+    LEFT JOIN "ProjectMember" pm
+      ON pm."projectId" = p.id
+      AND pm."userId" = ${userId}
+    WHERE p."archivedAt" IS NULL
+      AND (p."userId" = ${userId} OR pm."userId" = ${userId})
+  `)) as { value: number }[];
+
+  return row?.value ?? 0;
+}
+
+export async function getRecentActivityForUser(
+  userId: string,
+  limit = 8
+): Promise<RecentActivityWidgetItem[]> {
+  return db.execute(sql<RecentActivityWidgetItem>`
+    SELECT * FROM (
+      SELECT
+        t.id,
+        t."projectId",
+        p.name AS "projectName",
+        'task_created' AS type,
+        t.title AS label,
+        t."createdAt"
+      FROM "Task" t
+      INNER JOIN "Project" p ON p.id = t."projectId"
+      LEFT JOIN "ProjectMember" pm ON pm."projectId" = p.id AND pm."userId" = ${userId}
+      WHERE (p."userId" = ${userId} OR pm."userId" = ${userId})
+
+      UNION ALL
+
+      SELECT
+        tc.id,
+        t."projectId",
+        p.name AS "projectName",
+        'comment_added' AS type,
+        LEFT(tc.content, 80) AS label,
+        tc."createdAt"
+      FROM "TaskComment" tc
+      INNER JOIN "Task" t ON t.id = tc."taskId"
+      INNER JOIN "Project" p ON p.id = t."projectId"
+      LEFT JOIN "ProjectMember" pm ON pm."projectId" = p.id AND pm."userId" = ${userId}
+      WHERE (p."userId" = ${userId} OR pm."userId" = ${userId})
+
+      UNION ALL
+
+      SELECT
+        pf.id,
+        pf."projectId",
+        p.name AS "projectName",
+        'file_uploaded' AS type,
+        pf.name AS label,
+        pf."createdAt"
+      FROM "ProjectFile" pf
+      INNER JOIN "Project" p ON p.id = pf."projectId"
+      LEFT JOIN "ProjectMember" pm ON pm."projectId" = p.id AND pm."userId" = ${userId}
+      WHERE pf."isFolder" = false
+        AND (p."userId" = ${userId} OR pm."userId" = ${userId})
+    ) items
+    ORDER BY "createdAt" DESC
+    LIMIT ${limit}
+  `) as unknown as Promise<RecentActivityWidgetItem[]>;
+}
+
 export type ProjectStats = {
   totalTasks: number;
   completedTasks: number;

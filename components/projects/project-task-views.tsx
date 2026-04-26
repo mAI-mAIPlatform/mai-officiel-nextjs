@@ -37,7 +37,7 @@ export function ProjectTaskViews({ projectId }: { projectId: string }) {
           { key: "calendar", label: "Calendrier" },
         ].map((item) => (
           <button
-            className={`rounded-xl px-3 py-1.5 text-sm transition ${
+            className={`min-h-11 rounded-xl px-3 py-1.5 text-sm transition ${
               view === item.key
                 ? "bg-cyan-200/80 text-black"
                 : "text-black/70 hover:bg-white/80"

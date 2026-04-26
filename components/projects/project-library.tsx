@@ -271,12 +271,12 @@ export function ProjectLibrary({ projectId }: { projectId: string }) {
               <span>{file.name}</span>
             </button>
 
-            <div className="ml-auto hidden items-center gap-1 group-hover:flex">
-              <button className="rounded border border-black/10 p-1" onClick={() => renameFile(file)} type="button">R</button>
-              <button className="rounded border border-black/10 p-1" onClick={() => moveFile(file)} type="button">M</button>
-              <button className="rounded border border-black/10 p-1" onClick={() => linkToTask(file)} type="button">T</button>
-              <button className="rounded border border-black/10 p-1" onClick={() => copyLink(file)} type="button"><Copy className="size-3" /></button>
-              <button className="rounded border border-black/10 p-1 text-red-700" onClick={() => removeFile(file.id)} type="button"><Trash2 className="size-3" /></button>
+            <div className="ml-auto flex items-center gap-1 md:opacity-0 md:transition md:group-hover:opacity-100">
+              <button className="min-h-11 rounded border border-black/10 p-2" onClick={() => renameFile(file)} type="button">R</button>
+              <button className="min-h-11 rounded border border-black/10 p-2" onClick={() => moveFile(file)} type="button">M</button>
+              <button className="min-h-11 rounded border border-black/10 p-2" onClick={() => linkToTask(file)} type="button">T</button>
+              <button className="min-h-11 rounded border border-black/10 p-2" onClick={() => copyLink(file)} type="button"><Copy className="size-3" /></button>
+              <button className="min-h-11 rounded border border-black/10 p-2 text-red-700" onClick={() => removeFile(file.id)} type="button"><Trash2 className="size-3" /></button>
             </div>
           </div>
 
@@ -284,6 +284,17 @@ export function ProjectLibrary({ projectId }: { projectId: string }) {
         </div>
       );
     });
+  };
+
+  const getDepth = (file: FileItem) => {
+    let depth = 0;
+    let currentParent = file.parentId;
+    const byId = new Map(files.map((item) => [item.id, item]));
+    while (currentParent) {
+      depth += 1;
+      currentParent = byId.get(currentParent)?.parentId ?? null;
+    }
+    return depth;
   };
 
   return (
@@ -324,9 +335,15 @@ export function ProjectLibrary({ projectId }: { projectId: string }) {
             <div className="hidden md:block">{renderNode(null)}</div>
             <div className="space-y-1 md:hidden">
               {filteredFiles.map((file) => (
-                <button className="flex w-full items-center gap-2 rounded-lg border border-black/10 bg-white px-2 py-1 text-left text-sm" key={file.id} onClick={() => setSelected(file)} style={{ marginLeft: `${file.parentId ? 12 : 0}px` }} type="button">
-                  {renderIcon(file)} {file.name}
-                </button>
+                <div
+                  className="rounded-lg border border-black/10 bg-white px-2 py-2"
+                  key={file.id}
+                  style={{ marginLeft: `${getDepth(file) * 12}px` }}
+                >
+                  <button className="flex min-h-11 w-full items-center gap-2 text-left text-sm" onClick={() => setSelected(file)} type="button">
+                    {renderIcon(file)} {file.name}
+                  </button>
+                </div>
               ))}
             </div>
           </div>

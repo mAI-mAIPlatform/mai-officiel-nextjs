@@ -63,7 +63,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
       <div className="mt-2 flex items-center gap-2">
         <Link
-          className="rounded-lg border border-cyan-400/40 bg-cyan-200/70 px-3 py-1.5 text-xs font-medium text-black"
+          className="flex min-h-11 items-center rounded-lg border border-cyan-400/40 bg-cyan-200/70 px-3 py-1.5 text-xs font-medium text-black"
           href={`/projects/${project.id}/edit`}
         >
           Éditer
@@ -72,7 +72,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <DropdownMenuTrigger asChild>
             <button
               aria-label="Menu projet"
-              className="rounded-lg border border-black/15 bg-white/80 p-1.5 text-black"
+              className="min-h-11 rounded-lg border border-black/15 bg-white/80 p-2 text-black"
               type="button"
             >
               <EllipsisVertical className="size-4" />

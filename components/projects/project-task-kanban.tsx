@@ -152,7 +152,7 @@ export function ProjectTaskKanban({ projectId }: { projectId: string }) {
             </span>
           </div>
           <button
-            className="inline-flex items-center gap-1 rounded-lg border border-black/15 bg-white px-2 py-1 text-xs"
+            className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-black/15 bg-white px-3 py-2 text-xs"
             onClick={() => createQuickTask(status)}
             type="button"
           >
@@ -190,7 +190,7 @@ export function ProjectTaskKanban({ projectId }: { projectId: string }) {
 
                 <div className="mt-3 flex items-center justify-between gap-1">
                   <button
-                    className="inline-flex items-center rounded border border-black/15 px-2 py-1 text-xs disabled:opacity-40"
+                    className="inline-flex min-h-11 items-center rounded border border-black/15 px-3 py-2 text-xs disabled:opacity-40"
                     disabled={status === "todo"}
                     onClick={() => moveTask(task, "left")}
                     type="button"
@@ -198,7 +198,7 @@ export function ProjectTaskKanban({ projectId }: { projectId: string }) {
                     <ChevronLeft className="size-3" />
                   </button>
                   <button
-                    className="inline-flex items-center rounded border border-black/15 px-2 py-1 text-xs disabled:opacity-40"
+                    className="inline-flex min-h-11 items-center rounded border border-black/15 px-3 py-2 text-xs disabled:opacity-40"
                     disabled={status === "done"}
                     onClick={() => moveTask(task, "right")}
                     type="button"
@@ -221,7 +221,7 @@ export function ProjectTaskKanban({ projectId }: { projectId: string }) {
       <div className="flex gap-2 md:hidden">
         {statuses.map((status) => (
           <button
-            className={`rounded-lg border px-3 py-1.5 text-xs ${mobileTab === status.key ? "border-cyan-400 bg-cyan-200/70" : "border-black/15 bg-white/80"}`}
+            className={`min-h-11 rounded-lg border px-3 py-1.5 text-xs ${mobileTab === status.key ? "border-cyan-400 bg-cyan-200/70" : "border-black/15 bg-white/80"}`}
             key={status.key}
             onClick={() => setMobileTab(status.key)}
             type="button"

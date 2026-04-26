@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/app/(auth)/auth";
 import { ProjectCard } from "@/components/projects/project-card";
+import { ProjectsDashboardWidgets } from "@/components/projects/projects-dashboard-widgets";
 import { ProjectTemplateGallery } from "@/components/projects/project-template-gallery";
 import { getProjects } from "@/lib/db/queries";
 
@@ -35,7 +36,7 @@ export default async function ProjectsPage() {
           <div className="flex items-center gap-2">
             <ProjectTemplateGallery userId={session.user.id} />
             <Link
-              className="rounded-xl border border-cyan-400/40 bg-cyan-200/70 px-4 py-2 text-sm font-medium text-black"
+              className="flex min-h-11 items-center rounded-xl border border-cyan-400/40 bg-cyan-200/70 px-4 py-2 text-sm font-medium text-black"
               href="/projects/new"
             >
               Nouveau projet
@@ -43,6 +44,8 @@ export default async function ProjectsPage() {
           </div>
         </div>
       </section>
+
+      <ProjectsDashboardWidgets projects={projects} userId={session.user.id} />
 
       {projects.length === 0 ? (
         <section className="liquid-panel rounded-2xl border border-white/30 bg-white/80 p-8 text-sm text-black/75 backdrop-blur-2xl">

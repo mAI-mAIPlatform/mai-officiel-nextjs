@@ -62,7 +62,7 @@ export function SaveProjectTemplateDialog({
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="bg-white/90">
+      <DialogContent className="max-h-[90vh] overflow-y-auto bg-white/90 data-[state=open]:sm:zoom-in-95 sm:rounded-2xl max-sm:bottom-0 max-sm:top-auto max-sm:translate-y-0 max-sm:rounded-t-2xl">
         <DialogHeader>
           <DialogTitle>Sauvegarder comme template</DialogTitle>
           <DialogDescription>
