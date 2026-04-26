@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { finishQuiz } from "@/lib/quizzly/actions";
+import { finishQuiz, getQuizzlyInventory, getQuizzlyProfile } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
-import { CheckCircle, Clock3, Download, Share2, XCircle } from "lucide-react";
+import { CheckCircle, Clock3, Download, Heart, Shield, Share2, Snowflake, Sword, Trophy, XCircle } from "lucide-react";
 import { chatModels, DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 
 type QuizQuestion = {
@@ -42,6 +42,13 @@ type LocalQuiz = {
   questions: QuizQuestion[];
   score: number;
 };
+type DuelOpponent = {
+  pseudo: string;
+  emoji: string;
+  elo: number;
+  level: number;
+  streak: number;
+};
 
 const FAVORITES_KEY = "mai.quizzly.favorites.v1";
 const LOCAL_QUIZ_KEY = "mai.quizzly.local-quizzes.v1";
@@ -68,7 +75,8 @@ const SUBJECT_COEFFICIENTS: Record<string, number> = {
 export default function QuizzlyPlayPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [step, setStep] = useState<"setup" | "playing" | "loading" | "result">("setup");
+  const [step, setStep] = useState<"setup" | "playing" | "loading" | "result" | "matchmaking" | "duel" | "duelResult" | "survival" | "survivalResult">("setup");
+  const [gameMode, setGameMode] = useState<"classic" | "duel" | "survival">("classic");
   const [grade, setGrade] = useState("3ème");
   const [subject, setSubject] = useState("Mathématiques");
   const [difficulty, setDifficulty] = useState("Moyen");
@@ -91,8 +99,38 @@ export default function QuizzlyPlayPage() {
   const [reviewCards, setReviewCards] = useState<ReviewCard[]>([]);
   const [strictScore, setStrictScore] = useState(0);
   const [customQuestions, setCustomQuestions] = useState<CustomDraftQuestion[]>([]);
+  const [profile, setProfile] = useState<{ pseudo: string; emoji: string; level: number; streak: number } | null>(null);
+  const [eloScore, setEloScore] = useState(1000);
+  const [matchmakingSeconds, setMatchmakingSeconds] = useState(0);
+  const [duelOpponent, setDuelOpponent] = useState<DuelOpponent | null>(null);
+  const [duelPlayerAnswers, setDuelPlayerAnswers] = useState<(number | null)[]>([]);
+  const [duelOpponentAnswers, setDuelOpponentAnswers] = useState<(number | null)[]>([]);
+  const [duelIndex, setDuelIndex] = useState(0);
+  const [duelSelected, setDuelSelected] = useState<number | null>(null);
+  const [duelStartedAt, setDuelStartedAt] = useState<number | null>(null);
+  const [survivalLives, setSurvivalLives] = useState(3);
+  const [survivalStage, setSurvivalStage] = useState(1);
+  const [survivalScore, setSurvivalScore] = useState(0);
+  const [survivalStartedAt, setSurvivalStartedAt] = useState<number | null>(null);
+  const [survivalLeaderboard, setSurvivalLeaderboard] = useState<Array<{ pseudo: string; score: number; stage: number; duration: number }>>([]);
+  const [survivalFreezeSeconds, setSurvivalFreezeSeconds] = useState(0);
+  const [survivalBonusLives, setSurvivalBonusLives] = useState(0);
 
   const current = questions[index];
+  const duelCurrent = questions[duelIndex];
+  const survivalCurrent = questions[index];
+
+  const computeSimplifiedElo = (successRate: number, levelValue: number, streakValue: number) =>
+    Math.round(700 + successRate * 300 + levelValue * 12 + Math.min(streakValue, 30) * 4);
+
+  const inferDifficultyFromStage = (stage: number): "Facile" | "Moyen" | "Difficile" | "Expert" => {
+    if (stage <= 5) return "Facile";
+    if (stage <= 10) return "Moyen";
+    if (stage <= 15) return "Difficile";
+    return "Expert";
+  };
+
+  const survivalSubjectPool = SUBJECT_OPTIONS;
 
   useEffect(() => {
     try {
@@ -114,6 +152,24 @@ export default function QuizzlyPlayPage() {
       setFavorites([]);
       setLocalQuizzes([]);
       setReviewCards([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    Promise.all([getQuizzlyProfile(), getQuizzlyInventory()]).then(([p, inv]) => {
+      const asProfile = p as { pseudo: string; emoji: string; level: number; streak: number };
+      setProfile(asProfile);
+      const stats = inv as Array<{ itemKey: string; quantity: number }>;
+      const totalCorrect = stats.find((item) => item.itemKey === "stats:total-correct")?.quantity ?? 0;
+      const totalPlayed = stats.find((item) => item.itemKey === "stats:quiz-played")?.quantity ?? 1;
+      const successRate = Math.min(1, totalCorrect / Math.max(1, totalPlayed * 10));
+      setEloScore(computeSimplifiedElo(successRate, asProfile.level, asProfile.streak));
+    }).catch(() => undefined);
+
+    try {
+      setSurvivalLeaderboard(JSON.parse(localStorage.getItem("mai.quizzly.survival.lb.v1") ?? "[]"));
+    } catch {
+      setSurvivalLeaderboard([]);
     }
   }, []);
 
@@ -156,6 +212,30 @@ export default function QuizzlyPlayPage() {
   }, [searchParams]);
 
   useEffect(() => {
+    if (step !== "matchmaking") return;
+    const timer = setInterval(() => setMatchmakingSeconds((prev) => prev + 1), 1000);
+    const lock = setTimeout(() => {
+      const opponentLevel = Math.max(1, (profile?.level ?? 8) + Math.floor((Math.random() - 0.5) * 4));
+      const opponentStreak = Math.max(0, (profile?.streak ?? 4) + Math.floor((Math.random() - 0.5) * 6));
+      const opponentElo = eloScore + Math.floor((Math.random() - 0.5) * 90);
+      setDuelOpponent({
+        pseudo: ["Nova", "Kira", "Atlas", "Milo", "Lina"][Math.floor(Math.random() * 5)] ?? "Rival",
+        emoji: ["⚡", "🦊", "🚀", "🧠", "🔥"][Math.floor(Math.random() * 5)] ?? "⚔️",
+        elo: opponentElo,
+        level: opponentLevel,
+        streak: opponentStreak,
+      });
+      setStep("loading");
+      startDuelQuiz();
+    }, 2600 + Math.floor(Math.random() * 2000));
+
+    return () => {
+      clearInterval(timer);
+      clearTimeout(lock);
+    };
+  }, [step, eloScore, profile]);
+
+  useEffect(() => {
     if (step !== "playing" || !chronoEnabled || selected !== null) return;
     setRemainingSeconds(chronoSeconds);
     const timer = setInterval(() => {
@@ -191,6 +271,15 @@ export default function QuizzlyPlayPage() {
   };
 
   const startQuiz = async () => {
+    if (gameMode === "duel") {
+      setMatchmakingSeconds(0);
+      setStep("matchmaking");
+      return;
+    }
+    if (gameMode === "survival") {
+      await startSurvivalMode();
+      return;
+    }
     if (examMode) {
       setChronoEnabled(true);
     }
@@ -236,6 +325,63 @@ export default function QuizzlyPlayPage() {
       toast.error(error instanceof Error ? error.message : "Erreur inattendue");
       setStep("setup");
     }
+  };
+
+  const startDuelQuiz = async () => {
+    try {
+      const duelCount = Math.max(5, Math.min(10, count));
+      const res = await fetch("/api/quizzly/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ grade, subject, difficulty, count: duelCount, chapter, themePrompt, modelId, questionTypes }),
+      });
+      const data = (await res.json()) as { questions?: QuizQuestion[]; error?: string };
+      if (!res.ok || !Array.isArray(data.questions) || data.questions.length === 0) {
+        throw new Error(data.error ?? "Génération duel impossible");
+      }
+      setQuestions(data.questions);
+      setDuelPlayerAnswers(new Array(data.questions.length).fill(null));
+      setDuelOpponentAnswers(new Array(data.questions.length).fill(null));
+      setDuelIndex(0);
+      setDuelSelected(null);
+      setDuelStartedAt(Date.now());
+      setStep("duel");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erreur duel inattendue");
+      setStep("setup");
+    }
+  };
+
+  const startSurvivalMode = async () => {
+    setStep("loading");
+    setSurvivalLives(3);
+    setSurvivalStage(1);
+    setSurvivalScore(0);
+    setIndex(0);
+    setSelected(null);
+    setSurvivalFreezeSeconds(0);
+    setSurvivalStartedAt(Date.now());
+    await loadNextSurvivalBatch(1);
+    setStep("survival");
+  };
+
+  const loadNextSurvivalBatch = async (stageValue: number) => {
+    const nextDifficulty = inferDifficultyFromStage(stageValue);
+    const nextSubject = survivalSubjectPool[Math.floor(Math.random() * survivalSubjectPool.length)] ?? subject;
+    const res = await fetch("/api/quizzly/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ grade, subject: nextSubject, difficulty: nextDifficulty, count: 5, chapter: "", themePrompt: `Palier ${stageValue} en mode survie`, modelId, questionTypes: ["qcm"] }),
+    });
+    const data = (await res.json()) as { questions?: QuizQuestion[]; error?: string };
+    if (!res.ok || !Array.isArray(data.questions) || data.questions.length === 0) {
+      throw new Error(data.error ?? "Impossible de charger des questions de survie");
+    }
+    setSubject(nextSubject);
+    setDifficulty(nextDifficulty);
+    setQuestions(data.questions);
+    setIndex(0);
+    setSelected(null);
   };
 
   const saveFavorite = () => {
@@ -303,6 +449,49 @@ export default function QuizzlyPlayPage() {
     setIndex((prev) => prev + 1);
     setSelected(null);
   };
+
+  const finalizeDuel = async () => {
+    const playerCorrect = duelPlayerAnswers.reduce<number>((total, answer, idx) => total + (answer === questions[idx]?.correctAnswerIndex ? 1 : 0), 0);
+    const opponentCorrect = duelOpponentAnswers.reduce<number>((total, answer, idx) => total + (answer === questions[idx]?.correctAnswerIndex ? 1 : 0), 0);
+    const winnerMultiplier = playerCorrect >= opponentCorrect ? 2 : 1;
+    const participation = playerCorrect >= opponentCorrect ? playerCorrect * 2 : Math.max(1, Math.floor(playerCorrect * 0.75));
+    await finishQuiz(participation * winnerMultiplier, null, duelStartedAt ? Math.floor((Date.now() - duelStartedAt) / 1000) : undefined);
+    setStep("duelResult");
+  };
+
+  const finalizeSurvival = async () => {
+    const duration = survivalStartedAt ? Math.floor((Date.now() - survivalStartedAt) / 1000) : 0;
+    await finishQuiz(Math.max(1, survivalScore), null, duration);
+    const entry = { pseudo: profile?.pseudo ?? "Anonyme", score: survivalScore, stage: survivalStage, duration };
+    const nextLb = [entry, ...survivalLeaderboard].sort((a, b) => b.score - a.score || b.stage - a.stage || a.duration - b.duration).slice(0, 20);
+    setSurvivalLeaderboard(nextLb);
+    localStorage.setItem("mai.quizzly.survival.lb.v1", JSON.stringify(nextLb));
+    setStep("survivalResult");
+  };
+
+  useEffect(() => {
+    if (step !== "duel" || questions.length === 0) return;
+    const unansweredIndex = duelOpponentAnswers.findIndex((answer) => answer === null);
+    if (unansweredIndex === -1) return;
+    const timer = setTimeout(() => {
+      const q = questions[unansweredIndex];
+      if (!q) return;
+      const isGood = Math.random() > 0.35;
+      const answer = isGood ? q.correctAnswerIndex : Math.floor(Math.random() * q.options.length);
+      setDuelOpponentAnswers((prev) => {
+        const next = [...prev];
+        next[unansweredIndex] = answer;
+        return next;
+      });
+    }, 1200 + Math.floor(Math.random() * 1500));
+    return () => clearTimeout(timer);
+  }, [duelOpponentAnswers, questions, step]);
+
+  useEffect(() => {
+    if (step === "duel" && duelOpponentAnswers.every((answer) => answer !== null) && duelPlayerAnswers.every((answer) => answer !== null)) {
+      finalizeDuel();
+    }
+  }, [duelOpponentAnswers, duelPlayerAnswers, step]);
 
   const downloadQuiz = () => {
     const content = questions
@@ -375,6 +564,165 @@ export default function QuizzlyPlayPage() {
           <button className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold" onClick={downloadQuiz} type="button"><Download className="mr-1 inline h-4 w-4" /> Télécharger PDF</button>
           <button className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white" onClick={shareResult} type="button"><Share2 className="mr-1 inline h-4 w-4" /> Partager</button>
           <button className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-white" onClick={() => setStep("setup")} type="button">Rejouer</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "matchmaking") {
+    return (
+      <div className="mx-auto max-w-xl space-y-4 rounded-3xl border border-slate-100 bg-white p-8 text-center shadow-sm">
+        <h2 className="text-3xl font-black text-slate-800">Recherche d'adversaire…</h2>
+        <div className="mx-auto h-24 w-24 animate-spin rounded-full border-4 border-violet-200 border-t-violet-600" />
+        <p className="text-sm text-slate-500">Matchmaking ELO simplifié: {eloScore} · {matchmakingSeconds}s</p>
+        <button className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700" onClick={() => setStep("setup")} type="button">
+          Annuler la recherche
+        </button>
+      </div>
+    );
+  }
+
+  if (step === "duel" && duelCurrent) {
+    const playerProgress = (duelPlayerAnswers.filter((a) => a !== null).length / questions.length) * 100;
+    const opponentProgress = (duelOpponentAnswers.filter((a) => a !== null).length / questions.length) * 100;
+    return (
+      <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-[1fr_220px]">
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <p className="font-bold text-slate-700">Duel • Question {duelIndex + 1}/{questions.length}</p>
+          </div>
+          <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-2xl font-black text-slate-800">{duelCurrent.question}</h2>
+            <div className="space-y-2">
+              {duelCurrent.options.map((opt, i) => (
+                <button
+                  key={opt}
+                  className={`flex w-full rounded-xl border px-3 py-3 text-left text-sm font-medium transition ${duelSelected === i ? "border-violet-500 bg-violet-50" : "border-slate-200 hover:border-violet-300"}`}
+                  disabled={duelSelected !== null}
+                  onClick={() => {
+                    setDuelSelected(i);
+                    setDuelPlayerAnswers((prev) => {
+                      const next = [...prev];
+                      next[duelIndex] = i;
+                      return next;
+                    });
+                    setTimeout(() => {
+                      if (duelIndex >= questions.length - 1) return;
+                      setDuelIndex((prev) => prev + 1);
+                      setDuelSelected(null);
+                    }, 350);
+                  }}
+                  type="button"
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <aside className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+          <p className="mb-3 text-sm font-black text-slate-700">Progression en temps réel</p>
+          <p className="text-xs text-slate-500">Toi</p>
+          <div className="mb-3 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-violet-600" style={{ width: `${playerProgress}%` }} /></div>
+          <p className="text-xs text-slate-500">{duelOpponent?.pseudo ?? "Adversaire"} {duelOpponent?.emoji ?? "⚔️"}</p>
+          <div className="h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-emerald-500" style={{ width: `${opponentProgress}%` }} /></div>
+          <p className="mt-4 text-xs text-slate-500">Aucune réponse adverse n'est révélée pendant la partie.</p>
+        </aside>
+      </div>
+    );
+  }
+
+  if (step === "duelResult") {
+    const playerCorrect = duelPlayerAnswers.reduce<number>((total, answer, idx) => total + (answer === questions[idx]?.correctAnswerIndex ? 1 : 0), 0);
+    const opponentCorrect = duelOpponentAnswers.reduce<number>((total, answer, idx) => total + (answer === questions[idx]?.correctAnswerIndex ? 1 : 0), 0);
+    const playerAvg = ((duelStartedAt ? (Date.now() - duelStartedAt) / 1000 : 0) / Math.max(1, questions.length)).toFixed(1);
+    const opponentAvg = (Number(playerAvg) + (Math.random() * 4 - 2)).toFixed(1);
+    const isWinner = playerCorrect >= opponentCorrect;
+    return (
+      <div className="mx-auto max-w-3xl space-y-4 rounded-3xl border border-slate-100 bg-white p-8 shadow-sm">
+        <h2 className="text-center text-3xl font-black text-slate-800">{isWinner ? "🏆 Victoire !" : "🤝 Duel terminé"}</h2>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="rounded-2xl bg-violet-50 p-4 text-sm"><p className="font-bold">Toi ({profile?.pseudo ?? "Moi"})</p><p>Score: {playerCorrect}/{questions.length}</p><p>Temps moyen/question: {playerAvg}s</p><p>Bonnes réponses: {playerCorrect}</p></div>
+          <div className="rounded-2xl bg-slate-50 p-4 text-sm"><p className="font-bold">{duelOpponent?.pseudo ?? "Adversaire"} {duelOpponent?.emoji ?? "⚔️"}</p><p>Score: {opponentCorrect}/{questions.length}</p><p>Temps moyen/question: {opponentAvg}s</p><p>Bonnes réponses: {opponentCorrect}</p></div>
+        </div>
+        <div className={`rounded-2xl p-4 text-sm font-bold ${isWinner ? "bg-emerald-50 text-emerald-700" : "bg-sky-50 text-sky-700"}`}>
+          {isWinner ? "Récompenses vainqueur: XP x2 + diamants x2 ✨" : "Récompenses de participation obtenues pour ton fair-play 💙"}
+        </div>
+        <div className="flex justify-center gap-2">
+          <button className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white" onClick={() => setStep("setup")} type="button">Nouveau duel</button>
+          <button className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold" onClick={() => router.push("/quizzly")} type="button">Retour</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "survival" && survivalCurrent) {
+    const canFreeze = survivalFreezeSeconds <= 0;
+    return (
+      <div className="mx-auto max-w-4xl space-y-4">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <p className="font-bold text-slate-700">Mode Survie • Palier {survivalStage}</p>
+              <p className="text-xs text-slate-500">{subject} · {difficulty}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {Array.from({ length: 3 }).map((_, i) => <Heart key={`life-${i}`} className={`h-5 w-5 ${i < survivalLives ? "fill-red-500 text-red-500 animate-pulse" : "text-slate-300"}`} />)}
+            </div>
+          </div>
+        </div>
+        <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-2xl font-black text-slate-800">{survivalCurrent.question}</h2>
+          <div className="space-y-2">
+            {survivalCurrent.options.map((opt, i) => (
+              <button key={opt} className="w-full rounded-xl border border-slate-200 px-3 py-3 text-left text-sm font-medium hover:border-violet-300" onClick={async () => {
+                const isCorrect = i === survivalCurrent.correctAnswerIndex;
+                if (isCorrect) {
+                  setSurvivalScore((prev) => prev + 1);
+                } else {
+                  setSurvivalLives((prev) => prev - 1);
+                  navigator.vibrate?.(100);
+                }
+                if (!isCorrect && survivalLives <= 1) {
+                  await finalizeSurvival();
+                  return;
+                }
+                if (index >= questions.length - 1) {
+                  const nextStage = survivalStage + 1;
+                  setSurvivalStage(nextStage);
+                  await loadNextSurvivalBatch(nextStage);
+                  return;
+                }
+                setIndex((prev) => prev + 1);
+              }} type="button">{opt}</button>
+            ))}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 disabled:opacity-40" disabled={survivalBonusLives <= 0 || survivalLives >= 3} onClick={() => { setSurvivalLives((prev) => Math.min(3, prev + 1)); setSurvivalBonusLives((prev) => Math.max(0, prev - 1)); }} type="button"><Shield className="mr-1 inline h-4 w-4" /> Booster +1 vie</button>
+            <button className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-700 disabled:opacity-40" disabled={!canFreeze} onClick={() => { setSurvivalFreezeSeconds(8); setTimeout(() => setSurvivalFreezeSeconds(0), 8000); }} type="button"><Snowflake className="mr-1 inline h-4 w-4" /> Geler chrono</button>
+            <p className="text-xs text-slate-500">Score: {survivalScore}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "survivalResult") {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4 rounded-3xl border border-slate-100 bg-white p-8 shadow-sm">
+        <h2 className="text-center text-3xl font-black text-slate-800">Fin du mode Survie</h2>
+        <p className="text-center text-sm text-slate-600">Score: {survivalScore} • Palier atteint: {survivalStage}</p>
+        <div className="rounded-2xl bg-slate-50 p-4">
+          <p className="mb-2 text-sm font-bold text-slate-700">Classement mondial Survie (local)</p>
+          <div className="space-y-1 text-xs text-slate-600">
+            {survivalLeaderboard.slice(0, 10).map((entry, idx) => (
+              <p key={`${entry.pseudo}-${entry.score}-${idx}`}>#{idx + 1} {entry.pseudo} — {entry.score} pts · palier {entry.stage} · {entry.duration}s</p>
+            ))}
+          </div>
+        </div>
+        <div className="flex justify-center gap-2">
+          <button className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white" onClick={startSurvivalMode} type="button">Rejouer</button>
+          <button className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold" onClick={() => setStep("setup")} type="button">Configurer</button>
         </div>
       </div>
     );
@@ -474,6 +822,17 @@ export default function QuizzlyPlayPage() {
         </button>
         <button className="rounded-xl border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700" onClick={shareQuizConfig} type="button">🔗 Partager</button>
         </div>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <button className={`rounded-2xl border p-4 text-left ${gameMode === "classic" ? "border-violet-400 bg-violet-50" : "border-slate-200 bg-white"}`} onClick={() => setGameMode("classic")} type="button">
+          <p className="font-bold">🎯 Classique</p><p className="text-xs text-slate-500">Quiz solo configurable.</p>
+        </button>
+        <button className={`rounded-2xl border p-4 text-left ${gameMode === "duel" ? "border-violet-400 bg-violet-50" : "border-slate-200 bg-white"}`} onClick={() => setGameMode("duel")} type="button">
+          <p className="font-bold flex items-center gap-2"><Sword className="h-4 w-4" /> Duel temps réel</p><p className="text-xs text-slate-500">Matchmaking auto ELO ({eloScore}).</p>
+        </button>
+        <button className={`rounded-2xl border p-4 text-left ${gameMode === "survival" ? "border-violet-400 bg-violet-50" : "border-slate-200 bg-white"}`} onClick={() => setGameMode("survival")} type="button">
+          <p className="font-bold flex items-center gap-2"><Trophy className="h-4 w-4" /> Survie infinie</p><p className="text-xs text-slate-500">3 vies, paliers progressifs, leaderboard.</p>
+        </button>
       </div>
       <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">
         Répétition espacée (1/3/7/30j) — cartes dues: {reviewCards.filter((item) => new Date(item.dueAt).getTime() <= Date.now()).length}
