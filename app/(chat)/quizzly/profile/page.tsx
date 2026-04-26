@@ -7,11 +7,13 @@ import { Calendar, Link2, Medal } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { getUserStatsSnapshot } from "@/lib/user-stats";
+import { badgesCatalog } from "@/lib/user-stats";
 
 const PROFILE_SOCIALS_KEY = "mai.quizzly.profile.socials.v1";
 const PROFILE_TITLE_KEY = "mai.quizzly.profile.title.v1";
 const UNIQUE_QUEST_KEY = "mai.quizzly.unique-quest.title.v1";
 const DUEL_HISTORY_KEY = "mai.quizzly.duel-history.v1";
+const PINNED_BADGES_KEY = "mai.quizzly.profile.pinned-badges.v1";
 
 type Profile = {
   bio: string;
@@ -42,6 +44,7 @@ export default function QuizzlyProfilePage() {
   const [unlockedTitles, setUnlockedTitles] = useState<string[]>(["Joueur"]);
   const [saving, setSaving] = useState(false);
   const [rivalryBadges, setRivalryBadges] = useState<RivalryBadge[]>([]);
+  const [pinnedBadges, setPinnedBadges] = useState<Array<{ id: string; label: string; emoji: string }>>([]);
 
   useEffect(() => {
     getQuizzlyProfile().then((p) => {
@@ -105,6 +108,17 @@ export default function QuizzlyProfilePage() {
       ]);
     } catch {
       setRivalryBadges([]);
+    }
+
+    try {
+      const pinnedIds = JSON.parse(window.localStorage.getItem(PINNED_BADGES_KEY) ?? "[]") as string[];
+      const resolved = pinnedIds.slice(0, 3).map((id) => {
+        const found = badgesCatalog.find((badge) => badge.id === id);
+        return { id, label: found?.name ?? "Succès spécial", emoji: found?.emoji ?? "🏅" };
+      });
+      setPinnedBadges(resolved);
+    } catch {
+      setPinnedBadges([]);
     }
   }, []);
 
@@ -235,6 +249,16 @@ export default function QuizzlyProfilePage() {
               ))}
             </div>
           </div>
+          {pinnedBadges.length > 0 && (
+            <div className="rounded-xl bg-indigo-50 p-4 border border-indigo-100 space-y-2">
+              <p className="font-bold text-indigo-800 flex items-center gap-2"><Medal className="w-4 h-4" /> Badges épinglés</p>
+              <div className="flex flex-wrap gap-2">
+                {pinnedBadges.map((badge) => (
+                  <div key={badge.id} className="rounded-lg bg-white px-3 py-2 text-xs font-bold text-indigo-700">{badge.emoji} {badge.label}</div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="pt-4">
