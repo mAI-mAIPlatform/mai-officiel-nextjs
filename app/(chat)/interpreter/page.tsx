@@ -37,7 +37,8 @@ type Runtime =
   | "markdown"
   | "rust"
   | "java"
-  | "r";
+  | "r"
+  | "perl";
 
 type RuntimeFile = { contentBase64: string; name: string };
 type EditorTheme = "monokai" | "dracula" | "one-dark";
@@ -81,6 +82,7 @@ const runtimeSnippets: Record<Runtime, string> = {
   rust: `fn main() {\n  println!("Hello Rust");\n}`,
   java: `public class Main {\n  public static void main(String[] args) {\n    System.out.println("Hello Java");\n  }\n}`,
   r: `values <- c(2,4,6,8)\nmean(values)`,
+  perl: `my @values = (2, 4, 6, 8);\nmy $sum = 0;\n$sum += $_ for @values;\nmy $mean = $sum / scalar(@values);\nprint \"Mean: $mean\\n\";`,
 };
 
 const runtimeLabels: Record<Runtime, string> = {
@@ -100,6 +102,7 @@ const runtimeLabels: Record<Runtime, string> = {
   rust: "Rust",
   java: "Java",
   r: "R",
+  perl: "Perl",
 };
 
 const runtimeOrder: Runtime[] = [
@@ -119,6 +122,7 @@ const runtimeOrder: Runtime[] = [
   "rust",
   "java",
   "r",
+  "perl",
 ];
 
 const quickPresets: Array<{ label: string; runtime: Runtime }> = [

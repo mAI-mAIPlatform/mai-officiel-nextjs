@@ -59,6 +59,23 @@ const languageOptions = [
   { code: "lt", label: "Lituanien" },
   { code: "ca", label: "Catalan" },
   { code: "ga", label: "Irlandais" },
+  { code: "am", label: "Amharique" },
+  { code: "az", label: "Azéri" },
+  { code: "eu", label: "Basque" },
+  { code: "gl", label: "Galicien" },
+  { code: "is", label: "Islandais" },
+  { code: "ka", label: "Géorgien" },
+  { code: "kk", label: "Kazakh" },
+  { code: "km", label: "Khmer" },
+  { code: "lo", label: "Lao" },
+  { code: "mk", label: "Macédonien" },
+  { code: "mn", label: "Mongol" },
+  { code: "mr", label: "Marathi" },
+  { code: "ne", label: "Népalais" },
+  { code: "pa", label: "Pendjabi" },
+  { code: "si", label: "Cingalais" },
+  { code: "sq", label: "Albanais" },
+  { code: "uz", label: "Ouzbek" },
 ] as const;
 
 const synonymsMap: Record<string, string[]> = {
@@ -114,8 +131,8 @@ function normalizeWord(input: string) {
 export default function TranslationPage() {
   const [sourceText, setSourceText] = useState("");
   const [sourceLanguage, setSourceLanguage] = useState("auto");
-  const [targetLanguage, setTargetLanguage] = useState("en");
-  const [translatedText, setTranslatedText] = useState("");
+  const [targetLanguages, setTargetLanguages] = useState<string[]>(["en"]);
+  const [translatedByLanguage, setTranslatedByLanguage] = useState<Record<string, string>>({});
   const [isTranslating, setIsTranslating] = useState(false);
   const [aiLexicalAnalysis, setAiLexicalAnalysis] = useState("");
   const [isGeneratingLexicalAnalysis, setIsGeneratingLexicalAnalysis] =
@@ -129,7 +146,7 @@ export default function TranslationPage() {
 
   useEffect(() => {
     if (!sourceText.trim()) {
-      setTranslatedText("");
+      setTranslatedByLanguage({});
       return;
     }
 
@@ -138,33 +155,41 @@ export default function TranslationPage() {
       setIsTranslating(true);
       const sourceLang =
         sourceLanguage === "auto" ? detectedLanguage : sourceLanguage;
-      const langPair = `${sourceLang}|${targetLanguage}`;
-      const cacheKey = `${langPair}:${sourceText.trim()}`;
-
-      const cachedTranslation = translationCacheRef.current[cacheKey];
-      if (cachedTranslation) {
-        setTranslatedText(cachedTranslation);
-        setIsTranslating(false);
-        return;
-      }
+      const targets = targetLanguages.length > 0 ? targetLanguages : ["en"];
 
       try {
-        const response = await fetch(
-          `https://api.mymemory.translated.net/get?q=${encodeURIComponent(sourceText)}&langpair=${langPair}`,
-          { signal: abortController.signal }
+        const entries = await Promise.all(
+          targets.map(async (target) => {
+            const langPair = `${sourceLang}|${target}`;
+            const cacheKey = `${langPair}:${sourceText.trim()}`;
+            const cachedTranslation = translationCacheRef.current[cacheKey];
+            if (cachedTranslation) {
+              return [target, cachedTranslation] as const;
+            }
+
+            const response = await fetch(
+              `https://api.mymemory.translated.net/get?q=${encodeURIComponent(sourceText)}&langpair=${langPair}`,
+              { signal: abortController.signal }
+            );
+            const payload = await response.json();
+            const bestMatch = payload?.matches?.[0]?.translation;
+            const nextTranslation =
+              (bestMatch || payload?.responseData?.translatedText || "").trim() ||
+              "Aucune traduction n'a été trouvée.";
+            translationCacheRef.current[cacheKey] = nextTranslation;
+            return [target, nextTranslation] as const;
+          })
         );
-        const payload = await response.json();
-        const bestMatch = payload?.matches?.[0]?.translation;
-        const nextTranslation =
-          (bestMatch || payload?.responseData?.translatedText || "").trim() ||
-          "Aucune traduction n'a été trouvée.";
-        setTranslatedText(nextTranslation);
-        translationCacheRef.current[cacheKey] = nextTranslation;
+
+        setTranslatedByLanguage(Object.fromEntries(entries));
       } catch (error) {
         if ((error as Error).name === "AbortError") {
           return;
         }
-        setTranslatedText("La traduction a échoué. Vérifiez votre connexion.");
+        setTranslatedByLanguage({
+          [targetLanguages[0] ?? "en"]:
+            "La traduction a échoué. Vérifiez votre connexion.",
+        });
       } finally {
         setIsTranslating(false);
       }
@@ -174,10 +199,11 @@ export default function TranslationPage() {
       clearTimeout(timer);
       abortController.abort();
     };
-  }, [detectedLanguage, sourceLanguage, sourceText, targetLanguage]);
+  }, [detectedLanguage, sourceLanguage, sourceText, targetLanguages]);
 
   const lexicalAnalysis = useMemo(() => {
-    const textToAnalyze = translatedText.trim() || sourceText.trim();
+    const firstTranslation = translatedByLanguage[targetLanguages[0] ?? "en"] ?? "";
+    const textToAnalyze = firstTranslation.trim() || sourceText.trim();
     const clean = textToAnalyze
       .toLowerCase()
       .replace(/[^\p{L}\p{N}\s]/gu, " ")
@@ -208,10 +234,11 @@ export default function TranslationPage() {
       totalCharactersWithSpaces: textToAnalyze.length,
       totalCharactersWithoutSpaces: textToAnalyze.replace(/\s/g, "").length,
     };
-  }, [sourceText, translatedText]);
+  }, [sourceText, targetLanguages, translatedByLanguage]);
 
   const handleGenerateLexicalAnalysis = async () => {
-    if (!translatedText.trim()) {
+    const firstTranslation = translatedByLanguage[targetLanguages[0] ?? "en"] ?? "";
+    if (!firstTranslation.trim()) {
       setAiLexicalAnalysis(
         "Traduisez d'abord un texte pour lancer l'analyse IA."
       );
@@ -224,7 +251,7 @@ export default function TranslationPage() {
       const response = await fetch("/api/translation/lexical-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: translatedText }),
+        body: JSON.stringify({ text: firstTranslation }),
       });
 
       if (!response.ok) {
@@ -259,16 +286,32 @@ export default function TranslationPage() {
   }, [lexicalAnalysis.keyWord]);
 
   const swapLanguages = () => {
+    const primaryTarget = targetLanguages[0] ?? "en";
+    const primaryTranslation = translatedByLanguage[primaryTarget] ?? "";
     if (sourceLanguage === "auto") {
-      setSourceLanguage(targetLanguage);
-      setTargetLanguage(detectedLanguage === "auto" ? "fr" : detectedLanguage);
+      setSourceLanguage(primaryTarget);
+      setTargetLanguages([detectedLanguage === "auto" ? "fr" : detectedLanguage]);
       return;
     }
 
-    setSourceLanguage(targetLanguage);
-    setTargetLanguage(sourceLanguage);
-    setSourceText(translatedText);
-    setTranslatedText(sourceText);
+    setSourceLanguage(primaryTarget);
+    setTargetLanguages([sourceLanguage]);
+    setSourceText(primaryTranslation);
+    setTranslatedByLanguage({
+      [sourceLanguage]: sourceText,
+    });
+  };
+
+  const toggleTargetLanguage = (code: string) => {
+    setTargetLanguages((current) => {
+      if (current.includes(code)) {
+        if (current.length === 1) {
+          return current;
+        }
+        return current.filter((item) => item !== code);
+      }
+      return [...current, code];
+    });
   };
 
   return (
@@ -325,30 +368,54 @@ export default function TranslationPage() {
 
         <div className="liquid-glass flex flex-col space-y-3 rounded-xl border border-border bg-muted/20 p-4">
           <div className="border-b border-border pb-3">
-            <select
-              className="h-8 rounded-full border border-border/40 bg-background/50 px-3 text-xs text-muted-foreground"
-              onChange={(e) => setTargetLanguage(e.target.value)}
-              value={targetLanguage}
-            >
+            <p className="mb-2 text-xs text-muted-foreground">
+              Langues cibles (sélection multiple)
+            </p>
+            <div className="flex max-h-24 flex-wrap gap-1 overflow-y-auto pr-1">
               {languageOptions
                 .filter((lang) => lang.code !== "auto")
-                .map((lang) => (
-                  <option key={lang.code} value={lang.code}>
-                    {lang.label}
-                  </option>
-                ))}
-            </select>
+                .map((lang) => {
+                  const isSelected = targetLanguages.includes(lang.code);
+                  return (
+                    <button
+                      className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
+                        isSelected
+                          ? "border-primary/45 bg-primary/15 text-foreground"
+                          : "border-border/45 bg-background/60 text-muted-foreground hover:border-border"
+                      }`}
+                      key={lang.code}
+                      onClick={() => toggleTargetLanguage(lang.code)}
+                      type="button"
+                    >
+                      {lang.label}
+                    </button>
+                  );
+                })}
+            </div>
           </div>
-          <div className="h-48 overflow-y-auto p-2 text-base md:h-64">
+          <div className="h-48 space-y-2 overflow-y-auto p-2 text-base md:h-64">
             {isTranslating ? (
               <span className="text-muted-foreground italic">
                 Traduction en cours...
               </span>
-            ) : translatedText ? (
-              translatedText
+            ) : targetLanguages.length > 0 ? (
+              targetLanguages.map((code) => (
+                <div
+                  className="rounded-lg border border-border/50 bg-background/45 p-2"
+                  key={code}
+                >
+                  <p className="mb-1 text-[11px] font-medium text-muted-foreground">
+                    {languageOptions.find((lang) => lang.code === code)?.label ?? code}
+                  </p>
+                  <p className="text-sm">
+                    {translatedByLanguage[code] ??
+                      "La traduction s'affichera ici..."}
+                  </p>
+                </div>
+              ))
             ) : (
               <span className="text-muted-foreground italic">
-                La traduction s'affichera ici...
+                Sélectionnez au moins une langue cible.
               </span>
             )}
           </div>
@@ -380,7 +447,8 @@ export default function TranslationPage() {
                 <Button
                   className="h-7 rounded-full px-3 text-xs"
                   disabled={
-                    isGeneratingLexicalAnalysis || !translatedText.trim()
+                    isGeneratingLexicalAnalysis ||
+                    !(translatedByLanguage[targetLanguages[0] ?? "en"] ?? "").trim()
                   }
                   onClick={handleGenerateLexicalAnalysis}
                   type="button"

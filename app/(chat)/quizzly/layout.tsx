@@ -27,7 +27,7 @@ export default async function QuizzlyLayout({ children }: { children: ReactNode 
   return (
     <div className="flex h-full w-full bg-slate-50 text-slate-900">
       {/* Sidebar */}
-      <div className="w-64 border-r border-slate-200 bg-white flex flex-col">
+      <div className="hidden w-64 border-r border-slate-200 bg-white md:flex md:flex-col">
         <div className="p-6 flex items-center gap-3 border-b border-slate-100">
           <Image src="/mai-logo.svg" alt="Quizzly" width={40} height={40} className="rounded-xl" />
           <div>
@@ -51,11 +51,26 @@ export default async function QuizzlyLayout({ children }: { children: ReactNode 
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto relative">
-        <div className="max-w-5xl mx-auto p-6 md:p-10">
+      <div className="relative flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-5xl p-4 pb-28 md:p-10 md:pb-10">
           {children}
         </div>
       </div>
+
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur md:hidden">
+        <div className="grid grid-cols-4 gap-1">
+          {navItems.slice(0, 8).map((item) => (
+            <Link
+              key={`mobile-${item.name}`}
+              href={item.href}
+              className="flex flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-violet-50 hover:text-violet-700"
+            >
+              <item.icon className="h-4 w-4" />
+              <span className="truncate">{item.name}</span>
+            </Link>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
