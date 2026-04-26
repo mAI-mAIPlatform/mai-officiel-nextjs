@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MessageSquare, Handshake, Users, Trophy, UserPlus, Reply, Flame, Swords, Medal, Flag, ShieldAlert, Gavel, Trash2, VolumeX } from "lucide-react";
 import { useSocket } from "@/hooks/use-socket";
 import { toast } from "sonner";
-import { getFriendStreaks, getQuizzlyProfile } from "@/lib/quizzly/actions";
+import { getFriendStreaks, getMonthlyReferralLeaderboard, getQuizzlyProfile } from "@/lib/quizzly/actions";
 import { analyzeMessageForModeration, getNextSanction, getSendRestriction, type ModerationReason, type UserModerationStatus } from "@/lib/quizzly/moderation";
 
 const SOCIAL_STORAGE_KEY = "mai.quizzly.social.v1";
@@ -82,6 +82,7 @@ export default function QuizzlySocialPage() {
   const [reportModalFor, setReportModalFor] = useState<ChatMessage | null>(null);
   const [reportReason, setReportReason] = useState<ReportReason>("Insulte ou harcèlement");
   const [reportComment, setReportComment] = useState("");
+  const [monthlyReferralBoard, setMonthlyReferralBoard] = useState<Array<{ userId: string; pseudo: string; activeReferrals: number }>>([]);
 
   useEffect(() => {
     try {
@@ -94,6 +95,12 @@ export default function QuizzlySocialPage() {
     } catch {
       // noop
     }
+  }, []);
+
+  useEffect(() => {
+    getMonthlyReferralLeaderboard()
+      .then((result) => setMonthlyReferralBoard(result.entries))
+      .catch(() => setMonthlyReferralBoard([]));
   }, []);
 
   useEffect(() => {
@@ -553,6 +560,19 @@ export default function QuizzlySocialPage() {
           </div>
         </div>
       )}
+
+      <div className="rounded-2xl border border-slate-100 bg-white p-4">
+        <p className="font-black text-slate-800">Top parrains du mois</p>
+        <div className="mt-2 space-y-1 text-sm">
+          {monthlyReferralBoard.slice(0, 10).map((entry, index) => (
+            <div key={`ref-rank-${entry.userId}`} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+              <span>#{index + 1} {entry.pseudo}</span>
+              <span className="font-bold text-violet-700">{entry.activeReferrals}</span>
+            </div>
+          ))}
+          {monthlyReferralBoard.length === 0 && <p className="text-xs text-slate-500">Aucun parrainage actif sur le mois en cours.</p>}
+        </div>
+      </div>
 
       {reportModalFor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">

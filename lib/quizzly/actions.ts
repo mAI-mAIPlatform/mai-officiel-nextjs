@@ -35,6 +35,14 @@ async function ensureReferralCode(userId: string) {
   return code;
 }
 
+const REFERRAL_TIERS = [
+  { referrals: 3, key: "tier-3", label: "Palier 3 filleuls", rewardsLabel: "+30💎" },
+  { referrals: 5, key: "tier-5", label: "Palier 5 filleuls", rewardsLabel: "Avatar Recruteur + badge bronze Ambassadeur" },
+  { referrals: 10, key: "tier-10", label: "Palier 10 filleuls", rewardsLabel: "Titre Ambassadeur Quizzly + badge argent" },
+  { referrals: 20, key: "tier-20", label: "Palier 20 filleuls", rewardsLabel: "Thème exclusif Ambassadeur" },
+  { referrals: 50, key: "tier-50", label: "Palier 50 filleuls", rewardsLabel: "Badge Grand Ambassadeur +100💎 +3⭐" },
+] as const;
+
 function getDateKey(date = new Date()) {
   return date.toISOString().split("T")[0] ?? "";
 }
@@ -843,18 +851,126 @@ export async function getReferralProgramData() {
   );
 
   const totalReferrals = children.length;
-  const nextTierTarget = Math.ceil((totalReferrals + 1) / 5) * 5;
-  const currentTierStart = Math.floor(totalReferrals / 5) * 5;
-  const progress = nextTierTarget === currentTierStart ? 100 : Math.round(((totalReferrals - currentTierStart) / Math.max(1, nextTierTarget - currentTierStart)) * 100);
+  const activeReferrals = children.filter((child) => child.active).length;
+  const nextTierTarget = REFERRAL_TIERS.find((tier) => activeReferrals < tier.referrals)?.referrals ?? 50;
+  const currentTierStart = REFERRAL_TIERS.filter((tier) => tier.referrals <= activeReferrals).slice(-1)[0]?.referrals ?? 0;
+  const progress = nextTierTarget === currentTierStart ? 100 : Math.round(((activeReferrals - currentTierStart) / Math.max(1, nextTierTarget - currentTierStart)) * 100);
+
+  const tierStatuses = await Promise.all(
+    REFERRAL_TIERS.map(async (tier) => {
+      const [claimed] = await db
+        .select()
+        .from(quizzlyInventory)
+        .where(and(eq(quizzlyInventory.userId, userId), eq(quizzlyInventory.itemKey, `referral:reward:${tier.key}`)));
+      return {
+        ...tier,
+        unlocked: activeReferrals >= tier.referrals,
+        claimed: Boolean(claimed && claimed.quantity > 0),
+      };
+    })
+  );
 
   return {
     code,
     referralLink,
     qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(referralLink)}`,
     totalReferrals,
+    activeReferrals,
     children,
     progress,
     nextTierTarget,
+    tierStatuses,
     profile: { pseudo: profile.pseudo, diamonds: profile.diamonds, stars: profile.stars },
   };
+}
+
+export async function claimReferralTierRewards() {
+  const userId = await getAuthenticatedUserId();
+  const data = await getReferralProgramData();
+  const profile = await getQuizzlyProfile();
+  let extraDiamonds = 0;
+  let extraStars = 0;
+  const unlockedNow: string[] = [];
+
+  for (const tier of data.tierStatuses) {
+    if (!tier.unlocked || tier.claimed) continue;
+    if (tier.referrals === 3) {
+      extraDiamonds += 30;
+    } else if (tier.referrals === 5) {
+      await upsertInventoryItem(userId, "avatar:recruteur", 1);
+      await upsertInventoryItem(userId, "badge:ambassadeur-bronze", 1);
+    } else if (tier.referrals === 10) {
+      await upsertInventoryItem(userId, "title:ambassadeur-quizzly", 1);
+      await upsertInventoryItem(userId, "badge:ambassadeur-argent", 1);
+    } else if (tier.referrals === 20) {
+      await upsertInventoryItem(userId, "theme:ambassadeur", 1);
+    } else if (tier.referrals === 50) {
+      await upsertInventoryItem(userId, "badge:grand-ambassadeur", 1);
+      extraDiamonds += 100;
+      extraStars += 3;
+    }
+    await upsertInventoryItem(userId, `referral:reward:${tier.key}`, 1);
+    unlockedNow.push(tier.label);
+  }
+
+  if (extraDiamonds > 0 || extraStars > 0) {
+    await updateQuizzlyProfile({
+      diamonds: profile.diamonds + extraDiamonds,
+      stars: profile.stars + extraStars,
+    });
+    if (extraDiamonds > 0) await upsertInventoryItem(userId, "stats:diamonds-earned", extraDiamonds);
+  }
+
+  return { unlockedNow, extraDiamonds, extraStars };
+}
+
+export async function getMonthlyReferralLeaderboard() {
+  const now = new Date();
+  const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const allReferralRows = await db
+    .select()
+    .from(quizzlyInventory)
+    .where(like(quizzlyInventory.itemKey, "referral:child:%"));
+
+  const scoreBySponsor = new Map<string, number>();
+  const pseudoBySponsor = new Map<string, string>();
+  for (const row of allReferralRows) {
+    const [, , childId, joinedAt] = row.itemKey.split(":");
+    if (!joinedAt?.startsWith(monthKey)) continue;
+    const [childProfile] = await db.select().from(quizzlyProfile).where(eq(quizzlyProfile.userId, childId ?? ""));
+    if (!childProfile?.lastClaimDay) continue;
+    const active = getDiffInDays(childProfile.lastClaimDay, getDateKey()) <= 7;
+    if (!active) continue;
+    scoreBySponsor.set(row.userId, (scoreBySponsor.get(row.userId) ?? 0) + 1);
+  }
+
+  const sponsorIds = Array.from(scoreBySponsor.keys());
+  if (sponsorIds.length > 0) {
+    const sponsors = await db.select().from(quizzlyProfile).where(or(...sponsorIds.map((id) => eq(quizzlyProfile.userId, id))));
+    sponsors.forEach((sponsor) => pseudoBySponsor.set(sponsor.userId, sponsor.pseudo));
+  }
+
+  const entries = sponsorIds
+    .map((userId) => ({ userId, pseudo: pseudoBySponsor.get(userId) ?? "Joueur", activeReferrals: scoreBySponsor.get(userId) ?? 0 }))
+    .sort((a, b) => b.activeReferrals - a.activeReferrals)
+    .slice(0, 10);
+
+  return { monthKey, entries };
+}
+
+export async function claimMonthlyReferralTopBonus() {
+  const userId = await getAuthenticatedUserId();
+  const profile = await getQuizzlyProfile();
+  const { monthKey, entries } = await getMonthlyReferralLeaderboard();
+  const rank = entries.findIndex((entry) => entry.userId === userId);
+  if (rank < 0 || rank > 2) return { granted: false, bonusDiamonds: 0 };
+  const rewards = [200, 150, 100] as const;
+  const bonusDiamonds = rewards[rank] ?? 0;
+  const marker = `referral:monthly-bonus:${monthKey}:rank:${rank + 1}`;
+  const [already] = await db.select().from(quizzlyInventory).where(and(eq(quizzlyInventory.userId, userId), eq(quizzlyInventory.itemKey, marker)));
+  if (already) return { granted: false, bonusDiamonds: 0 };
+  await updateQuizzlyProfile({ diamonds: profile.diamonds + bonusDiamonds });
+  await upsertInventoryItem(userId, "stats:diamonds-earned", bonusDiamonds);
+  await upsertInventoryItem(userId, marker, 1);
+  return { granted: true, bonusDiamonds, rank: rank + 1 };
 }
