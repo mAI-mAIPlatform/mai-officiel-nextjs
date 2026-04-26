@@ -229,6 +229,9 @@ export function AproposSection({
         <button className="inline-flex items-center justify-between gap-2 rounded-xl border border-fuchsia-500/40 bg-fuchsia-500/10 px-3 py-2 text-sm font-medium text-fuchsia-700 transition-colors hover:bg-fuchsia-500/20 dark:text-fuchsia-300" onClick={() => { setModelsCategory("music"); setModelsOpen(true); }} type="button">
           Modèles Musiques <span className="rounded border border-fuchsia-500/40 px-2 py-0.5 text-xs">Ouvrir</span>
         </button>
+        <button className="inline-flex items-center justify-between gap-2 rounded-xl border border-slate-500/40 bg-slate-500/10 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-500/20 dark:text-slate-200" onClick={() => { setModelsCategory("all"); setModelsOpen(true); }} type="button">
+          Vue globale <span className="rounded border border-slate-500/40 px-2 py-0.5 text-xs">Ouvrir</span>
+        </button>
       </div>
 
       {modelsOpen && (

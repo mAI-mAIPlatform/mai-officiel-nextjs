@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db/queries";
+import { getSubscriptionPlan } from "@/lib/db/queries";
 import { auth } from "@/app/(auth)/auth";
 import {
   quizzlyProfile,
@@ -219,9 +220,19 @@ export async function claimQuizzlyPassReward(input: QuizzlyPassRewardInput) {
     throw new Error("Récompense du Pass déjà réclamée.");
   }
 
-  const requiredXp = input.tier * 120;
+  const isProTier = input.tier >= 100;
+  const requiredXp = isProTier ? (input.tier - 100) * 180 : input.tier * 120;
   if (profile.xp < requiredXp) {
     throw new Error("XP insuffisante pour ce palier.");
+  }
+
+  if (isProTier) {
+    const session = await auth();
+    const plan = session?.user?.id ? await getSubscriptionPlan(session.user.id) : "guest";
+    const hasProAccess = plan === "max" || (await hasQuizzlyPassProAccess());
+    if (!hasProAccess) {
+      throw new Error("Pass Pro requis pour ce palier.");
+    }
   }
 
   if (input.rewardType === "diamonds") {

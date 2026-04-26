@@ -6,6 +6,7 @@ import {
   claimDailyReward,
   claimComebackReward,
   getWeeklyLeaderboard,
+  getQuizzlyInventory,
 } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
 import { Flame, Star, Diamond, Trophy, Sparkles, Shield, TrendingDown, TrendingUp } from "lucide-react";
@@ -39,12 +40,19 @@ export default function QuizzlyDashboardPage() {
   const [leaderboardView, setLeaderboardView] = useState<"global" | "friends">("global");
   const [leaderboard, setLeaderboard] = useState<Array<{ userId: string; pseudo: string; emoji: string; weeklyXp: number }>>([]);
   const [weekKey, setWeekKey] = useState("");
+  const [highlights, setHighlights] = useState({ bestScore: 0, fastestQuiz: 0, longestStreak: 0 });
 
   useEffect(() => {
-    Promise.all([getQuizzlyProfile(), getWeeklyLeaderboard("global")]).then(([p, lb]) => {
+    Promise.all([getQuizzlyProfile(), getWeeklyLeaderboard("global"), getQuizzlyInventory()]).then(([p, lb, inventory]) => {
       setProfile(p as Profile);
       setLeaderboard(lb.entries);
       setWeekKey(lb.weekKey);
+      const getQty = (key: string) => (inventory as Array<{ itemKey: string; quantity: number }>).find((item) => item.itemKey === key)?.quantity ?? 0;
+      setHighlights({
+        bestScore: getQty("stats:best-score"),
+        fastestQuiz: getQty("stats:fastest-quiz-sec"),
+        longestStreak: Math.max((p as Profile).streak, getQty("stats:best-streak")),
+      });
       setLoading(false);
     });
   }, []);
@@ -150,6 +158,11 @@ export default function QuizzlyDashboardPage() {
           <span className="text-sm text-slate-500 font-bold uppercase tracking-wider">Étoiles</span>
           <span className="text-3xl font-black text-slate-800">{profile.stars}</span>
         </div>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-600"><Trophy className="mb-2 h-4 w-4 text-yellow-500" />Meilleur score: <span className="font-black text-slate-800">{highlights.bestScore > 0 ? `${highlights.bestScore} pts` : "—"}</span></div>
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-600"><Sparkles className="mb-2 h-4 w-4 text-violet-500" />Quiz le plus rapide: <span className="font-black text-slate-800">{highlights.fastestQuiz > 0 ? `${Math.floor(highlights.fastestQuiz / 60)}m ${String(highlights.fastestQuiz % 60).padStart(2, "0")}s` : "—"}</span></div>
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-600"><Flame className="mb-2 h-4 w-4 text-orange-500" />Plus longue streak: <span className="font-black text-slate-800">{highlights.longestStreak > 0 ? `${highlights.longestStreak} jours` : "—"}</span></div>
       </div>
 
       <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">

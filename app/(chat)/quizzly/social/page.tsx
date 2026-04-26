@@ -21,6 +21,7 @@ type ChatMessage = {
   id: string;
   text: string;
   author: string;
+  channel?: string;
   parentId?: string;
   reactionsByUser: Record<string, string>;
 };
@@ -40,6 +41,7 @@ export default function QuizzlySocialPage() {
   const [pinnedMessages, setPinnedMessages] = useState<string[]>([]);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [friendStreaks, setFriendStreaks] = useState<Record<string, number>>({});
+  const [activeChannel, setActiveChannel] = useState<string>("global");
 
   useEffect(() => {
     try {
@@ -91,9 +93,25 @@ export default function QuizzlySocialPage() {
     };
   }, [socket]);
 
+  useEffect(() => {
+    if (!socket) return;
+    const roomId =
+      activeChannel === "global"
+        ? "quizzly-global"
+        : `quizzly-friend-${activeChannel}`;
+    socket.emit("join-room", roomId);
+  }, [socket, activeChannel]);
+
   const displayedMessages = useMemo(
-    () => messages.filter((msg) => !social.blockedUsers.includes(msg.author)),
-    [messages, social.blockedUsers]
+    () =>
+      messages.filter(
+        (msg) =>
+          !social.blockedUsers.includes(msg.author) &&
+          (activeChannel === "global"
+            ? (msg.channel ?? "global") === "global"
+            : (msg.channel ?? "global") === activeChannel)
+      ),
+    [messages, social.blockedUsers, activeChannel]
   );
 
   const handleSend = () => {
@@ -102,11 +120,12 @@ export default function QuizzlySocialPage() {
       id: crypto.randomUUID(),
       text: input.trim(),
       author: "Moi",
+      channel: activeChannel,
       parentId: replyTo?.id,
       reactionsByUser: {},
     } satisfies ChatMessage;
 
-    socket?.emit("send-message", { roomId: "quizzly-global", text: payload.text });
+    socket?.emit("send-message", { roomId: activeChannel === "global" ? "quizzly-global" : `quizzly-friend-${activeChannel}`, text: payload.text });
     setMessages((prev) => [...prev, payload]);
     setInput("");
     setReplyTo(null);
@@ -220,17 +239,28 @@ export default function QuizzlySocialPage() {
           </div>
         ) : (
           <div className="flex flex-1 overflow-hidden">
-            <div className="w-1/3 border-r border-slate-100 p-4">
-              <div className="bg-violet-50 text-violet-700 font-bold p-4 rounded-xl">
+              <div className="w-1/3 border-r border-slate-100 p-4 space-y-2">
+              <button className={`w-full text-left font-bold p-4 rounded-xl ${activeChannel === "global" ? "bg-violet-100 text-violet-800" : "bg-violet-50 text-violet-700"}`} onClick={() => setActiveChannel("global")} type="button">
                 Tribu Globale
                 <span className={`block text-xs mt-1 ${isConnected ? "text-green-600" : "text-red-500"}`}>
                   {isConnected ? "Connecté" : "Déconnecté"}
                 </span>
-              </div>
+              </button>
+              <p className="pt-2 text-xs font-bold uppercase text-slate-500">Discussions amis</p>
+              {social.friends.map((friend) => (
+                <button key={`dm-${friend}`} className={`w-full rounded-lg px-3 py-2 text-left text-sm ${activeChannel === friend ? "bg-slate-200 text-slate-900" : "bg-slate-100 text-slate-700"}`} onClick={() => setActiveChannel(friend)} type="button">
+                  💬 {friend}
+                </button>
+              ))}
             </div>
             <div className="flex-1 flex flex-col">
               <div className="px-4 py-3 border-b border-slate-100 bg-white flex items-center justify-between">
-                <div className="text-xs text-slate-600">{pinnedMessages.length > 0 ? `📌 ${pinnedMessages[0]}` : "Aucun message épinglé"}</div>
+                <div className="text-xs text-slate-600">
+                  <span className="mr-2 rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-700">
+                    {activeChannel === "global" ? "🌍 Global" : `💬 ${activeChannel}`}
+                  </span>
+                  {pinnedMessages.length > 0 ? `📌 ${pinnedMessages[0]}` : "Aucun message épinglé"}
+                </div>
                 <button onClick={exportDiscussion} className="text-xs font-bold bg-slate-100 px-2 py-1 rounded">Exporter</button>
               </div>
               <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-50">

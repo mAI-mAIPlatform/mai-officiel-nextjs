@@ -79,7 +79,8 @@ import {
   getTierLabel,
   getTierRemaining,
 } from "@/lib/ai/credits";
-import { resolveModelLogoProvider } from "@/lib/ai/model-brand";
+import { getModelIconGlyph, resolveModelLogoProvider } from "@/lib/ai/model-brand";
+import { toHordeDisplayName } from "@/lib/ai/horde-models";
 import {
   type ChatModel,
   chatModels,
@@ -2460,9 +2461,10 @@ function PureModelSelectorCompact({
       model.id.startsWith("horde/") ||
       model.name.includes("/");
     if (!isHordeLike) return model.name;
-    const raw = model.name || model.id.slice("horde/".length);
-    const last = raw.split("/").pop() ?? raw;
-    return last.trim();
+    const raw = model.id.startsWith("horde/")
+      ? model.id.slice("horde/".length)
+      : model.name;
+    return toHordeDisplayName(raw);
   };
   const dynamicModelsNormalized = dynamicModels?.map((model) => ({
     ...model,
@@ -2619,7 +2621,10 @@ function PureModelSelectorCompact({
                             value={model.id}
                           >
                             <ModelSelectorLogo provider={logoProvider} />
-                            <ModelSelectorName>{model.name}</ModelSelectorName>
+                            <ModelSelectorName>
+                              <span className="mr-1">{getModelIconGlyph(model.id)}</span>
+                              {model.name}
+                            </ModelSelectorName>
                             <div className="ml-auto flex items-center gap-2 text-foreground/70">
                               {!curated && (
                                 <LockIcon className="size-3 text-muted-foreground/50" />

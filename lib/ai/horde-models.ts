@@ -1,4 +1,5 @@
 export type HordeTextModelOption = {
+  displayName: string;
   id: string;
   label: string;
 };
@@ -42,10 +43,31 @@ export const HORDE_TEXT_MODEL_NAMES = [
   "slm/testing-Kai-0.35B-Instruct.Q8_0.gguf",
 ] as const;
 
-export const hordeTextModelOptions: HordeTextModelOption[] =
-  HORDE_TEXT_MODEL_NAMES.map((name) => ({
-    id: `horde/${name}`,
-    label: name,
+const HORDE_TEXT_DISPLAY_NAMES: Record<string, string> = {
+  "aphrodite/TheDrummer/Behemoth-R1-123B-v2-w4a16": "Behemoth R1 123B v2",
+  "aphrodite/TheDrummer/Cydonia-24B-v4.3": "Cydonia 24B v4.3",
+  "aphrodite/TheDrummer/Skyfall-31B-v4.1": "Skyfall 31B v4.1",
+  "koboldcpp/TheDrummer/Skyfall-31B-v4.2": "Skyfall 31B v4.2",
+  "koboldcpp/Qwen3.6-35B-A3B-Uncensored": "Qwen 3.6 35B A3B",
+  "koboldcpp/allura-org/Qwen3.6-35B-A3B-Anko": "Qwen 3.6 35B A3B Anko",
+  "koboldcpp/gemma-4-26B-A4B-it": "Gemma 4 26B A4B It",
+  "koboldcpp/gemma-4-E4B-it-Q4_K_M": "Gemma 4 E4B It",
+};
+
+export function toHordeDisplayName(modelName: string) {
+  if (HORDE_TEXT_DISPLAY_NAMES[modelName]) {
+    return HORDE_TEXT_DISPLAY_NAMES[modelName];
+  }
+
+  const tail = modelName.split("/").pop() ?? modelName;
+  return tail
+    .replaceAll("_", " ")
+    .replaceAll(".", " ")
+    .replaceAll("-", " ")
+    .replace(/\s+/g, " ")
+    .trim();
+    displayName: toHordeDisplayName(name),
+    label: toHordeDisplayName(name),
   }));
 
 export const hordeModelMapping: Record<string, string> = Object.fromEntries(

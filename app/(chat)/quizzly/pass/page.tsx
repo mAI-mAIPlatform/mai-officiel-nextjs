@@ -51,7 +51,7 @@ const rewardTypeIcon: Record<PassReward["type"], string> = {
   shield_1d: "🛡️",
   shield_3d: "🛡️",
 };
-const PRO_PASS_REWARDS: PassReward[] = Array.from({ length: 10 }, (_, index) => {
+const PRO_PASS_REWARDS: PassReward[] = Array.from({ length: 20 }, (_, index) => {
   const id = index + 1;
   if (id % 5 === 0) return { id: 100 + id, requirementXp: id * 180, label: "Avatar légendaire", type: "theme", value: 1 };
   if (id % 2 === 0) return { id: 100 + id, requirementXp: id * 180, label: "Booster x2", type: "booster_x2", value: 1 };

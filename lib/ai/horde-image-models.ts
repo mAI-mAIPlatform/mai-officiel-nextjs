@@ -160,7 +160,30 @@ export const HORDE_IMAGE_MODEL_NAMES = [
   "Ultraspice",
 ] as const;
 
+export const HORDE_IMAGE_DISPLAY_NAMES: Record<string, string> = {
+  stable_diffusion: "Stable Diffusion",
+  "stable_diffusion_2.1": "Stable Diffusion 2.1",
+  stable_diffusion_inpainting: "Stable Diffusion Inpainting",
+  waifu_diffusion: "Waifu Diffusion",
+  "Qwen-Image_fp8": "Qwen Image",
+};
+
+function toHordeImageDisplayName(modelName: string) {
+  if (HORDE_IMAGE_DISPLAY_NAMES[modelName]) {
+    return HORDE_IMAGE_DISPLAY_NAMES[modelName];
+  }
+
+  return modelName
+    .replaceAll("_", " ")
+    .replaceAll(".", " ")
+    .replaceAll("-", " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export const hordeImageModelOptions = HORDE_IMAGE_MODEL_NAMES.map((name) => ({
+  apiName: name,
+  displayName: toHordeImageDisplayName(name),
   id: `horde/${name}`,
-  label: name,
+  label: toHordeImageDisplayName(name),
 }));
