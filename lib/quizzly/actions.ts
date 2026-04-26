@@ -94,6 +94,42 @@ async function upsertInventoryItem(userId: string, itemKey: string, amount: numb
   });
 }
 
+async function setInventoryMax(userId: string, itemKey: string, value: number) {
+  const [existingItem] = await db
+    .select()
+    .from(quizzlyInventory)
+    .where(and(eq(quizzlyInventory.userId, userId), eq(quizzlyInventory.itemKey, itemKey)));
+
+  if (existingItem) {
+    if (value <= existingItem.quantity) return;
+    await db
+      .update(quizzlyInventory)
+      .set({ quantity: value, updatedAt: new Date() })
+      .where(eq(quizzlyInventory.id, existingItem.id));
+    return;
+  }
+
+  await db.insert(quizzlyInventory).values({ userId, itemKey, quantity: Math.max(0, value) });
+}
+
+async function setInventoryMin(userId: string, itemKey: string, value: number) {
+  const [existingItem] = await db
+    .select()
+    .from(quizzlyInventory)
+    .where(and(eq(quizzlyInventory.userId, userId), eq(quizzlyInventory.itemKey, itemKey)));
+
+  if (existingItem) {
+    if (existingItem.quantity > 0 && value >= existingItem.quantity) return;
+    await db
+      .update(quizzlyInventory)
+      .set({ quantity: Math.max(0, value), updatedAt: new Date() })
+      .where(eq(quizzlyInventory.id, existingItem.id));
+    return;
+  }
+
+  await db.insert(quizzlyInventory).values({ userId, itemKey, quantity: Math.max(0, value) });
+}
+
 type QuizzlyPassRewardType =
   | "diamonds"
   | "stars"
@@ -441,7 +477,11 @@ export async function claimQuestReward(userQuestId: string) {
   return { diamonds: 0, xp: xpGain, success: true };
 }
 
-export async function finishQuiz(correctAnswers: number, activeBooster: string | null) {
+export async function finishQuiz(
+  correctAnswers: number,
+  activeBooster: string | null,
+  completionSeconds?: number | null
+) {
   const userId = await getAuthenticatedUserId();
   const profile = await getQuizzlyProfile();
 
@@ -543,6 +583,11 @@ export async function finishQuiz(correctAnswers: number, activeBooster: string |
   await upsertInventoryItem(userId, `weekly-xp:${weekKey}`, xpGain);
   await upsertInventoryItem(userId, "stats:quiz-played", 1);
   await upsertInventoryItem(userId, "stats:total-correct", correctAnswers);
+  await setInventoryMax(userId, "stats:best-score", correctAnswers);
+  await setInventoryMax(userId, "stats:best-streak", streak);
+  if (typeof completionSeconds === "number" && Number.isFinite(completionSeconds) && completionSeconds > 0) {
+    await setInventoryMin(userId, "stats:fastest-quiz-sec", Math.floor(completionSeconds));
+  }
   if (bonusDiamonds > 0) {
     await upsertInventoryItem(userId, "stats:diamonds-earned", bonusDiamonds);
   }

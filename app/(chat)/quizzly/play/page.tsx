@@ -58,6 +58,7 @@ export default function QuizzlyPlayPage() {
   const [chronoSeconds, setChronoSeconds] = useState<number>(30);
   const [remainingSeconds, setRemainingSeconds] = useState<number>(30);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [quizStartedAt, setQuizStartedAt] = useState<number | null>(null);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [correct, setCorrect] = useState(0);
@@ -127,6 +128,7 @@ export default function QuizzlyPlayPage() {
       setIndex(0);
       setSelected(null);
       setCorrect(0);
+      setQuizStartedAt(Date.now());
       setStep("playing");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erreur inattendue");
@@ -162,7 +164,11 @@ export default function QuizzlyPlayPage() {
 
   const finish = async () => {
     setStep("loading");
-    await finishQuiz(correct, null);
+    const completionSeconds =
+      quizStartedAt && quizStartedAt > 0
+        ? Math.max(1, Math.floor((Date.now() - quizStartedAt) / 1000))
+        : null;
+    await finishQuiz(correct, null, completionSeconds);
     const nextLocal: LocalQuiz[] = [
       {
         id: crypto.randomUUID(),

@@ -3,11 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { getQuizzlyInventory, getQuizzlyProfile } from "@/lib/quizzly/actions";
 import { BarChart3, Clock3, Flame, Gem, Target } from "lucide-react";
+import { useLanguage } from "@/hooks/use-language";
+import { t } from "@/lib/i18n";
 
 type StatCard = { label: string; value: string };
 
 export default function QuizzlyStatsPage() {
   const [cards, setCards] = useState<StatCard[]>([]);
+  const [advancedStats, setAdvancedStats] = useState({
+    bestScore: "—",
+    fastestQuiz: "—",
+    longestStreak: "—",
+    diamondsNet: "—",
+  });
+  const { language } = useLanguage();
 
   useEffect(() => {
     const load = async () => {
@@ -33,10 +42,25 @@ export default function QuizzlyStatsPage() {
         { label: "Diamants dépensés", value: String(getQty("stats:diamonds-spent")) },
         { label: "XP actuelle", value: String(profile.xp) },
       ]);
+
+      const bestScore = getQty("stats:best-score");
+      const fastestQuizSec = getQty("stats:fastest-quiz-sec");
+      const bestStreak = Math.max(profile.streak, getQty("stats:best-streak"));
+      const diamondsNet = getQty("stats:diamonds-earned") - getQty("stats:diamonds-spent");
+
+      setAdvancedStats({
+        bestScore: bestScore > 0 ? `${bestScore} pts` : t("quizzly.stats.soon", language),
+        fastestQuiz:
+          fastestQuizSec > 0
+            ? `${Math.floor(fastestQuizSec / 60)}m ${String(fastestQuizSec % 60).padStart(2, "0")}s`
+            : t("quizzly.stats.soon", language),
+        longestStreak: bestStreak > 0 ? `${bestStreak}` : t("quizzly.stats.soon", language),
+        diamondsNet: `${diamondsNet >= 0 ? "+" : ""}${diamondsNet}`,
+      });
     };
 
     load();
-  }, []);
+  }, [language]);
 
   const chartData = useMemo(
     () => cards.filter((card) => /Quiz|Diamants|XP/.test(card.label)),
@@ -75,10 +99,10 @@ export default function QuizzlyStatsPage() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-4">
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-600"><Target className="mb-2 h-4 w-4" />Meilleur score: bientôt</div>
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-600"><Clock3 className="mb-2 h-4 w-4" />Quiz le plus rapide: bientôt</div>
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-600"><Flame className="mb-2 h-4 w-4" />Plus long streak: bientôt</div>
-        <div className="rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-600"><Gem className="mb-2 h-4 w-4" />Diamants net: bientôt</div>
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-600"><Target className="mb-2 h-4 w-4" />{t("quizzly.stats.bestScore", language)}: {advancedStats.bestScore}</div>
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-600"><Clock3 className="mb-2 h-4 w-4" />{t("quizzly.stats.fastestQuiz", language)}: {advancedStats.fastestQuiz}</div>
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-600"><Flame className="mb-2 h-4 w-4" />{t("quizzly.stats.longestStreak", language)}: {advancedStats.longestStreak}</div>
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-600"><Gem className="mb-2 h-4 w-4" />{t("quizzly.stats.netDiamonds", language)}: {advancedStats.diamondsNet}</div>
       </div>
     </div>
   );
