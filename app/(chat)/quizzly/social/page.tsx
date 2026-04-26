@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { MessageSquare, Handshake, Users, Trophy, UserPlus, Reply, Flame, Swords, Medal } from "lucide-react";
+import { MessageSquare, Handshake, Users, Trophy, UserPlus, Reply, Flame, Swords, Medal, Flag, ShieldAlert, Gavel, Trash2, VolumeX } from "lucide-react";
 import { useSocket } from "@/hooks/use-socket";
 import { toast } from "sonner";
-import { getFriendStreaks } from "@/lib/quizzly/actions";
+import { getFriendStreaks, getQuizzlyProfile } from "@/lib/quizzly/actions";
+import { analyzeMessageForModeration, getNextSanction, getSendRestriction, type ModerationReason, type UserModerationStatus } from "@/lib/quizzly/moderation";
 
 const SOCIAL_STORAGE_KEY = "mai.quizzly.social.v1";
 const DUEL_HISTORY_KEY = "mai.quizzly.duel-history.v1";
+const MODERATION_STORAGE_KEY = "mai.quizzly.moderation.v1";
 const REACTIONS = ["👍", "🔥", "😂", "🧠", "⭐", "💀"] as const;
 const CURRENT_USER_ID = "me";
 
@@ -22,9 +24,12 @@ type ChatMessage = {
   id: string;
   text: string;
   author: string;
+  senderId: string;
   channel?: string;
   parentId?: string;
   reactionsByUser: Record<string, string>;
+  filtered?: boolean;
+  removed?: boolean;
 };
 type DuelHistoryEntry = {
   id: string;
@@ -35,6 +40,22 @@ type DuelHistoryEntry = {
   scoreA: number;
   scoreB: number;
   winner: string | "égalité";
+};
+type ReportReason = "Insulte ou harcèlement" | "Spam" | "Contenu inapproprié" | "Tentative d'arnaque" | "Autre";
+type ModerationReport = {
+  id: string;
+  messageId: string;
+  channel: string;
+  reportedUser: string;
+  reason: ReportReason;
+  comment?: string;
+  reporter: string;
+  createdAt: string;
+  status: "open" | "resolved" | "escalated";
+};
+type ModerationState = {
+  reports: ModerationReport[];
+  sanctionsByUser: Record<string, UserModerationStatus>;
 };
 
 export default function QuizzlySocialPage() {
@@ -56,6 +77,11 @@ export default function QuizzlySocialPage() {
   const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
   const [friendProfileTab, setFriendProfileTab] = useState<"overview" | "history">("overview");
   const [duelHistory, setDuelHistory] = useState<DuelHistoryEntry[]>([]);
+  const [myProfile, setMyProfile] = useState<{ level: number; createdAt: string } | null>(null);
+  const [moderation, setModeration] = useState<ModerationState>({ reports: [], sanctionsByUser: {} });
+  const [reportModalFor, setReportModalFor] = useState<ChatMessage | null>(null);
+  const [reportReason, setReportReason] = useState<ReportReason>("Insulte ou harcèlement");
+  const [reportComment, setReportComment] = useState("");
 
   useEffect(() => {
     try {
@@ -69,6 +95,22 @@ export default function QuizzlySocialPage() {
       // noop
     }
   }, []);
+
+  useEffect(() => {
+    getQuizzlyProfile()
+      .then((profile) => setMyProfile({ level: profile.level, createdAt: String(profile.createdAt) }))
+      .catch(() => setMyProfile(null));
+    try {
+      const raw = localStorage.getItem(MODERATION_STORAGE_KEY);
+      if (raw) setModeration(JSON.parse(raw) as ModerationState);
+    } catch {
+      setModeration({ reports: [], sanctionsByUser: {} });
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(MODERATION_STORAGE_KEY, JSON.stringify(moderation));
+  }, [moderation]);
 
   useEffect(() => {
     window.localStorage.setItem(SOCIAL_STORAGE_KEY, JSON.stringify(social));
@@ -90,15 +132,20 @@ export default function QuizzlySocialPage() {
     socket.emit("join-room", "quizzly-global");
     const listener = (msg: { text?: string }) => {
       if (!msg?.text) return;
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          text: msg.text ?? "",
-          author: "Ami",
-          reactionsByUser: {},
-        },
-      ]);
+      setMessages((prev) => {
+        const moderationScan = analyzeMessageForModeration(msg.text ?? "", prev.slice(-3).map((item) => item.text));
+        return [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            text: moderationScan.blocked ? (moderationScan.replacementText ?? "[Message filtré automatiquement par la modération]") : (msg.text ?? ""),
+            author: "Ami",
+            senderId: "friend:socket",
+            reactionsByUser: {},
+            filtered: moderationScan.blocked,
+          },
+        ];
+      });
     };
     socket.on("receive-message", listener);
 
@@ -183,10 +230,59 @@ export default function QuizzlySocialPage() {
 
   const handleSend = () => {
     if (!input.trim()) return;
+    const restriction = getSendRestriction(moderation.sanctionsByUser[CURRENT_USER_ID]);
+    if (restriction.blocked) {
+      toast.error(restriction.reason);
+      return;
+    }
+    const recentMine = messages.filter((m) => m.senderId === CURRENT_USER_ID).slice(-3).map((m) => m.text);
+    const moderationScan = analyzeMessageForModeration(input.trim(), recentMine);
+    if (moderationScan.blocked) {
+      const reasonText = moderationScan.reasons.join(", ");
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          text: moderationScan.replacementText ?? "[Message filtré automatiquement par la modération]",
+          author: "Moi",
+          senderId: CURRENT_USER_ID,
+          channel: activeChannel,
+          reactionsByUser: {},
+          filtered: true,
+        },
+      ]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          text: `⚠️ Avertissement privé: message bloqué (${reasonText}). Merci de respecter les règles de la communauté.`,
+          author: "Modération",
+          senderId: "system:moderation",
+          channel: activeChannel,
+          reactionsByUser: {},
+        },
+      ]);
+      setModeration((prev) => {
+        const current = prev.sanctionsByUser[CURRENT_USER_ID] ?? { warnings: 0, offenseCount: 0 };
+        const escalation = getNextSanction(current);
+        return {
+          ...prev,
+          sanctionsByUser: {
+            ...prev.sanctionsByUser,
+            [CURRENT_USER_ID]: { ...escalation.next, lastReason: moderationScan.reasons[0] },
+          },
+        };
+      });
+      toast.error(`Message bloqué automatiquement: ${reasonText}`);
+      setInput("");
+      setReplyTo(null);
+      return;
+    }
     const payload = {
       id: crypto.randomUUID(),
       text: input.trim(),
       author: "Moi",
+      senderId: CURRENT_USER_ID,
       channel: activeChannel,
       parentId: replyTo?.id,
       reactionsByUser: {},
@@ -246,6 +342,60 @@ export default function QuizzlySocialPage() {
     setSocial((prev) => ({
       ...prev,
       reportedUsers: Array.from(new Set([pseudo, ...prev.reportedUsers])),
+    }));
+  };
+
+  const canModerate = useMemo(() => {
+    if (!myProfile) return false;
+    const ageDays = Math.floor((Date.now() - new Date(myProfile.createdAt).getTime()) / 86400000);
+    const myStatus = moderation.sanctionsByUser[CURRENT_USER_ID];
+    const noSanction = !myStatus || (myStatus.offenseCount ?? 0) === 0;
+    return myProfile.level >= 20 && ageDays >= 30 && noSanction;
+  }, [moderation.sanctionsByUser, myProfile]);
+
+  const submitReport = () => {
+    if (!reportModalFor) return;
+    const report: ModerationReport = {
+      id: crypto.randomUUID(),
+      messageId: reportModalFor.id,
+      channel: reportModalFor.channel ?? "global",
+      reportedUser: reportModalFor.author,
+      reason: reportReason,
+      comment: reportComment.trim() || undefined,
+      reporter: "Moi",
+      createdAt: new Date().toISOString(),
+      status: "open",
+    };
+    setModeration((prev) => ({ ...prev, reports: [report, ...prev.reports] }));
+    toast.success("Signalement envoyé dans la file de modération.");
+    setReportModalFor(null);
+    setReportComment("");
+    setReportReason("Insulte ou harcèlement");
+  };
+
+  const moderateReport = (reportId: string, action: "delete" | "mute1h" | "mute24h" | "escalate") => {
+    const report = moderation.reports.find((item) => item.id === reportId);
+    if (!report) return;
+    if (action === "delete") {
+      setMessages((prev) => prev.map((message) => (message.id === report.messageId ? { ...message, text: "[Message supprimé par la modération]", removed: true } : message)));
+    }
+    if (action === "mute1h" || action === "mute24h") {
+      const durationMs = action === "mute1h" ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+      setModeration((prev) => ({
+        ...prev,
+        sanctionsByUser: {
+          ...prev.sanctionsByUser,
+          [report.reportedUser]: {
+            ...(prev.sanctionsByUser[report.reportedUser] ?? { warnings: 0, offenseCount: 0 }),
+            mutedUntil: new Date(Date.now() + durationMs).toISOString(),
+            offenseCount: (prev.sanctionsByUser[report.reportedUser]?.offenseCount ?? 0) + 1,
+          },
+        },
+      }));
+    }
+    setModeration((prev) => ({
+      ...prev,
+      reports: prev.reports.map((item) => (item.id === reportId ? { ...item, status: action === "escalate" ? "escalated" : "resolved" } : item)),
     }));
   };
 
@@ -353,6 +503,7 @@ export default function QuizzlySocialPage() {
                       <button onClick={() => pinMessage(m.text)} className={`block w-full p-3 rounded-xl text-left ${m.author === "Moi" ? "bg-violet-600 text-white" : "bg-white border border-slate-200 text-slate-700"}`}>{m.author}: {m.text}</button>
                       <div className="mt-1 flex flex-wrap gap-1">
                         <button className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs" onClick={() => setReplyTo(m)} type="button"><Reply className="inline h-3 w-3" /> Répondre</button>
+                        <button className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs" onClick={() => setReportModalFor(m)} type="button"><Flag className="inline h-3 w-3" /> Signaler</button>
                         {REACTIONS.map((emoji) => (
                           <button key={`${m.id}-${emoji}`} className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs" onClick={() => reactToMessage(m.id, emoji)} type="button">{emoji} {reactionCount(m, emoji)}</button>
                         ))}
@@ -372,6 +523,58 @@ export default function QuizzlySocialPage() {
           </div>
         )}
       </div>
+      <div className="rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-600">
+        <p className="font-black text-slate-800 flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-rose-500" /> Modération active</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
+          <li>Filtre temps réel: insultes, spam répétitif, contenus inappropriés et partage de données personnelles.</li>
+          <li>Messages bloqués remplacés par « Message filtré » + avertissement privé automatique.</li>
+          <li>Sanctions progressives: avertissement → mute 24h → ban 7 jours → ban permanent.</li>
+        </ul>
+      </div>
+
+      {canModerate && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="font-black text-amber-900 flex items-center gap-2"><Gavel className="h-4 w-4" /> Tableau de modération communautaire</p>
+          <p className="mt-1 text-xs text-amber-800">Signalements en attente: {moderation.reports.filter((item) => item.status === "open").length}</p>
+          <div className="mt-3 space-y-2">
+            {moderation.reports.filter((item) => item.status === "open").slice(0, 20).map((report) => (
+              <div key={report.id} className="rounded-xl border border-amber-200 bg-white p-3 text-xs">
+                <p className="font-bold text-slate-800">{report.reason} • {report.reportedUser} • {new Date(report.createdAt).toLocaleString("fr-FR")}</p>
+                <p className="text-slate-600">Canal: {report.channel} • Commentaire: {report.comment ?? "—"}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button className="rounded-lg bg-rose-600 px-2 py-1 font-bold text-white" onClick={() => moderateReport(report.id, "delete")} type="button"><Trash2 className="mr-1 inline h-3 w-3" /> Supprimer</button>
+                  <button className="rounded-lg bg-slate-700 px-2 py-1 font-bold text-white" onClick={() => moderateReport(report.id, "mute1h")} type="button"><VolumeX className="mr-1 inline h-3 w-3" /> Mute 1h</button>
+                  <button className="rounded-lg bg-slate-900 px-2 py-1 font-bold text-white" onClick={() => moderateReport(report.id, "mute24h")} type="button"><VolumeX className="mr-1 inline h-3 w-3" /> Mute 24h</button>
+                  <button className="rounded-lg bg-amber-500 px-2 py-1 font-bold text-white" onClick={() => moderateReport(report.id, "escalate")} type="button">Escalader admin</button>
+                </div>
+              </div>
+            ))}
+            {moderation.reports.filter((item) => item.status === "open").length === 0 && <p className="text-xs text-amber-800">Aucun signalement en attente.</p>}
+          </div>
+        </div>
+      )}
+
+      {reportModalFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            <p className="text-lg font-black text-slate-800">Signaler un message</p>
+            <p className="mt-1 text-xs text-slate-500">Message de {reportModalFor.author}: {reportModalFor.text}</p>
+            <div className="mt-3 space-y-2 text-sm">
+              {(["Insulte ou harcèlement", "Spam", "Contenu inapproprié", "Tentative d'arnaque", "Autre"] as ReportReason[]).map((reason) => (
+                <label key={reason} className="flex items-center gap-2">
+                  <input checked={reportReason === reason} name="report-reason" onChange={() => setReportReason(reason)} type="radio" />
+                  <span>{reason}</span>
+                </label>
+              ))}
+            </div>
+            <textarea className="mt-3 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" onChange={(e) => setReportComment(e.target.value)} placeholder="Commentaire optionnel..." rows={3} value={reportComment} />
+            <div className="mt-3 flex justify-end gap-2">
+              <button className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700" onClick={() => setReportModalFor(null)} type="button">Annuler</button>
+              <button className="rounded-lg bg-rose-600 px-3 py-2 text-sm font-bold text-white" onClick={submitReport} type="button">Envoyer le signalement</button>
+            </div>
+          </div>
+        </div>
+      )}
       {selectedFriend && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4">
           <div className="w-full max-w-4xl rounded-3xl bg-white p-6 shadow-2xl">
