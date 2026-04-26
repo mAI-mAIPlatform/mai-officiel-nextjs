@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getQuizzlyProfile, updateQuizzlyProfile } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
 import { Calendar, Link2, Medal } from "lucide-react";
+import Link from "next/link";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { getUserStatsSnapshot } from "@/lib/user-stats";
@@ -177,6 +178,9 @@ export default function QuizzlyProfilePage() {
   return (
     <div className="max-w-3xl mx-auto space-y-8">
       <h1 className="text-3xl font-black text-slate-800">Mon Profil</h1>
+      <Link href="/quizzly/referral" className="inline-flex items-center rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white">
+        Partager mon lien de parrainage
+      </Link>
 
       <div className="grid md:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl p-4 border border-slate-100 text-center"><p className="text-sm text-slate-500">Niveau</p><p className="font-black text-2xl">{profile.level}</p></div>

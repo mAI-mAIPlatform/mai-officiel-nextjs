@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import Link from "next/link";
-import { Gamepad2, ShoppingCart, Target, User, Users, Home, Ticket, Settings, BarChart3, Brain, Network, Medal, CalendarDays } from "lucide-react";
+import { Gamepad2, ShoppingCart, Target, User, Users, Home, Ticket, Settings, BarChart3, Brain, Network, Medal, CalendarDays, Share2 } from "lucide-react";
 import { getQuizzlyProfile } from "@/lib/quizzly/actions";
 import { redirect } from "next/navigation";
 import { QuizzlyThemeShell } from "@/components/quizzly/theme-shell";
@@ -24,6 +24,7 @@ export default async function QuizzlyLayout({ children }: { children: ReactNode 
     { name: "Quizzly Pass", href: "/quizzly/pass", icon: Ticket },
     { name: "Boutique", href: "/quizzly/boutique", icon: ShoppingCart },
     { name: "Social", href: "/quizzly/social", icon: Users },
+    { name: "Inviter des amis", href: "/quizzly/referral", icon: Share2 },
     { name: "Stats", href: "/quizzly/stats", icon: BarChart3 },
     { name: "Profil", href: "/quizzly/profile", icon: User },
     { name: "Paramètres", href: "/quizzly/settings", icon: Settings },

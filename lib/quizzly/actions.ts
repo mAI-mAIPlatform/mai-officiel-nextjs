@@ -25,6 +25,16 @@ async function getAuthenticatedUserId() {
   return userId;
 }
 
+function buildReferralCodeFromUserId(userId: string) {
+  return `QZ-${userId.replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+}
+
+async function ensureReferralCode(userId: string) {
+  const code = buildReferralCodeFromUserId(userId);
+  await upsertInventoryItem(userId, `referral:code:${code}`, 1);
+  return code;
+}
+
 function getDateKey(date = new Date()) {
   return date.toISOString().split("T")[0] ?? "";
 }
@@ -94,8 +104,11 @@ export async function getQuizzlyProfile() {
 
   if (!profile) {
     const [newProfile] = await db.insert(quizzlyProfile).values({ userId }).returning();
+    await ensureReferralCode(userId);
     return newProfile;
   }
+
+  await ensureReferralCode(userId);
 
   return profile;
 }
@@ -753,5 +766,95 @@ export async function finishQuiz(
   }
   await updateFriendStreaksForUser(userId);
 
+  const [pendingReferral] = await db
+    .select()
+    .from(quizzlyInventory)
+    .where(and(eq(quizzlyInventory.userId, userId), like(quizzlyInventory.itemKey, "referral:pending:%")));
+  if (pendingReferral && pendingReferral.quantity > 0) {
+    const referralCode = pendingReferral.itemKey.replace("referral:pending:", "");
+    const [sponsorCodeRow] = await db
+      .select()
+      .from(quizzlyInventory)
+      .where(eq(quizzlyInventory.itemKey, `referral:code:${referralCode}`));
+    const sponsorId = sponsorCodeRow?.userId;
+    if (sponsorId && sponsorId !== userId) {
+      const sponsorProfile = await db.select().from(quizzlyProfile).where(eq(quizzlyProfile.userId, sponsorId));
+      const sponsor = sponsorProfile[0];
+      if (sponsor) {
+        await db
+          .update(quizzlyProfile)
+          .set({ diamonds: sponsor.diamonds + 50, stars: sponsor.stars + 1, updatedAt: new Date() })
+          .where(eq(quizzlyProfile.userId, sponsorId));
+      }
+      await upsertInventoryItem(sponsorId, `referral:child:${userId}:${today}`, 1);
+      await upsertInventoryItem(sponsorId, "stats:diamonds-earned", 50);
+      await updateQuizzlyProfile({ diamonds: profile.diamonds + bonusDiamonds + 25 });
+      await upsertInventoryItem(userId, "stats:diamonds-earned", 25);
+      await upsertInventoryItem(userId, `referral:claimed:${referralCode}`, 1);
+      await upsertInventoryItem(userId, pendingReferral.itemKey, -1);
+    }
+  }
+
   return { xpGain, newLevel, levelUps, bonusDiamonds, shieldsUsed, streak };
+}
+
+export async function registerReferralFromCode(codeRaw: string) {
+  const userId = await getAuthenticatedUserId();
+  const code = codeRaw.trim().toUpperCase();
+  if (!code) return { success: false };
+  const myCode = buildReferralCodeFromUserId(userId);
+  if (myCode === code) return { success: false };
+  const [existingClaim] = await db
+    .select()
+    .from(quizzlyInventory)
+    .where(and(eq(quizzlyInventory.userId, userId), like(quizzlyInventory.itemKey, "referral:claimed:%")));
+  if (existingClaim) return { success: false };
+  await upsertInventoryItem(userId, `referral:pending:${code}`, 1);
+  return { success: true };
+}
+
+export async function getReferralProgramData() {
+  const userId = await getAuthenticatedUserId();
+  const profile = await getQuizzlyProfile();
+  const code = await ensureReferralCode(userId);
+  const [baseUrlRow] = [{ url: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000" }];
+  const referralLink = `${baseUrlRow.url}/register?ref=${encodeURIComponent(code)}`;
+
+  const childrenRows = await db
+    .select()
+    .from(quizzlyInventory)
+    .where(and(eq(quizzlyInventory.userId, userId), like(quizzlyInventory.itemKey, "referral:child:%")));
+
+  const children = await Promise.all(
+    childrenRows.map(async (row) => {
+      const parts = row.itemKey.split(":");
+      const childId = parts[2] ?? "";
+      const rewardedAt = parts[3] ?? "";
+      const [childProfile] = await db.select().from(quizzlyProfile).where(eq(quizzlyProfile.userId, childId));
+      const lastActivity = childProfile?.lastClaimDay ? new Date(`${childProfile.lastClaimDay}T00:00:00.000Z`) : null;
+      const active = Boolean(lastActivity && (Date.now() - lastActivity.getTime()) / 86400000 <= 7);
+      return {
+        pseudo: childProfile?.pseudo ?? "Filleul",
+        joinedAt: rewardedAt,
+        active,
+        rewards: "50💎 + 1⭐",
+      };
+    })
+  );
+
+  const totalReferrals = children.length;
+  const nextTierTarget = Math.ceil((totalReferrals + 1) / 5) * 5;
+  const currentTierStart = Math.floor(totalReferrals / 5) * 5;
+  const progress = nextTierTarget === currentTierStart ? 100 : Math.round(((totalReferrals - currentTierStart) / Math.max(1, nextTierTarget - currentTierStart)) * 100);
+
+  return {
+    code,
+    referralLink,
+    qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(referralLink)}`,
+    totalReferrals,
+    children,
+    progress,
+    nextTierTarget,
+    profile: { pseudo: profile.pseudo, diamonds: profile.diamonds, stars: profile.stars },
+  };
 }

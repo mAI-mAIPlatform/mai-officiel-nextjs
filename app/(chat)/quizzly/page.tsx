@@ -8,6 +8,7 @@ import {
   getWeeklyLeaderboard,
   getQuizzlyInventory,
   migrateLocalQuizzlyProgress,
+  registerReferralFromCode,
 } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
 import { Flame, Star, Diamond, Trophy, Sparkles, Shield, TrendingDown, TrendingUp, AlertTriangle, CalendarDays } from "lucide-react";
@@ -88,6 +89,21 @@ export default function QuizzlyDashboardPage() {
       setMigrationSummary(null);
     }
   }, [inventoryKeys]);
+
+  useEffect(() => {
+    const pendingCode = localStorage.getItem("mai.quizzly.referral.code.v1");
+    if (!pendingCode) return;
+    registerReferralFromCode(pendingCode)
+      .then((result) => {
+        if (result.success) {
+          toast.success("Code de parrainage enregistré. Termine ton premier quiz pour débloquer les récompenses.");
+        }
+        localStorage.removeItem("mai.quizzly.referral.code.v1");
+      })
+      .catch(() => {
+        // noop
+      });
+  }, []);
 
   useEffect(() => {
     getWeeklyLeaderboard(leaderboardView).then((lb) => {
