@@ -4027,9 +4027,7 @@ export default function SettingsPage() {
                   className="rounded-xl border border-border/60 bg-background/70 p-3 shadow-sm"
                   key={metric.key}
                 >
-                  <p className="text-sm font-semibold">
-                    Tier {metric.title.replace(/\D/g, "") || "—"}
-                  </p>
+                  <p className="text-sm font-semibold">{metric.title}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Réinitialisation {formatDateTime(getNextResetDate(metric.period))}
                   </p>

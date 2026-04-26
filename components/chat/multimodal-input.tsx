@@ -2454,7 +2454,17 @@ function PureModelSelectorCompact({
   );
 
   const dynamicModels: ChatModel[] | undefined = modelsData?.models;
-  const activeModels = dynamicModels ?? chatModels;
+  const normalizeModelDisplayName = (model: ChatModel) => {
+    if (!model.id.startsWith("horde/")) return model.name;
+    const raw = model.name || model.id.slice("horde/".length);
+    const last = raw.split("/").pop() ?? raw;
+    return last.trim();
+  };
+  const dynamicModelsNormalized = dynamicModels?.map((model) => ({
+    ...model,
+    name: normalizeModelDisplayName(model),
+  }));
+  const activeModels = dynamicModelsNormalized ?? chatModels;
 
   const selectedModel =
     activeModels.find((m: ChatModel) => m.id === selectedModelId) ??
@@ -2481,10 +2491,10 @@ function PureModelSelectorCompact({
         <ModelSelectorList>
           {(() => {
             const curatedIds = new Set(chatModels.map((m) => m.id));
-            const allModels = dynamicModels
+            const allModels = dynamicModelsNormalized
               ? [
                   ...chatModels,
-                  ...dynamicModels.filter((m) => !curatedIds.has(m.id)),
+                  ...dynamicModelsNormalized.filter((m) => !curatedIds.has(m.id)),
                 ]
               : chatModels;
 
