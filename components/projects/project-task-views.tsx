@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ProjectTaskCalendar } from "./project-task-calendar";
 import { ProjectTaskKanban } from "./project-task-kanban";
 import { ProjectTaskManager } from "./project-task-manager";
 
@@ -52,11 +53,7 @@ export function ProjectTaskViews({ projectId }: { projectId: string }) {
 
       {view === "kanban" ? <ProjectTaskKanban projectId={projectId} /> : null}
       {view === "list" ? <ProjectTaskManager projectId={projectId} /> : null}
-      {view === "calendar" ? (
-        <article className="liquid-panel rounded-2xl border border-white/30 bg-white/80 p-5 text-sm text-black/70 backdrop-blur-2xl">
-          Vue calendrier à venir.
-        </article>
-      ) : null}
+      {view === "calendar" ? <ProjectTaskCalendar projectId={projectId} /> : null}
     </section>
   );
 }
