@@ -865,18 +865,91 @@ export async function getProjectsForUser(userId: string): Promise<Project[]> {
           eq(projectMember.userId, userId)
         )
       )
-      .where(
-        and(
-          isNull(project.archivedAt),
-          or(eq(project.userId, userId), eq(projectMember.userId, userId))
-        )
-      )
+      .where(or(eq(project.userId, userId), eq(projectMember.userId, userId)))
       .orderBy(desc(project.createdAt))
       .then((rows) => rows.map((row) => row.project));
   } catch (error) {
     console.error("Failed to get projects for user:", error);
     throw new Error("Failed to get projects");
   }
+}
+
+export async function getProjectsProgressByIds(projectIds: string[]) {
+  if (projectIds.length === 0) {
+    return {} as Record<string, number>;
+  }
+
+  const rows = await db
+    .select({
+      projectId: task.projectId,
+      progress: sql<number>`CASE
+        WHEN COUNT(*) = 0 THEN 0
+        ELSE ROUND((COUNT(*) FILTER (WHERE ${task.status} = 'done')::numeric / COUNT(*)::numeric) * 100)::int
+      END`,
+    })
+    .from(task)
+    .where(inArray(task.projectId, projectIds))
+    .groupBy(task.projectId);
+
+  return Object.fromEntries(
+    projectIds.map((id) => [id, rows.find((row) => row.projectId === id)?.progress ?? 0])
+  );
+}
+
+export async function duplicateProjectForUser(projectId: string, userId: string) {
+  const source = await getProjectById(projectId);
+  if (!source) {
+    return null;
+  }
+
+  const [newProject] = await createProject({
+    userId,
+    name: `${source.name} (copie)`,
+    description: source.description,
+    instructions: source.instructions,
+    aiModel: source.aiModel,
+    systemInstructions: source.systemInstructions,
+    notificationSettings: source.notificationSettings,
+    startDate: source.startDate,
+    endDate: source.endDate,
+    tags: source.tags ?? [],
+    color: source.color,
+    icon: source.icon,
+  });
+
+  const sourceTasks = await getTasksByProject(source.id);
+  const taskIdMap = new Map<string, string>();
+
+  for (const taskItem of sourceTasks) {
+    const [copiedTask] = await createTask({
+      projectId: newProject.id,
+      title: taskItem.title,
+      description: taskItem.description,
+      dueDate: taskItem.dueDate,
+      status: taskItem.status,
+      priority: taskItem.priority,
+      repeatType: taskItem.repeatType,
+      repeatInterval: taskItem.repeatInterval,
+      assigneeType: taskItem.assigneeType,
+      assigneeId: taskItem.assigneeId,
+      sortOrder: taskItem.sortOrder,
+    });
+    taskIdMap.set(taskItem.id, copiedTask.id);
+  }
+
+  for (const [sourceTaskId, copiedTaskId] of taskIdMap.entries()) {
+    const sourceSubtasks = await getSubtasksByTask(sourceTaskId);
+    for (const sourceSubtask of sourceSubtasks) {
+      await createSubtask({
+        taskId: copiedTaskId,
+        title: sourceSubtask.title,
+        description: sourceSubtask.description,
+        status: sourceSubtask.status,
+      });
+    }
+  }
+
+  return newProject;
 }
 
 export async function getProjectById(id: string): Promise<Project | undefined> {

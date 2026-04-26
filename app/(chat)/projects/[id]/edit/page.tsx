@@ -44,6 +44,8 @@ export default async function EditProjectPage({
           aiModel: project.aiModel ?? null,
           systemInstructions: project.systemInstructions ?? null,
           notificationSettings: project.notificationSettings ?? null,
+          icon: project.icon ?? null,
+          color: project.color ?? null,
         }}
       />
       <ProjectMembersManager currentUserRole={access.role} projectId={project.id} />

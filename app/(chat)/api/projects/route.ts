@@ -8,6 +8,13 @@ const projectSchema = z.object({
   description: z.string().trim().max(5000).optional(),
   instructions: z.string().trim().max(5000).optional(),
   tags: z.array(z.string().trim().min(1).max(32)).max(30).optional(),
+  color: z
+    .string()
+    .trim()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .nullable()
+    .optional(),
+  icon: z.string().trim().max(50).nullable().optional(),
 });
 
 export async function GET() {
@@ -44,6 +51,8 @@ export async function POST(request: Request) {
     description: parsed.data.description,
     instructions: parsed.data.instructions,
     tags: parsed.data.tags ?? [],
+    color: parsed.data.color ?? null,
+    icon: parsed.data.icon ?? null,
   });
 
   return NextResponse.json(created, { status: 201 });

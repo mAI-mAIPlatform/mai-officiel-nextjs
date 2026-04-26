@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { chatModels } from "@/lib/ai/models";
+import { ProjectColorPicker } from "./project-color-picker";
+import { ProjectIconPicker } from "./project-icon-picker";
 
 type NotificationSettings = {
   deadlineReminders: boolean;
@@ -28,6 +30,8 @@ type ProjectAdvancedSettingsProps = {
     systemInstructions: string | null;
     notificationSettings: NotificationSettings | null;
     tags: string[];
+    icon: string | null;
+    color: string | null;
   };
 };
 
@@ -41,6 +45,8 @@ export function ProjectAdvancedSettings({ project }: ProjectAdvancedSettingsProp
   const [systemInstructions, setSystemInstructions] = useState(
     project.systemInstructions ?? ""
   );
+  const [icon, setIcon] = useState(project.icon ?? "folder");
+  const [color, setColor] = useState<string | null>(project.color ?? "#0EA5E9");
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(
     project.notificationSettings ?? DEFAULT_NOTIFICATION_SETTINGS
   );
@@ -73,6 +79,8 @@ export function ProjectAdvancedSettings({ project }: ProjectAdvancedSettingsProp
         aiModel: aiModel || null,
         systemInstructions: systemInstructions || null,
         notificationSettings,
+        icon: icon || null,
+        color,
       }),
     });
 
@@ -128,6 +136,9 @@ export function ProjectAdvancedSettings({ project }: ProjectAdvancedSettingsProp
             placeholder="Description"
             value={description}
           />
+          <p className="text-xs text-black/55">
+            Support Markdown basique: **gras**, *italique*, listes.
+          </p>
           <textarea
             className="min-h-28 rounded-xl border border-black/15 bg-white px-3 py-2 text-sm"
             onChange={(event) => setInstructions(event.target.value)}
@@ -140,6 +151,8 @@ export function ProjectAdvancedSettings({ project }: ProjectAdvancedSettingsProp
             placeholder="Tags séparés par des virgules"
             value={tags}
           />
+          <ProjectIconPicker onChange={setIcon} value={icon} />
+          <ProjectColorPicker onChange={setColor} value={color} />
         </div>
       </article>
 

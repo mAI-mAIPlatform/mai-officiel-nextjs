@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ProjectColorPicker } from "./project-color-picker";
+import { ProjectIconPicker } from "./project-icon-picker";
 
 type ProjectFormProps = {
   mode: "create" | "edit";
@@ -12,6 +14,8 @@ type ProjectFormProps = {
     instructions: string | null;
     tags?: string[];
     templateId?: string | null;
+    icon?: string | null;
+    color?: string | null;
   };
 };
 
@@ -23,6 +27,8 @@ export function ProjectForm({ mode, initialValues }: ProjectFormProps) {
     initialValues?.instructions ?? ""
   );
   const [tags, setTags] = useState((initialValues?.tags ?? []).join(", "));
+  const [icon, setIcon] = useState(initialValues?.icon ?? "folder");
+  const [color, setColor] = useState<string | null>(initialValues?.color ?? "#0EA5E9");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,9 +62,11 @@ export function ProjectForm({ mode, initialValues }: ProjectFormProps) {
             description,
             instructions,
             tags: parsedTags,
+            icon,
+            color,
             templateId: initialValues?.templateId,
           }
-        : { name, description, instructions, tags: parsedTags };
+        : { name, description, instructions, tags: parsedTags, icon, color };
 
     const response = await fetch(endpoint, {
       method,
@@ -100,7 +108,7 @@ export function ProjectForm({ mode, initialValues }: ProjectFormProps) {
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium" htmlFor="project-description">
-          Description
+          Description (Markdown basique)
         </label>
         <textarea
           className="min-h-24 rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-black outline-none transition focus:border-cyan-500"
@@ -110,6 +118,9 @@ export function ProjectForm({ mode, initialValues }: ProjectFormProps) {
           placeholder="Résumé du projet..."
           value={description}
         />
+        <p className="text-xs text-black/55">
+          Supporte **gras**, *italique* et listes markdown simples.
+        </p>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -125,6 +136,9 @@ export function ProjectForm({ mode, initialValues }: ProjectFormProps) {
           value={instructions}
         />
       </div>
+
+      <ProjectIconPicker onChange={setIcon} value={icon} />
+      <ProjectColorPicker onChange={setColor} value={color} />
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium" htmlFor="project-tags">

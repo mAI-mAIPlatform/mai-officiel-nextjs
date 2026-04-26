@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { EllipsisVertical } from "lucide-react";
 import { useState } from "react";
 import { SaveProjectTemplateDialog } from "./save-project-template-dialog";
+import { resolveProjectIcon } from "./project-icon-picker";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,12 +20,15 @@ type ProjectCardProps = {
     name: string;
     instructions: string | null;
     createdAt: string;
+    icon?: string | null;
+    color?: string | null;
   };
 };
 
 export function ProjectCard({ project }: ProjectCardProps) {
   const router = useRouter();
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const Icon = resolveProjectIcon(project.icon);
 
   const onDelete = async () => {
     const isConfirmed = window.confirm(
@@ -44,10 +48,24 @@ export function ProjectCard({ project }: ProjectCardProps) {
     }
   };
 
+  const onDuplicate = async () => {
+    const response = await fetch(`/api/projects/${project.id}/duplicate`, {
+      method: "POST",
+    });
+
+    if (response.ok) {
+      router.refresh();
+    }
+  };
+
   return (
-    <article className="liquid-panel flex flex-col gap-3 rounded-2xl border border-white/30 bg-white/85 p-5 text-black backdrop-blur-2xl">
+    <article
+      className="liquid-panel flex flex-col gap-3 rounded-2xl border border-white/30 bg-white/85 p-5 text-black backdrop-blur-2xl"
+      style={{ borderLeft: `4px solid ${project.color ?? "#0EA5E9"}` }}
+    >
       <header>
-        <h3 className="text-base font-semibold text-black">
+        <h3 className="flex items-center gap-2 text-base font-semibold text-black">
+          <Icon className="size-4" />
           <Link className="hover:underline" href={`/projects/${project.id}`}>
             {project.name}
           </Link>
@@ -87,6 +105,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
               >
                 Sauvegarder comme template
               </button>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onDuplicate}>
+              Dupliquer le projet
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem

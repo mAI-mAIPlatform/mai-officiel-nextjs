@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/app/(auth)/auth";
-import { ProjectCard } from "@/components/projects/project-card";
 import { ProjectsDashboardWidgets } from "@/components/projects/projects-dashboard-widgets";
+import { ProjectsListExplorer } from "@/components/projects/projects-list-explorer";
 import { ProjectTemplateGallery } from "@/components/projects/project-template-gallery";
-import { getProjects } from "@/lib/db/queries";
+import { getProjects, getProjectsProgressByIds } from "@/lib/db/queries";
 
 export default async function ProjectsPage() {
   const session = await auth();
@@ -14,6 +14,9 @@ export default async function ProjectsPage() {
   }
 
   const projects = await getProjects(session.user.id);
+  const progressByProject = await getProjectsProgressByIds(
+    projects.map((project) => project.id)
+  );
 
   const projectsWithInstructions = projects.filter(
     (project) => (project.instructions ?? "").trim().length > 0
@@ -53,19 +56,19 @@ export default async function ProjectsPage() {
           structurer vos données.
         </section>
       ) : (
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {projects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={{
-                id: project.id,
-                name: project.name,
-                instructions: project.instructions,
-                createdAt: project.createdAt.toISOString(),
-              }}
-            />
-          ))}
-        </section>
+        <ProjectsListExplorer
+          progressByProject={progressByProject}
+          projects={projects.map((project) => ({
+            id: project.id,
+            name: project.name,
+            instructions: project.instructions,
+            createdAt: project.createdAt.toISOString(),
+            icon: project.icon,
+            color: project.color,
+            tags: project.tags ?? [],
+            archivedAt: project.archivedAt?.toISOString() ?? null,
+          }))}
+        />
       )}
     </main>
   );
