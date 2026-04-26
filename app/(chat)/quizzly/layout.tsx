@@ -29,7 +29,7 @@ export default async function QuizzlyLayout({ children }: { children: ReactNode 
       {/* Sidebar */}
       <div className="w-64 border-r border-slate-200 bg-white flex flex-col">
         <div className="p-6 flex items-center gap-3 border-b border-slate-100">
-          <Image src="/logo.png" alt="Quizzly" width={40} height={40} className="rounded-xl" />
+          <Image src="/mai-logo.svg" alt="Quizzly" width={40} height={40} className="rounded-xl" />
           <div>
             <h1 className="font-black text-xl text-violet-700 tracking-tight">Quizzly</h1>
             <p className="text-xs text-slate-500 font-medium">Niv {profile.level} • {profile.diamonds} 💎</p>

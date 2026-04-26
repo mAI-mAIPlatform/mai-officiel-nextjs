@@ -25,7 +25,7 @@ export default function AuthLayout({
                 alt="Logo mAI"
                 className="size-5 object-contain"
                 height={20}
-                src="/images/logo.png"
+                src="/mai-logo.svg"
                 width={20}
               />
             </div>

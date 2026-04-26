@@ -95,7 +95,7 @@ function QuizzlyAppIcon({ className }: { className?: string }) {
       alt="Quizzly"
       className={className}
       height={14}
-      src="/logo.png"
+      src="/mai-logo.svg"
       width={14}
     />
   );
@@ -343,7 +343,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [isHistoryReady, setIsHistoryReady] = useState(false);
   const normalizedGlobalQuery = globalSearchQuery.trim().toLowerCase();
-  const sidebarText = sidebarI18n[language];
+  const sidebarText = sidebarI18n[language as keyof typeof sidebarI18n] ?? sidebarI18n.fr;
   const quickLinksResolved = QUICK_LINKS.map((item) => ({
     ...item,
     label: sidebarText[item.key],

@@ -1,6 +1,6 @@
 import { MessageCircle } from "lucide-react";
 import Image from "next/image";
-import type { AppLanguage } from "@/lib/i18n";
+import { LANGUAGE_OPTIONS, type AppLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 type AproposSectionProps = {
@@ -67,6 +67,51 @@ const aboutI18n = {
     telegramSoon: "在 Telegram 与 mAI 聊天",
     talkDiscord: "在 Discord 与 mAI 聊天",
   },
+  ar: {
+    defaultLanguage: "لغة الواجهة الافتراضية:",
+    discordSupport: "Discord والدعم",
+    joinDiscord: "الانضمام إلى خادم Discord",
+    language: "اللغة",
+    beta: "بيتا",
+    telegramSoon: "الدردشة مع mAI على Telegram",
+    talkDiscord: "الدردشة مع mAI على Discord",
+  },
+  ko: {
+    defaultLanguage: "기본 인터페이스 언어:",
+    discordSupport: "Discord 및 지원",
+    joinDiscord: "Discord 서버 참여",
+    language: "언어",
+    beta: "베타",
+    telegramSoon: "Telegram에서 mAI와 대화",
+    talkDiscord: "Discord에서 mAI와 대화",
+  },
+  pl: {
+    defaultLanguage: "Domyślny język interfejsu:",
+    discordSupport: "Discord i wsparcie",
+    joinDiscord: "Dołącz do serwera Discord",
+    language: "Język",
+    beta: "Beta",
+    telegramSoon: "Rozmawiaj z mAI na Telegramie",
+    talkDiscord: "Rozmawiaj z mAI na Discordzie",
+  },
+  hr: {
+    defaultLanguage: "Zadani jezik sučelja:",
+    discordSupport: "Discord i podrška",
+    joinDiscord: "Pridruži se Discord serveru",
+    language: "Jezik",
+    beta: "Beta",
+    telegramSoon: "Razgovaraj s mAI na Telegramu",
+    talkDiscord: "Razgovaraj s mAI na Discordu",
+  },
+  sv: {
+    defaultLanguage: "Standardgränssnittets språk:",
+    discordSupport: "Discord & support",
+    joinDiscord: "Gå med i Discord-servern",
+    language: "Språk",
+    beta: "Beta",
+    telegramSoon: "Chatta med mAI på Telegram",
+    talkDiscord: "Chatta med mAI på Discord",
+  },
   fr: {
     defaultLanguage: "Langue d'interface par défaut:",
     discordSupport: "Discord & Support",
@@ -113,13 +158,11 @@ export function AproposSection({
           onChange={(event) => onLanguageChange(event.target.value)}
           value={interfaceLanguage}
         >
-          <option value="fr">Français</option>
-          <option value="en">English</option>
-          <option value="es">Español</option>
-          <option value="de">Deutsch</option>
-          <option value="it">Italiano</option>
-          <option value="pt">Português</option>
-          <option value="zh">中文（普通话）</option>
+          {LANGUAGE_OPTIONS.map((option) => (
+            <option key={option.code} value={option.code}>
+              {option.label}
+            </option>
+          ))}
         </select>
       </div>
 
