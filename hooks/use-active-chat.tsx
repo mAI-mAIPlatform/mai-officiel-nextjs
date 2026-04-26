@@ -77,7 +77,7 @@ export function ActiveChatProvider({ children }: { children: ReactNode }) {
   prevPathnameRef.current = pathname ?? "";
 
   const chatId = chatIdFromUrl ?? newChatIdRef.current;
-  const projectId = searchParams.get("projectId");
+  const projectId = searchParams?.get("projectId") ?? null;
   const getGhostChatId = () => {
     if (typeof window === "undefined") {
       return null;
