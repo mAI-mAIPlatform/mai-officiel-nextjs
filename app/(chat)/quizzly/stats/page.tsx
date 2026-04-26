@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getQuizzlyInventory, getQuizzlyProfile } from "@/lib/quizzly/actions";
-import { BarChart3, Clock3, Flame, Gem, Target, TrendingDown, TrendingUp } from "lucide-react";
+import { BarChart3, Brain, Clock3, Flame, Gem, Target, TrendingDown, TrendingUp } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { t } from "@/lib/i18n";
 
@@ -26,6 +26,7 @@ const ERROR_ANALYTICS_KEY = "mai.quizzly.error-analytics.v1";
 const LOCAL_QUIZ_KEY = "mai.quizzly.local-quizzes.v1";
 
 type RangeKey = 7 | 30 | 90;
+type StatsTab = "overview" | "skills";
 
 type DailyPoint = {
   dateKey: string;
@@ -73,8 +74,18 @@ export default function QuizzlyStatsPage() {
   const [analytics, setAnalytics] = useState<ErrorAnalyticsItem[]>([]);
   const [localQuizzes, setLocalQuizzes] = useState<LocalQuiz[]>([]);
   const [activeRange, setActiveRange] = useState<RangeKey>(30);
+  const [activeTab, setActiveTab] = useState<StatsTab>("overview");
+  const [selectedSubject, setSelectedSubject] = useState("Mathématiques");
   const [selectedHeatDate, setSelectedHeatDate] = useState<string | null>(null);
+  const [skillsRecommendation, setSkillsRecommendation] = useState("");
   const { language } = useLanguage();
+
+  const SUBJECT_AXES: Record<string, string[]> = {
+    "Mathématiques": ["Algèbre", "Géométrie", "Probabilités", "Calcul", "Fonctions", "Statistiques", "Trigonométrie"],
+    "Français": ["Grammaire", "Orthographe", "Conjugaison", "Syntaxe", "Lexique", "Argumentation", "Compréhension"],
+    "Histoire": ["Antiquité", "Moyen Âge", "Temps modernes", "Révolutions", "XXe siècle", "Géopolitique", "Méthodologie"],
+    "SVT": ["Cellule", "Génétique", "Écologie", "Corps humain", "Géologie", "Évolution", "Méthodes scientifiques"],
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -125,6 +136,49 @@ export default function QuizzlyStatsPage() {
     });
     return Array.from(buckets.values()).map((entry) => ({ ...entry, errorRate: entry.total > 0 ? entry.errors / entry.total : 0 }));
   }, [analytics]);
+
+  const subjectAxes = SUBJECT_AXES[selectedSubject] ?? SUBJECT_AXES["Mathématiques"];
+
+  const currentMonthKey = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, "0")}`;
+  const previousMonthDate = new Date();
+  previousMonthDate.setUTCMonth(previousMonthDate.getUTCMonth() - 1);
+  const previousMonthKey = `${previousMonthDate.getUTCFullYear()}-${String(previousMonthDate.getUTCMonth() + 1).padStart(2, "0")}`;
+
+  const skillRows = useMemo(() => {
+    const normalize = (value: string) => value.toLowerCase();
+    const rows = subjectAxes.map((axis) => {
+      const axisEntries = analytics.filter((item) => item.subject.includes(selectedSubject.split(" ")[0] ?? "") && normalize(item.subTheme).includes(normalize(axis.slice(0, 5))));
+      const total = axisEntries.length;
+      const correct = axisEntries.filter((item) => item.isCorrect).length;
+      const successRate = total > 0 ? (correct / total) * 100 : 0;
+      const byDay = getRangeKeys(7).map((dayKey) => {
+        const dayEntries = axisEntries.filter((item) => item.createdAt.slice(0, 10) === dayKey);
+        if (dayEntries.length === 0) return 0;
+        const dayCorrect = dayEntries.filter((item) => item.isCorrect).length;
+        return (dayCorrect / dayEntries.length) * 100;
+      });
+      const currentMonthEntries = axisEntries.filter((item) => item.createdAt.startsWith(currentMonthKey));
+      const previousMonthEntries = axisEntries.filter((item) => item.createdAt.startsWith(previousMonthKey));
+      const currentMastery = currentMonthEntries.length > 0 ? (currentMonthEntries.filter((item) => item.isCorrect).length / currentMonthEntries.length) * 100 : successRate;
+      const previousMastery = previousMonthEntries.length > 0 ? (previousMonthEntries.filter((item) => item.isCorrect).length / previousMonthEntries.length) * 100 : 0;
+      return { axis, total, successRate, sparkline: byDay, currentMastery, previousMastery };
+    });
+    return rows;
+  }, [analytics, selectedSubject, subjectAxes, currentMonthKey, previousMonthKey]);
+
+  useEffect(() => {
+    if (skillRows.length === 0) return;
+    const top = [...skillRows].sort((a, b) => b.successRate - a.successRate).slice(0, 2).map((row) => row.axis);
+    const weak = [...skillRows].sort((a, b) => a.successRate - b.successRate).slice(0, 2).map((row) => row.axis);
+    fetch("/api/quizzly/competency-summary", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subject: selectedSubject, strengths: top, weaknesses: weak }),
+    })
+      .then((res) => res.json())
+      .then((data: { summary?: string }) => setSkillsRecommendation(data.summary ?? "Continue ton entraînement ciblé pour consolider tes points faibles."))
+      .catch(() => setSkillsRecommendation(`Forces: ${top.join(", ")}. Axes prioritaires: ${weak.join(", ")}. Lance un quiz ciblé pour progresser rapidement.`));
+  }, [selectedSubject, skillRows]);
 
   const topWeakSubthemes = useMemo(() => {
     const map = new Map<string, { subTheme: string; errors: number; total: number }>();
@@ -239,7 +293,63 @@ export default function QuizzlyStatsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-black text-slate-800">Statistiques</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-3xl font-black text-slate-800">Statistiques</h1>
+        <div className="rounded-xl bg-slate-100 p-1">
+          <button className={`rounded-lg px-3 py-1 text-xs font-bold ${activeTab === "overview" ? "bg-white text-violet-700" : "text-slate-500"}`} onClick={() => setActiveTab("overview")} type="button">Vue globale</button>
+          <button className={`rounded-lg px-3 py-1 text-xs font-bold ${activeTab === "skills" ? "bg-white text-violet-700" : "text-slate-500"}`} onClick={() => setActiveTab("skills")} type="button">Mes compétences</button>
+        </div>
+      </div>
+      {activeTab === "skills" ? (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-violet-100 bg-violet-50 p-4 text-sm text-violet-900">
+            <p className="font-black"><Brain className="mr-1 inline h-4 w-4" /> Recommandation IA</p>
+            <p className="mt-2">{skillsRecommendation || "Analyse en cours…"}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {Object.keys(SUBJECT_AXES).map((subject) => (
+              <button key={`subject-${subject}`} className={`rounded-xl px-3 py-2 text-xs font-bold ${selectedSubject === subject ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-600"}`} onClick={() => setSelectedSubject(subject)} type="button">{subject}</button>
+            ))}
+          </div>
+          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+            <p className="mb-3 text-sm font-bold text-slate-700">Radar — mois actuel vs mois précédent</p>
+            <svg className="mx-auto h-80 w-full max-w-xl" viewBox="0 0 300 300">
+              {[20, 40, 60, 80, 100].map((ring) => (
+                <circle key={`ring-${ring}`} cx="150" cy="150" r={ring} fill="none" stroke="#e2e8f0" strokeWidth="1" />
+              ))}
+              {skillRows.map((row, idx) => {
+                const angle = (Math.PI * 2 * idx) / Math.max(1, skillRows.length) - Math.PI / 2;
+                const x = 150 + Math.cos(angle) * 110;
+                const y = 150 + Math.sin(angle) * 110;
+                return <text key={`axis-label-${row.axis}`} x={x} y={y} textAnchor="middle" className="fill-slate-500 text-[9px]">{row.axis}</text>;
+              })}
+              <polygon fill="rgba(139,92,246,0.25)" stroke="#8b5cf6" strokeWidth="2" points={skillRows.map((row, idx) => { const angle = (Math.PI * 2 * idx) / Math.max(1, skillRows.length) - Math.PI / 2; const r = Math.max(6, row.currentMastery); return `${150 + Math.cos(angle) * r},${150 + Math.sin(angle) * r}`; }).join(" ")} />
+              <polygon fill="rgba(6,182,212,0.2)" stroke="#06b6d4" strokeWidth="2" points={skillRows.map((row, idx) => { const angle = (Math.PI * 2 * idx) / Math.max(1, skillRows.length) - Math.PI / 2; const r = Math.max(6, row.previousMastery); return `${150 + Math.cos(angle) * r},${150 + Math.sin(angle) * r}`; }).join(" ")} />
+            </svg>
+          </div>
+          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+            <p className="mb-3 text-sm font-bold text-slate-700">Sous-thèmes du plus faible au plus fort</p>
+            <div className="space-y-2">
+              {[...skillRows].sort((a, b) => a.successRate - b.successRate).map((row) => (
+                <div key={`skill-row-${row.axis}`} className="rounded-xl border border-slate-100 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="font-bold text-slate-800">{row.axis}</p>
+                    <button className="rounded-lg bg-violet-600 px-2 py-1 text-xs font-bold text-white" onClick={() => {
+                      const payload = btoa(JSON.stringify({ grade: "3ème", subject: selectedSubject, difficulty: row.successRate < 40 ? "Facile" : row.successRate < 70 ? "Moyen" : "Difficile", count: 10, chapter: row.axis, themePrompt: `Réviser ${row.axis}`, questionTypes: ["qcm"] }));
+                      window.location.href = `/quizzly/play?quiz=${payload}`;
+                    }} type="button">Réviser ce thème</button>
+                  </div>
+                  <p className="text-xs text-slate-500">{row.total} questions · {formatPct(row.successRate)} réussite</p>
+                  <svg className="mt-2 h-8 w-36" viewBox="0 0 100 20">
+                    <polyline fill="none" stroke="#8b5cf6" strokeWidth="1.5" points={row.sparkline.map((v, i) => `${(i / Math.max(1, row.sparkline.length - 1)) * 100},${20 - (v / 100) * 20}`).join(" ")} />
+                  </svg>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (
           <div key={card.label} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
@@ -383,6 +493,8 @@ export default function QuizzlyStatsPage() {
           })}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }
