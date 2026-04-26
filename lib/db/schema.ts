@@ -184,6 +184,34 @@ export const project = pgTable("Project", {
 
 export type Project = InferSelectModel<typeof project>;
 
+export type ProjectTemplateTaskModel = {
+  title: string;
+  description?: string | null;
+  priority?: "low" | "medium" | "high";
+  subtasks: string[];
+};
+
+export const projectTemplate = pgTable("ProjectTemplate", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  defaultInstructions: text("defaultInstructions"),
+  tags: json("tags").$type<string[]>().notNull().default([]),
+  taskModels: json("taskModels")
+    .$type<ProjectTemplateTaskModel[]>()
+    .notNull()
+    .default([]),
+  icon: varchar("icon", { length: 50 }),
+  color: varchar("color", { length: 7 }),
+  isPublic: boolean("isPublic").notNull().default(false),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type ProjectTemplate = InferSelectModel<typeof projectTemplate>;
+
 export const task = pgTable("Task", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   projectId: uuid("projectId")

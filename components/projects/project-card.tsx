@@ -2,6 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { EllipsisVertical } from "lucide-react";
+import { useState } from "react";
+import { SaveProjectTemplateDialog } from "./save-project-template-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type ProjectCardProps = {
   project: {
@@ -14,6 +24,7 @@ type ProjectCardProps = {
 
 export function ProjectCard({ project }: ProjectCardProps) {
   const router = useRouter();
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
   const onDelete = async () => {
     const isConfirmed = window.confirm(
@@ -57,14 +68,42 @@ export function ProjectCard({ project }: ProjectCardProps) {
         >
           Éditer
         </Link>
-        <button
-          className="rounded-lg border border-red-400/40 bg-red-100 px-3 py-1.5 text-xs font-medium text-red-800"
-          onClick={onDelete}
-          type="button"
-        >
-          Supprimer
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              aria-label="Menu projet"
+              className="rounded-lg border border-black/15 bg-white/80 p-1.5 text-black"
+              type="button"
+            >
+              <EllipsisVertical className="size-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem asChild>
+              <button
+                className="w-full text-left"
+                onClick={() => setSaveDialogOpen(true)}
+                type="button"
+              >
+                Sauvegarder comme template
+              </button>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-red-700 focus:bg-red-50 focus:text-red-700"
+              onClick={onDelete}
+            >
+              Supprimer
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+      <SaveProjectTemplateDialog
+        onOpenChange={setSaveDialogOpen}
+        open={saveDialogOpen}
+        projectId={project.id}
+        projectName={project.name}
+      />
     </article>
   );
 }

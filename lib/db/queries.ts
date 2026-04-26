@@ -10,6 +10,7 @@ import {
   gte,
   inArray,
   lt,
+  or,
   type SQL,
   sql,
 } from "drizzle-orm";
@@ -722,6 +723,8 @@ import {
   memoryEntry,
   type Project,
   project,
+  type ProjectTemplate,
+  projectTemplate,
   type Subtask,
   subscription,
   subtask,
@@ -986,6 +989,59 @@ export async function deleteProjectByUser(id: string, userId: string) {
   } catch (error) {
     console.error("Failed to delete project by user:", error);
     throw new Error("Failed to delete project");
+  }
+}
+
+export async function getProjectTemplatesByUserOrPublic(
+  userId: string
+): Promise<ProjectTemplate[]> {
+  try {
+    return await db
+      .select()
+      .from(projectTemplate)
+      .where(or(eq(projectTemplate.userId, userId), eq(projectTemplate.isPublic, true)))
+      .orderBy(desc(projectTemplate.createdAt));
+  } catch (error) {
+    console.error("Failed to get project templates:", error);
+    throw new Error("Failed to get project templates");
+  }
+}
+
+export async function getProjectTemplateById(
+  id: string
+): Promise<ProjectTemplate | undefined> {
+  try {
+    const [record] = await db
+      .select()
+      .from(projectTemplate)
+      .where(eq(projectTemplate.id, id));
+    return record;
+  } catch (error) {
+    console.error("Failed to get project template by id:", error);
+    throw new Error("Failed to get project template");
+  }
+}
+
+export async function createProjectTemplate(
+  data: Pick<ProjectTemplate, "userId" | "name"> &
+    Partial<
+      Pick<
+        ProjectTemplate,
+        | "description"
+        | "defaultInstructions"
+        | "tags"
+        | "taskModels"
+        | "icon"
+        | "color"
+        | "isPublic"
+      >
+    >
+) {
+  try {
+    return await db.insert(projectTemplate).values(data).returning();
+  } catch (error) {
+    console.error("Failed to create project template:", error);
+    throw new Error("Failed to create project template");
   }
 }
 

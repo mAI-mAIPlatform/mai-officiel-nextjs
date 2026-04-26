@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/app/(auth)/auth";
 import { ProjectCard } from "@/components/projects/project-card";
+import { ProjectTemplateGallery } from "@/components/projects/project-template-gallery";
 import { getProjects } from "@/lib/db/queries";
 
 export default async function ProjectsPage() {
@@ -31,12 +32,15 @@ export default async function ProjectsPage() {
             </p>
           </div>
 
-          <Link
-            className="rounded-xl border border-cyan-400/40 bg-cyan-200/70 px-4 py-2 text-sm font-medium text-black"
-            href="/projects/new"
-          >
-            Nouveau projet
-          </Link>
+          <div className="flex items-center gap-2">
+            <ProjectTemplateGallery userId={session.user.id} />
+            <Link
+              className="rounded-xl border border-cyan-400/40 bg-cyan-200/70 px-4 py-2 text-sm font-medium text-black"
+              href="/projects/new"
+            >
+              Nouveau projet
+            </Link>
+          </div>
         </div>
       </section>
 
