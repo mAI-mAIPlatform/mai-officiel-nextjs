@@ -11,6 +11,7 @@ import {
   FolderPlus,
   Globe,
   Search,
+  Share2,
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -25,6 +26,10 @@ type FileItem = {
   isFolder: boolean;
   tags: string[];
   taskId: string | null;
+  version: number;
+  previousVersionId: string | null;
+  sharedWith: string[];
+  userId: string;
   createdAt: string;
 };
 
@@ -45,11 +50,20 @@ export function ProjectLibrary({ projectId }: { projectId: string }) {
   const [filterTag, setFilterTag] = useState("");
   const [query, setQuery] = useState("");
   const [newSourceUrl, setNewSourceUrl] = useState("");
+  const [storageStats, setStorageStats] = useState<{
+    usedBytes: number;
+    quotaBytes: number;
+    usagePercent: number;
+  } | null>(null);
+  const [versionHistory, setVersionHistory] = useState<FileItem[]>([]);
+  const [memberNamesById, setMemberNamesById] = useState<Record<string, string>>({});
 
   const load = async () => {
-    const [filesResponse, webResponse] = await Promise.all([
+    const [filesResponse, webResponse, statsResponse, membersResponse] = await Promise.all([
       fetch(`/api/projects/${projectId}/library/files`),
       fetch(`/api/projects/${projectId}/library/web-sources`),
+      fetch(`/api/projects/${projectId}/library/stats`),
+      fetch(`/api/projects/${projectId}/members`),
     ]);
 
     if (filesResponse.ok) {
@@ -58,6 +72,23 @@ export function ProjectLibrary({ projectId }: { projectId: string }) {
 
     if (webResponse.ok) {
       setWebSources((await webResponse.json()) as WebSource[]);
+    }
+
+    if (statsResponse.ok) {
+      setStorageStats(await statsResponse.json());
+    }
+
+    if (membersResponse.ok) {
+      const payload = await membersResponse.json();
+      const members = payload.members ?? [];
+      setMemberNamesById(
+        Object.fromEntries(
+          members.map((member: { id: string; name: string | null; email: string }) => [
+            member.id,
+            member.name ?? member.email,
+          ])
+        )
+      );
     }
   };
 
@@ -192,6 +223,76 @@ export function ProjectLibrary({ projectId }: { projectId: string }) {
     await navigator.clipboard.writeText(file.blobUrl);
   };
 
+  const editTags = async (file: FileItem) => {
+    const raw = window.prompt("Tags (séparés par des virgules)", file.tags.join(","));
+    if (raw === null) return;
+
+    const tags = raw
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    await fetch(`/api/projects/${projectId}/library/files/${file.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tags }),
+    });
+    await load();
+  };
+
+  const shareFile = async (file: FileItem) => {
+    const raw = window.prompt(
+      "Partager avec IDs membres (séparés par des virgules)",
+      file.sharedWith.join(",")
+    );
+    if (raw === null) return;
+
+    const sharedWith = raw
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    await fetch(`/api/projects/${projectId}/library/files/${file.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sharedWith }),
+    });
+
+    if (window.confirm("Copier le lien du fichier ?") && file.blobUrl) {
+      await navigator.clipboard.writeText(file.blobUrl);
+    }
+
+    await load();
+  };
+
+  const openVersionHistory = async (file: FileItem) => {
+    const response = await fetch(
+      `/api/projects/${projectId}/library/files/${file.id}/versions`
+    );
+    if (!response.ok) return;
+    setVersionHistory((await response.json()) as FileItem[]);
+    setSelected(file);
+  };
+
+  const importFromCloud = async () => {
+    const importUrl = window.prompt("URL du fichier cloud (Google Drive, Dropbox, etc.)")?.trim();
+    if (!importUrl) return;
+    const importName = window.prompt("Nom du fichier", importUrl.split("/").pop() ?? "") ?? "";
+
+    const formData = new FormData();
+    formData.append("importUrl", importUrl);
+    if (importName.trim()) {
+      formData.append("importName", importName.trim());
+    }
+
+    await fetch(`/api/projects/${projectId}/library/upload`, {
+      method: "POST",
+      body: formData,
+    });
+
+    await load();
+  };
+
   const renderPreview = () => {
     if (!selected) {
       return <p className="text-sm text-black/55">Sélectionnez un fichier pour afficher sa prévisualisation.</p>;
@@ -275,7 +376,10 @@ export function ProjectLibrary({ projectId }: { projectId: string }) {
               <button className="min-h-11 rounded border border-black/10 p-2" onClick={() => renameFile(file)} type="button">R</button>
               <button className="min-h-11 rounded border border-black/10 p-2" onClick={() => moveFile(file)} type="button">M</button>
               <button className="min-h-11 rounded border border-black/10 p-2" onClick={() => linkToTask(file)} type="button">T</button>
+              <button className="min-h-11 rounded border border-black/10 p-2" onClick={() => editTags(file)} type="button">#</button>
               <button className="min-h-11 rounded border border-black/10 p-2" onClick={() => copyLink(file)} type="button"><Copy className="size-3" /></button>
+              <button className="min-h-11 rounded border border-black/10 p-2" onClick={() => shareFile(file)} type="button"><Share2 className="size-3" /></button>
+              <button className="min-h-11 rounded border border-black/10 p-2" onClick={() => openVersionHistory(file)} type="button">V</button>
               <button className="min-h-11 rounded border border-black/10 p-2 text-red-700" onClick={() => removeFile(file.id)} type="button"><Trash2 className="size-3" /></button>
             </div>
           </div>
@@ -308,6 +412,9 @@ export function ProjectLibrary({ projectId }: { projectId: string }) {
             </label>
             <button className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" onClick={createFolder} type="button">
               Nouveau dossier
+            </button>
+            <button className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" onClick={importFromCloud} type="button">
+              Importer depuis
             </button>
           </div>
 
@@ -350,8 +457,38 @@ export function ProjectLibrary({ projectId }: { projectId: string }) {
         </article>
 
         <article className="liquid-panel rounded-2xl border border-white/30 bg-white/80 p-4 text-black backdrop-blur-2xl">
-          <h3 className="text-sm font-semibold">Prévisualisation</h3>
+          <h3 className="text-sm font-semibold">Détail fichier</h3>
           <div className="mt-2">{renderPreview()}</div>
+          {selected ? (
+            <div className="mt-3 space-y-1 rounded-lg border border-black/10 bg-white/80 p-3 text-xs">
+              <p><strong>Nom:</strong> {selected.name}</p>
+              <p><strong>Type:</strong> {selected.mimeType ?? "inconnu"}</p>
+              <p><strong>Taille:</strong> {(selected.size ?? 0).toLocaleString("fr-FR")} octets</p>
+              <p><strong>Uploadé par:</strong> {memberNamesById[selected.userId] ?? selected.userId}</p>
+              <p><strong>Créé le:</strong> {new Date(selected.createdAt).toLocaleString("fr-FR")}</p>
+              <p><strong>Version:</strong> v{selected.version}</p>
+              <p><strong>Tags:</strong> {(selected.tags ?? []).join(", ") || "Aucun"}</p>
+              <p><strong>Partages:</strong> {selected.sharedWith.length}</p>
+            </div>
+          ) : null}
+
+          {versionHistory.length > 0 ? (
+            <details className="mt-3 rounded-lg border border-black/10 bg-white/80 p-2 text-xs">
+              <summary className="cursor-pointer font-semibold">Historique des versions</summary>
+              <div className="mt-2 space-y-1">
+                {versionHistory.map((item) => (
+                  <button
+                    className="block w-full rounded border border-black/10 bg-white px-2 py-1 text-left"
+                    key={item.id}
+                    onClick={() => setSelected(item)}
+                    type="button"
+                  >
+                    v{item.version} • {new Date(item.createdAt).toLocaleString("fr-FR")}
+                  </button>
+                ))}
+              </div>
+            </details>
+          ) : null}
 
           <div className="mt-6">
             <h4 className="text-sm font-semibold">Sources Web</h4>
@@ -374,6 +511,29 @@ export function ProjectLibrary({ projectId }: { projectId: string }) {
           </div>
         </article>
       </div>
+      {storageStats ? (
+        <div className="rounded-xl border border-white/30 bg-white/80 p-3 text-xs">
+          <div className="flex justify-between text-black/70">
+            <span>Stockage du projet</span>
+            <span>
+              {(storageStats.usedBytes / (1024 * 1024)).toFixed(1)} Mo /{" "}
+              {(storageStats.quotaBytes / (1024 * 1024)).toFixed(0)} Mo
+            </span>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/10">
+            <div
+              className={`h-full ${
+                storageStats.usagePercent < 60
+                  ? "bg-emerald-500"
+                  : storageStats.usagePercent < 85
+                    ? "bg-orange-500"
+                    : "bg-red-500"
+              }`}
+              style={{ width: `${storageStats.usagePercent}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

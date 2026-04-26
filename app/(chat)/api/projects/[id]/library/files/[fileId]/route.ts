@@ -12,6 +12,8 @@ const patchSchema = z.object({
   name: z.string().trim().min(1).max(255).optional(),
   parentId: z.string().uuid().nullable().optional(),
   taskId: z.string().uuid().nullable().optional(),
+  tags: z.array(z.string().trim().min(1).max(32)).max(20).optional(),
+  sharedWith: z.array(z.string().uuid()).max(100).optional(),
 });
 
 export async function PATCH(

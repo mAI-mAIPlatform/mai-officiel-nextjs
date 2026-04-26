@@ -92,6 +92,13 @@
       "when": 1777221659490,
       "tag": "0012_project_collaboration",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1777223759020,
+      "tag": "0013_project_file_versioning",
+      "breakpoints": true
     }
   ]
 }

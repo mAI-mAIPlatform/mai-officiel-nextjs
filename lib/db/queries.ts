@@ -1548,7 +1548,15 @@ export async function createProjectFile(
     Partial<
       Pick<
         ProjectFile,
-        "blobUrl" | "mimeType" | "size" | "parentId" | "tags" | "taskId"
+        | "blobUrl"
+        | "mimeType"
+        | "size"
+        | "parentId"
+        | "tags"
+        | "taskId"
+        | "version"
+        | "previousVersionId"
+        | "sharedWith"
       >
     >
 ) {
@@ -1562,7 +1570,9 @@ export async function createProjectFile(
 
 export async function updateProjectFile(
   id: string,
-  data: Partial<Pick<ProjectFile, "name" | "parentId" | "taskId" | "tags">>
+  data: Partial<
+    Pick<ProjectFile, "name" | "parentId" | "taskId" | "tags" | "sharedWith">
+  >
 ) {
   try {
     return await db
@@ -1574,6 +1584,76 @@ export async function updateProjectFile(
     console.error("Failed to update project file:", error);
     throw new Error("Failed to update project file");
   }
+}
+
+export async function getLatestProjectFileVersion(
+  projectId: string,
+  name: string,
+  parentId?: string | null
+) {
+  const parentFilter = parentId
+    ? eq(projectFile.parentId, parentId)
+    : isNull(projectFile.parentId);
+  const [record] = await db
+    .select()
+    .from(projectFile)
+    .where(
+      and(
+        eq(projectFile.projectId, projectId),
+        eq(projectFile.name, name),
+        parentFilter,
+        eq(projectFile.isFolder, false)
+      )
+    )
+    .orderBy(desc(projectFile.version), desc(projectFile.createdAt))
+    .limit(1);
+  return record;
+}
+
+export async function getProjectFileVersionHistory(fileId: string) {
+  const [file] = await db
+    .select()
+    .from(projectFile)
+    .where(eq(projectFile.id, fileId))
+    .limit(1);
+  if (!file) return [];
+
+  const parentFilter = file.parentId
+    ? eq(projectFile.parentId, file.parentId)
+    : isNull(projectFile.parentId);
+
+  return db
+    .select()
+    .from(projectFile)
+    .where(
+      and(
+        eq(projectFile.projectId, file.projectId),
+        eq(projectFile.name, file.name),
+        parentFilter,
+        eq(projectFile.isFolder, false)
+      )
+    )
+    .orderBy(desc(projectFile.version), desc(projectFile.createdAt));
+}
+
+export async function getProjectStorageStats(projectId: string) {
+  const [stats] = await db
+    .select({
+      fileCount: count(projectFile.id),
+      totalBytes: sql<number>`COALESCE(SUM(${projectFile.size}), 0)`,
+    })
+    .from(projectFile)
+    .where(and(eq(projectFile.projectId, projectId), eq(projectFile.isFolder, false)));
+
+  const quotaBytes = 5 * 1024 * 1024 * 1024;
+  const usedBytes = Number(stats?.totalBytes ?? 0);
+
+  return {
+    fileCount: Number(stats?.fileCount ?? 0),
+    usedBytes,
+    quotaBytes,
+    usagePercent: Math.min(100, Math.round((usedBytes / quotaBytes) * 100)),
+  };
 }
 
 export async function deleteProjectFile(id: string) {
