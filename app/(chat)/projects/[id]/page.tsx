@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Settings } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/app/(auth)/auth";
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
@@ -54,6 +55,14 @@ export default async function ProjectDetailPage({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              aria-label="Paramètres avancés"
+              className="rounded-xl border border-black/20 bg-white p-2 text-black"
+              href={`/projects/${project.id}/edit`}
+              title="Paramètres avancés"
+            >
+              <Settings className="size-4" />
+            </Link>
             <Link
               className="rounded-xl border border-black/20 bg-white px-3 py-2 text-sm font-medium text-black"
               href={`/projects/${project.id}/edit`}

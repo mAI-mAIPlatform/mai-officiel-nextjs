@@ -159,6 +159,13 @@ export const agent = pgTable("Agent", {
 
 export type Agent = InferSelectModel<typeof agent>;
 
+export type ProjectNotificationSettings = {
+  deadlineReminders: boolean;
+  taskAssignment: boolean;
+  commentAdded: boolean;
+  taskCompleted: boolean;
+};
+
 export const project = pgTable("Project", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   userId: uuid("userId")
@@ -168,6 +175,17 @@ export const project = pgTable("Project", {
   description: text("description"),
   image: text("image"),
   instructions: text("instructions"),
+  aiModel: text("aiModel"),
+  systemInstructions: text("systemInstructions"),
+  notificationSettings: json("notificationSettings")
+    .$type<ProjectNotificationSettings>()
+    .notNull()
+    .default({
+      deadlineReminders: true,
+      taskAssignment: true,
+      commentAdded: true,
+      taskCompleted: true,
+    }),
   startDate: timestamp("startDate"),
   endDate: timestamp("endDate"),
   tags: json("tags").$type<string[]>().notNull().default([]),

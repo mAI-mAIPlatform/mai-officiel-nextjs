@@ -6,6 +6,14 @@ import {
   getProjectById,
   updateProjectByUser,
 } from "@/lib/db/queries";
+import type { Project } from "@/lib/db/schema";
+
+const DEFAULT_PROJECT_NOTIFICATION_SETTINGS = {
+  deadlineReminders: true,
+  taskAssignment: true,
+  commentAdded: true,
+  taskCompleted: true,
+};
 
 const updateSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
@@ -21,6 +29,16 @@ const updateSchema = z.object({
     .nullable()
     .optional(),
   icon: z.string().trim().max(50).nullable().optional(),
+  aiModel: z.string().trim().max(120).nullable().optional(),
+  systemInstructions: z.string().trim().max(10000).nullable().optional(),
+  notificationSettings: z
+    .object({
+      deadlineReminders: z.boolean().optional(),
+      taskAssignment: z.boolean().optional(),
+      commentAdded: z.boolean().optional(),
+      taskCompleted: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export async function GET(
@@ -71,7 +89,31 @@ export async function PATCH(
   }
 
   const { id } = await context.params;
-  const [updated] = await updateProjectByUser(id, session.user.id, parsed.data);
+  const existing = await getProjectById(id);
+
+  if (!existing || existing.userId !== session.user.id) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const { notificationSettings, ...restData } = parsed.data;
+  const data: Partial<Project> = { ...restData };
+
+  if (notificationSettings) {
+    const mergedSettings = {
+      ...DEFAULT_PROJECT_NOTIFICATION_SETTINGS,
+      ...(existing.notificationSettings ?? {}),
+      ...notificationSettings,
+    };
+
+    data.notificationSettings = {
+      deadlineReminders: mergedSettings.deadlineReminders,
+      taskAssignment: mergedSettings.taskAssignment,
+      commentAdded: mergedSettings.commentAdded,
+      taskCompleted: mergedSettings.taskCompleted,
+    };
+  }
+
+  const [updated] = await updateProjectByUser(id, session.user.id, data);
 
   if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
