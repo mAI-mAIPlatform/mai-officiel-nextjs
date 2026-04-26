@@ -1,54 +1,78 @@
-"use client";
-
-import { BookOpenCheck, Database, Store, Trophy, UserCircle2, Users } from "lucide-react";
-import Image from "next/image";
+import { ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { Gamepad2, ShoppingCart, Target, User, Users, Home, Ticket, Settings, BarChart3, Brain } from "lucide-react";
+import { getQuizzlyProfile } from "@/lib/quizzly/actions";
+import { redirect } from "next/navigation";
 
-const items = [
-  { href: "/quizzly", label: "Jouer", icon: BookOpenCheck },
-  { href: "/quizzly/social", label: "Amis & Chat", icon: Users },
-  { href: "/quizzly/boutique", label: "Boutique", icon: Store },
-  { href: "/quizzly/quests", label: "Quêtes", icon: Trophy },
-  { href: "/quizzly/profile", label: "Profil", icon: UserCircle2 },
-  { href: "/quizzly/data", label: "Statistiques", icon: Database },
-] as const;
+export default async function QuizzlyLayout({ children }: { children: ReactNode }) {
+  let profile;
+  try {
+    profile = await getQuizzlyProfile();
+  } catch {
+    redirect("/login");
+  }
 
-export default function QuizzlyLayout({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
+  const navItems = [
+    { name: "Accueil", href: "/quizzly", icon: Home },
+    { name: "Jouer", href: "/quizzly/play", icon: Gamepad2 },
+    { name: "Quêtes", href: "/quizzly/quests", icon: Target },
+    { name: "Quizzly Pass", href: "/quizzly/pass", icon: Ticket },
+    { name: "Boutique", href: "/quizzly/boutique", icon: ShoppingCart },
+    { name: "Social", href: "/quizzly/social", icon: Users },
+    { name: "Stats", href: "/quizzly/stats", icon: BarChart3 },
+    { name: "Profil", href: "/quizzly/profile", icon: User },
+    { name: "Paramètres", href: "/quizzly/settings", icon: Settings },
+  ];
 
   return (
-    <div className="quizzly-fun mx-auto flex h-full w-full max-w-7xl gap-4 p-4 md:p-8">
-      <aside className="w-full rounded-3xl border border-violet-200/80 bg-gradient-to-b from-fuchsia-100/90 via-violet-50/90 to-cyan-50/80 p-4 shadow-xl md:w-72">
-        <div className="flex items-center gap-3 rounded-2xl bg-white/70 p-3 shadow-sm">
-          <Image alt="Quizzly" className="size-11 rounded-xl" height={44} src="/logo.png" width={44} />
+    <div className="flex h-full w-full bg-slate-50 text-slate-900">
+      {/* Sidebar */}
+      <div className="sticky top-0 hidden h-screen w-64 border-r border-slate-200 bg-white md:flex md:flex-col">
+        <div className="p-6 flex items-center gap-3 border-b border-slate-100">
+          <div className="rounded-xl bg-violet-100 p-2 text-violet-700">
+            <Brain className="h-6 w-6" />
+          </div>
           <div>
-            <h2 className="text-2xl font-black text-violet-700">Quizzly</h2>
-            <p className="text-xs text-violet-500">Apprendre en s'amusant ✨</p>
+            <h1 className="font-black text-xl text-violet-700 tracking-tight">Quizzly</h1>
+            <p className="text-xs text-slate-500 font-medium">Niv {profile.level} • {profile.diamonds} 💎</p>
           </div>
         </div>
 
-        <nav className="mt-4 space-y-2">
-          {items.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition ${
-                  isActive
-                    ? "border-violet-300 bg-violet-500 text-white shadow"
-                    : "border-violet-200 bg-white/80 text-violet-800 hover:bg-violet-100"
-                }`}
-                href={item.href}
-                key={item.href}
-              >
-                <item.icon className="size-4" /> {item.label}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          {navItems.map((item) => (
+            <Link
+              key={item.name}
+              href={item.href}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-violet-50 hover:text-violet-700 transition-colors text-slate-600 font-semibold"
+            >
+              <item.icon className="w-5 h-5" />
+              {item.name}
+            </Link>
+          ))}
         </nav>
-      </aside>
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="relative flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-5xl p-4 pb-28 md:p-10 md:pb-10">
+          {children}
+        </div>
+      </div>
+
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur md:hidden">
+        <div className="grid grid-cols-4 gap-1">
+          {navItems.slice(0, 8).map((item) => (
+            <Link
+              key={`mobile-${item.name}`}
+              href={item.href}
+              className="flex flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-violet-50 hover:text-violet-700"
+            >
+              <item.icon className="h-4 w-4" />
+              <span className="truncate">{item.name}</span>
+            </Link>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
