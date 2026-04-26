@@ -70,8 +70,17 @@ const DIFFICULTY_OPTIONS = ["Facile", "Moyen", "Difficile", "Expert"] as const;
 const QUESTION_COUNT_OPTIONS = [5, 10, 15, 20] as const;
 const QUESTION_TYPE_OPTIONS = ["qcm", "vrai_faux", "association", "completer", "inverse"] as const;
 const REVIEW_QUEUE_KEY = "mai.quizzly.review.v1";
+const ERROR_ANALYTICS_KEY = "mai.quizzly.error-analytics.v1";
 const REVIEW_INTERVALS_DAYS = [1, 3, 7, 30] as const;
 type ReviewCard = { question: QuizQuestion; stage: number; dueAt: string };
+type ErrorAnalyticsItem = {
+  subject: string;
+  subTheme: string;
+  questionType: string;
+  difficulty: string;
+  isCorrect: boolean;
+  createdAt: string;
+};
 const SUBJECT_COEFFICIENTS: Record<string, number> = {
   "Mathématiques": 2,
   Français: 2,
@@ -627,6 +636,25 @@ export default function QuizzlyPlayPage() {
     toast.success("Fiche ajoutée à Mes fiches sauvegardées.");
   };
 
+  const trackErrorAnalytics = (selectedAnswerIndex: number) => {
+    if (!current) return;
+    const item: ErrorAnalyticsItem = {
+      subject,
+      subTheme: chapter.trim() || themePrompt.trim() || current.question.split(" ").slice(0, 4).join(" "),
+      questionType: questionTypes[0] ?? "qcm",
+      difficulty,
+      isCorrect: selectedAnswerIndex === current.correctAnswerIndex,
+      createdAt: new Date().toISOString(),
+    };
+    try {
+      const existing = JSON.parse(localStorage.getItem(ERROR_ANALYTICS_KEY) ?? "[]") as ErrorAnalyticsItem[];
+      const next = [item, ...existing].slice(0, 4000);
+      localStorage.setItem(ERROR_ANALYTICS_KEY, JSON.stringify(next));
+    } catch {
+      localStorage.setItem(ERROR_ANALYTICS_KEY, JSON.stringify([item]));
+    }
+  };
+
   const finalizeDuel = async () => {
     const playerCorrect = duelPlayerAnswers.reduce<number>((total, answer, idx) => total + (answer === questions[idx]?.correctAnswerIndex ? 1 : 0), 0);
     const opponentCorrect = duelOpponentAnswers.reduce<number>((total, answer, idx) => total + (answer === questions[idx]?.correctAnswerIndex ? 1 : 0), 0);
@@ -999,6 +1027,7 @@ export default function QuizzlyPlayPage() {
                         return [next, ...prev.filter((item) => item.question.question !== current.question)].slice(0, 200);
                       });
                     }
+                    trackErrorAnalytics(i);
                     generateExplanationCard(i);
                   }}
                   type="button"

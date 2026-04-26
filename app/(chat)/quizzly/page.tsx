@@ -9,7 +9,7 @@ import {
   getQuizzlyInventory,
 } from "@/lib/quizzly/actions";
 import { toast } from "sonner";
-import { Flame, Star, Diamond, Trophy, Sparkles, Shield, TrendingDown, TrendingUp } from "lucide-react";
+import { Flame, Star, Diamond, Trophy, Sparkles, Shield, TrendingDown, TrendingUp, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/hooks/use-language";
@@ -191,6 +191,10 @@ export default function QuizzlyDashboardPage() {
           <p className="text-slate-500 text-sm mt-1">20 récompenses à débloquer avec ton XP.</p>
         </Link>
       </div>
+      <Link href="/quizzly/stats" className="block rounded-2xl border border-rose-100 bg-rose-50 p-5 text-sm text-rose-900 shadow-sm hover:shadow-md transition">
+        <p className="font-black flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-rose-600" /> Tableau de bord des erreurs récurrentes</p>
+        <p className="mt-1 text-rose-700">Analyse tes points faibles par matière, sous-thème, type et difficulté puis lance « Mes points faibles ».</p>
+      </Link>
 
       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
