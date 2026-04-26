@@ -74,7 +74,9 @@ export default function QuizzlySocialPage() {
     };
     socket.on("receive-message", listener);
 
-    return () => socket.off("receive-message", listener);
+    return () => {
+      socket.off("receive-message", listener);
+    };
   }, [socket]);
 
   const displayedMessages = useMemo(
